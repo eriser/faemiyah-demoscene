@@ -1,0 +1,20 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 10.00
+# Visual C++ Express 2008
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "swan_on_table", "swan_on_table.vcproj", "{8C0BD381-38EB-4CAF-B85A-28D080ECFAFB}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Win32 = Debug|Win32
+		Release|Win32 = Release|Win32
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{8C0BD381-38EB-4CAF-B85A-28D080ECFAFB}.Debug|Win32.ActiveCfg = Debug|Win32
+		{8C0BD381-38EB-4CAF-B85A-28D080ECFAFB}.Debug|Win32.Build.0 = Debug|Win32
+		{8C0BD381-38EB-4CAF-B85A-28D080ECFAFB}.Release|Win32.ActiveCfg = Release|Win32
+		{8C0BD381-38EB-4CAF-B85A-28D080ECFAFB}.Release|Win32.Build.0 = Release|Win32
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal
