@@ -1,0 +1,2355 @@
+ Bits 32
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; SDL ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; Definet
+%define	SDL_INIT_TIMER		0x00000001
+%define SDL_INIT_AUDIO		0x00000010
+%define SDL_INIT_VIDEO		0x00000020
+%define SDL_INIT_CDROM		0x00000100
+%define SDL_INIT_JOYSTICK	0x00000200
+%define SDL_SWSURFACE	0x00000000	; Surface is in system memory
+%define SDL_HWSURFACE	0x00000001	; Surface is in video memory
+%define SDL_ASYNCBLIT	0x00000004	; Use asynchronous blits if possible
+; Available for SDL_SetVideoMode()
+%define SDL_ANYFORMAT	0x10000000	; Allow any video depth/pixel-format
+%define SDL_HWPALETTE	0x20000000	; Surface has exclusive palette
+%define SDL_DOUBLEBUF	0x40000000	; Set up double-buffered video mode
+%define SDL_FULLSCREEN	0x80000000	; Surface is a full screen display
+%define SDL_OPENGL      0x00000002      ; Create an OpenGL rendering context
+%define SDL_OPENGLBLIT	0x0000000A	; Create an OpenGL rendering context and use it for blitting
+%define SDL_RESIZABLE	0x00000010	; This video mode may be resized */
+%define SDL_NOFRAME	0x00000020	; No window caption or edge frame */
+; Used internally (read-only)
+%define SDL_HWACCEL	0x00000100	; Blit uses hardware acceleration */
+%define SDL_SRCCOLORKEY	0x00001000	; Blit uses a source color key */
+%define SDL_RLEACCELOK	0x00002000	; Private flag */
+%define SDL_RLEACCEL	0x00004000	; Surface is RLE encoded */
+%define SDL_SRCALPHA	0x00010000	; Blit uses source alpha blending */
+%define SDL_PREALLOC	0x01000000	; Surface uses preallocated memory */
+
+; GL
+%define GL_ALPHA_TEST				0x0BC0
+%define GL_AMBIENT				0x1200
+%define GL_AMBIENT_AND_DIFFUSE			0x1602
+%define GL_BLEND				0x0BE2
+%define GL_COLOR_ARRAY				0x8076
+%define GL_COLOR_BUFFER_BIT			0x00004000
+%define GL_COLOR_MATERIAL			0x0B57
+%define GL_CONSTANT_ALPHA			0x8003
+%define GL_CONSTANT_COLOR			0x8001
+%define GL_CULL_FACE				0x0B44
+%define GL_DEPTH_BUFFER_BIT			0x00000100
+%define GL_DEPTH_TEST				0x0B71
+%define GL_DIFFUSE				0x1201
+%define GL_DST_ALPHA				0x0304
+%define GL_DST_COLOR				0x0306
+%define GL_EXP2					0x0801
+%define GL_FLAT					0x1D00
+%define GL_FOG					0x0B60
+%define GL_FOG_MODE				0x0B65
+%define GL_FOG_DENSITY				0x0B62
+%define GL_FOG_COLOR				0x0B66
+%define GL_FRONT_AND_BACK			0x0408
+%define GL_LESS					0x0201
+%define GL_LIGHT1				0x4001
+%define GL_LIGHTING				0x0B50
+%define GL_LINE_STRIP				0x0003
+%define GL_LINES				0x0001
+%define GL_MATRIX_MODE				0x0BA0
+%define GL_MODELVIEW				0x1700
+%define GL_NICEST				0x1102
+%define GL_NORMAL_ARRAY				0x8075
+%define GL_NORMALIZE				0x0BA1
+%define GL_ONE					0x1
+%define GL_ONE_MINUS_CONSTANT_ALPHA		0x8004
+%define GL_ONE_MINUS_CONSTANT_COLOR		0x8002
+%define GL_ONE_MINUS_DST_ALPHA			0x0305
+%define GL_ONE_MINUS_DST_COLOR			0x0307
+%define GL_ONE_MINUS_SRC_ALPHA			0x0303
+%define GL_ONE_MINUS_SRC_COLOR			0x0301
+%define GL_PERSPECTIVE_CORRECTION_HINT		0x0C50
+%define GL_PROJECTION				0x1701
+%define GL_POINTS				0x0000
+%define GL_POSITION				0x1203
+%define GL_QUADS				0x0007
+%define GL_SHORT				0x1402
+%define GL_SMOOTH				0x1D01
+%define GL_SRC_ALPHA				0x0302
+%define GL_SRC_ALPHA_SATURATE			0x0308
+%define GL_SRC_COLOR				0x0300
+%define GL_TEXTURE				0x1702
+%define GL_TRIANGLES				0x0004
+%define GL_TRIANGLE_STRIP			0x0005
+%define GL_UNSIGNED_BYTE			0x1401
+%define GL_VERTEX_ARRAY				0x8074
+%define GL_ZERO					0x0
+
+%define GLU_SMOOTH				100000
+
+; SDL
+EXTERN SDL_GL_SwapBuffers,SDL_Init,SDL_PollEvent,SDL_Quit,SDL_SetVideoMode,SDL_OpenAudio,SDL_PauseAudio
+
+; GL
+EXTERN glBegin,glBlendFunc,glColor4ubv,glEnable,glEnd,glFrustum,glLoadIdentity,glMatrixMode,glRotatef,glTranslatef,glVertex3f
+
+; Glut
+EXTERN glutSolidSphere
+
+; Tämä pitää exportata
+%ifdef AUTOMAKE
+GLOBAL main
+%else
+GLOBAL _start
+%endif
+	
+; C:n puolelta
+;EXTERN lyapunov, sum, X
+
+; Omat funktiot joita C voi tarvia
+;GLOBAL a_main,efu_kamera,efu_kupla,efu_taehti,func_clear,func_glLight1f,func_glRotate3f,func_rand_1,func_rand_area,func_rand_f,func_rand_i,func_rand_sin,func_timer
+
+; Omat muuttujat joita C voi tarvia
+;GLOBAL var_pallopos,var_pallosca,var_quadric,var_rand,var_screen,var_timer
+
+; Omat vakiot ja data joita C voi tarvita
+;GLOBAL control_camerapos_1,control_camerarot_1,control_taehtipos_1,control_efutime_1,sakara_color,sakara_face,sakara_vert
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Makrot ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+%macro __null 1
+	xor	%1, %1
+%endmacro
+
+; Ensimmäisen parametrin osoite pushan jälkeen
+%define PUSHA_START	36
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Definet ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+%define	SCREEN_W		640
+%define	SCREEN_H		480
+%define	SCREEN_B		32
+%define TIMER_MILLISECONDS	12
+
+ %define EFU_1_LOPPU	88200 * 21
+ %define EFU_2_LOPPU	88200 * 41 + 44100
+ %define EFU_3_LOPPU	88200 * 62
+ %define EFU_4_LOPPU	88200 * 78
+
+%define EFU_COUNT	4
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Koodi ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+SECTION .text
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Timer ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; Ajastinfunktio ja muuttuja. Varsin yksiselitteiset.
+
+;func_timer:
+;	inc	dword [var_timer]
+;	mov	eax, dword [esp + 4]
+;	ret
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+	;; NEKO NEKO NEE NEE JA HUNPPA RAIKAA
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+;;; audiocb
+
+kalupakki:
+	push ebp
+	mov ebp, esp
+	pushad
+ 	mov edi, [ebp + 12] 	; stream
+ 	mov ecx, [ebp + 16]	; len
+
+	mov esi, [played]
+  	add [played], ecx
+	add esi, finalmix
+
+	.loop
+	mov al, [esi]
+	inc esi
+ 	stosb
+
+	loop .loop
+	
+	
+	popad
+	pop ebp
+	ret
+	
+;;; tiukka passo!
+;;; ecx = kesto sampleinta, ebx = byte 2, edi kohde
+	
+basso1:	
+ 	push edx
+	
+ 	mov edx, 550*40		; alkutaajuus
+ 	xor eax, eax
+ 	mov ax, [ebx*2 + notetable - 2]
+ 	shr eax, 4
+	mov ebp, eax 		; ja tähä päätyy kudasai nee
+
+	.bdloop
+
+	cmp edx, ebp
+	jc .eidrop
+	sub edx, 6
+	.eidrop:
+	add ebx, edx
+
+	mov eax, ebx
+	sar eax, 5
+	sar ax, 2
+	
+	stosw
+	loop .bdloop
+
+	pop edx
+	ret
+;; 	push edx
+	
+;; 	xor edx, edx
+;; 	mov dx, [ebx*2 + notetable - 2]
+;; 	shr edx, 4
+	
+;; 	.bassloop:
+
+;; 	add ebp, edx
+;; 	mov eax, ebp
+;; 	sar eax, 5
+;; 	sar ax, 2
+;; 	stosw
+
+;; 	loop .bassloop
+
+;; 	pop edx
+;; 	ret
+
+;;; plim
+;;; ecx = kesto sampleinta, ebx = byte 2, edi kohde
+
+;; plim:
+;; 	push ecx
+;; 	push edx
+
+;; 	xor ecx, ecx
+;; 	mov cl, bl
+;; 	shr cl, 4
+;; 	and bl, 0x0f
+;; 	xor edx, edx
+;; 	mov dx, [ebx*2 + notetable - 2]
+;; 	shr edx, cl
+
+;; 	mov ecx, 80000
+;; 	.plimloop:
+
+;; 	add ebx, edx
+;; 	xor eax, eax
+;; 	mov ax, bx
+
+;; 	;; volaskaalaus
+;; 	imul eax, ecx
+;; 	sar eax, 21
+;; 	add [edi], ax
+
+;; 	stosw
+;; 	loop .plimloop
+
+;; 	pop edx
+;; 	pop ecx
+	
+;; 	ret
+	
+;;; tsih
+
+hihat:
+	push ecx
+	push edi
+	
+	mov ecx, 1000
+	%ifdef AUTOMAKE
+	mov ebx, main
+	%else
+	mov ebx, _start
+	%endif
+	
+	.hihatloop
+	mov eax, [ebx]
+	inc ebx
+	sar ax, 3
+	stosw
+
+	loop .hihatloop
+
+	pop edi
+	pop ecx
+	add edi, ecx
+	add edi, ecx
+
+	ret
+
+;;; peräti sinibasari, nyt ollaan porvareita
+	
+basari:
+	push ecx
+	push edi
+
+	mov ecx, 2021
+	mov [fputemp], dword 0
+
+	.bdloop
+	mov [fputemp + 4], ecx
+	fild dword [fputemp + 4]
+	fmul dword [bdconst]
+
+	fadd dword [fputemp]
+
+	fst dword [fputemp]
+	fsin
+	fimul dword [bdcons2]
+	fistp dword [fputemp + 4]
+	mov eax, [fputemp + 4]
+
+	stosw
+	loop .bdloop
+
+	pop edi
+	pop ecx
+	add edi, ecx
+	add edi, ecx
+
+	ret
+	
+
+;;; snare
+
+snare:
+	push ecx
+	push edi
+
+ 	mov ecx, 600
+ 	.snareloop
+
+ 	add ebx, ecx
+
+ 	mov eax, ebx
+ 	sar ax, 1
+ 	stosw
+
+ 	loop .snareloop
+
+	mov ecx, 4000
+	.snareloop2:
+
+	add ebx, ecx
+	xor ebx, ecx
+	mov eax, ebx
+	sar ax, 3
+	stosw
+
+	loop .snareloop2
+
+	pop edi
+	pop ecx
+	add edi, ecx
+	add edi, ecx
+
+	ret
+
+;;; kierrätystä
+
+padchord:
+	pusha
+.padloop:	
+	push ecx
+
+	xor eax, eax
+	xor ebp, ebp
+	
+	mov ecx, 12*5
+.phatloop:
+	;; nouda edx:ään addi tablesta
+	test cl,11b
+	jnz .eiseur
+
+	;; seuraava nuotti
+	mov edx,[ebp*2+notetable-2]	; addi tablesta
+	shr edx, 6			; ja oktaavi sopivaksi
+	sub edx, 160000
+
+	bt [ebx*2+padchords], ebp	
+	jc .notee
+	xor edx, edx
+	sub cl, 3
+.notee:	
+	
+	inc ebp
+.eiseur:	
+	;; 
+	add [ecx*4+pad_note_buf], edx
+	mov esi, [ecx*4+pad_note_buf]
+	sar esi, 21		; ei saa klipata
+
+	add eax,esi 		; miksaa sekaan
+	
+	add edx, 80000	; detunee
+
+	loop .phatloop
+
+	
+	stosw
+	pop ecx
+	loop .padloop	
+
+	popa
+	add edi, ecx
+	add edi, ecx
+	ret
+
+;;;
+	
+	
+;;; add channels to mix
+mix:	
+ 	mov ecx, 44100*200
+	pxor mm2, mm2	
+	.mmx_mix_loop:	
+	movq mm0, [ecx+left]
+	movq [ecx+left], mm2
+	
+	paddsw mm0, [ecx+finalmix] ; add with saturation (word)
+	movq [ecx+finalmix], mm0 ; sinne vaan
+
+	sub ecx, 8
+	jnz .mmx_mix_loop
+	emms
+	ret	
+
+	
+;;; edi target, ecx len, ebx num
+
+;;; tää on kyl ihan persehestä
+	
+vowel:
+	;; ensin sarja
+	test bl, 0x80
+	jz .long
+
+	push esi
+	push edx
+
+	;; kohinakonsonanttii
+	xor edx, edx
+	and bl, 0x7f 		; 0-3 freq, 4-6 vol
+
+	%ifdef AUTOMAKE
+	mov esi, main		; täältä noiset
+	%else
+	mov esi, _start		; täältä noiset
+	%endif
+	
+	shr ecx, 2
+	
+	.noiseloop
+
+	cmp edx, 0
+	je .edx_0
+
+	dec edx
+	jmp short .neenee
+	
+	.edx_0:
+
+	mov edx, ebx
+	and dl, 0x0f
+	inc esi
+
+	.neenee:
+
+	xor eax, eax
+	mov ax, [esi]
+	push ecx
+
+	xor ecx, ecx
+	mov cl, bl
+	and cl, 0x70
+	shr ecx, 4
+
+	sar ax, cl
+
+	pop ecx
+	stosw
+
+	loop .noiseloop
+
+	pop edx
+	pop esi
+	
+	ret
+
+	.long:
+	pusha
+	;; pitkää vokaalii
+	mov ecx, 50
+	
+	.seriesloop:
+	mov [fputemp], ecx
+	fild dword [fputemp]
+	fstp qword [ecx*8 + series]
+
+	loop .seriesloop
+
+	;; testaa resoo
+;; 	fld dword [testconst]
+;; 	fstp dword [series + 4*4]
+
+;; 	jmp .eires
+	
+	;; siihen taulukosta resot
+	lea esi, [ebx + vtable - 1]
+	xor eax, eax
+	mov al, [esi]
+	add esi, eax
+	je .vloop
+	;; todo: find right pos in table
+	
+	.vloop:
+	xor eax, eax
+	mov al, [esi]
+	shl eax, 3
+	add eax, series		;nyt eax pointteri sarjan kohtaan
+	inc esi
+
+	;; store [esi]/10 to correct pos
+	xor ebx, ebx
+	mov bl, [esi]
+	mov [fputemp], ebx
+	fild dword [fputemp]	; uusi kerroin
+
+	fidiv dword [const_10]
+	fstp qword [eax]
+	
+	inc esi
+
+	cmp [esi], byte 0
+	jne .vloop
+
+	.eires:
+
+	popa	
+
+	;; sit syntetisoidaan
+
+	mov ebp, 50
+	.vowelloop:
+	push ecx
+	push edi
+
+	mov [fputemp], dword 0
+	
+	;; addaa bufferiin, siniaaltoo
+	.vowelinner
+
+	fld dword [fputemp]
+	fld dword [sineconst]
+
+	mov [fputemp + 4], ebp
+	fimul dword [fputemp + 4]
+
+	faddp st1
+	fst dword [fputemp]
+	fsin
+
+	fimul dword [const_1000]
+	fdiv qword [ebp*8 + series] ; nee nee
+
+	fistp dword [fputemp + 4]
+
+	mov eax, [fputemp + 4]
+	add [edi], ax
+	inc edi
+	inc edi
+
+	sub ecx, 1
+	jnz .vowelinner
+
+	pop edi
+	pop ecx
+	dec ebp
+	jnz .vowelloop
+
+	add edi, ecx
+	add edi, ecx
+	
+	.vowelohi
+	ret
+
+;;; -----------------------------------------------------------------------------
+;;; duunaa yhden äänen annetuilla parametreilla
+;;; esi = äänen alku, edx = kutsuttava nuottifunkkari
+	
+do_voice:	
+
+
+	
+	.voiceloop:
+
+	mov al, [esi]
+	inc esi
+	cmp al, 0
+	je .voicedone
+
+	test al, 0x80
+	jz .eilooppi
+
+	;; looppausta
+	cmp [esi + 5000], byte 0
+	jne .einewloop
+
+	;; aloita uus looppi
+	and al, 0x7f
+	mov [esi + 5000], al
+	xor ebx, ebx
+	mov bl, [esi]
+	sub esi, ebx
+	loop .voiceloop
+	
+	.einewloop:
+	;; 
+	dec byte [esi + 5000]
+	jz .loopohi
+
+	xor ebx, ebx
+	mov bl, [esi]
+	sub esi, ebx
+	loop .voiceloop
+
+	.loopohi:
+	inc esi
+	loop .voiceloop
+	
+	.eilooppi:
+	
+	xor ecx, ecx
+	mov cl, al
+	imul ecx, TEMPO
+
+	xor ebx, ebx
+	mov bl, [esi]
+	inc esi
+	cmp bl, 0
+
+	je .silence
+	
+	;; funkkari jättää edi:n päivitetyksi
+	call edx
+	loop .voiceloop
+
+	.silence:
+	add edi, ecx
+	add edi, ecx
+	loop .voiceloop
+
+	.voicedone:
+
+	ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Random ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; Nippu satunnaislukufunktioita joita käytetään kaiken ohjailemiseen.
+
+; Palauttaa eax:ssä satunnaisluvun väliltä 0 - MAXINT
+func_rand_i:
+ 	mov	eax, dword [var_rand]
+	imul	eax, 0x3fbc3
+	add	eax, 0x2e8eb
+ 	mov	dword [var_rand], eax
+	ret
+
+; Palauttaa fpu-stackin pohjalla satunnaisluvun väliltä -pino <-> +pino
+func_rand_f:
+	call	func_rand_i
+	__null	edx
+	mov	ecx, dword [esp + 4]
+	shl	ecx, 9
+	div	ecx
+	push	edx
+	fild	dword [esp + 0]
+	pop	eax
+	fidiv	word [num_rand_detail]
+	fisub	dword [esp + 4]
+	ret
+
+; Palauttaa edx:ssä satunnaisluvun väliltä -pino <-> +pino
+func_rand_d:
+	push	dword [esp + 4]
+	call	func_rand_f
+	fistp	dword [esp + 0]
+	pop	eax
+	ret
+
+func_rand_1:
+	call	func_rand_i
+	add	eax, [var_timer]
+	__null	edx
+	sar	eax, 11
+	div	dword [esp + 4]
+	push	edx
+	fild	dword [esp + 0]
+	pop	eax
+	fidiv	dword [esp + 4]
+	ret
+
+func_rand_sin:
+	push	dword [esp + 4]
+	call	func_rand_1
+	fmul	dword [num_2pi]
+	fsin
+	pop	eax
+	ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; GL-wrappity ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; Pyörittelee 3 akselin ympäri yksinkertaisimmassa (mutta epäloogisessa)
+; järjestyksessä. Parametrit pinossa.
+; Säilyttää kaiken.
+
+func_glRotate3f:
+	push	dword 0
+	push	dword 0
+	push	dword 0x3f800000	; 1.0
+	push	dword [ebp + 0]
+	call	glRotatef
+	pop	eax
+	push	dword 0
+	push	dword [ebp + 4]
+	call	glRotatef
+	pop	eax
+	push	dword 0
+	push	dword [ebp + 8]
+	call	glRotatef
+	add	esp, (8 - 2) * 4
+	ret
+
+; Translatoi ebp:ssä olevan taulukon mukaan
+
+func_glTranslate3f:
+	push	dword [ebp + 8]
+	push	dword [ebp + 4]
+	push	dword [ebp + 0]
+	call	glTranslatef
+	add	esp, 3 * 4
+	ret
+
+; Piirtää pallon
+
+func_glutSphere:
+	fld	dword [esp + 8]
+	push	dword [esp + 4]
+	push	dword [esp + 0]
+	sub	esp, 8
+	fstp	qword	[esp + 0]
+	call	glutSolidSphere
+	add	esp, 4 * 4
+	ret	
+
+; Satunnainen rotaatio
+
+func_rand_rotate:
+	add	ebp, var_multiuse_safe - var_multiuse
+	mov	ecx, 3
+.looppi:
+	push	ecx
+	push	dword 1
+	call	func_rand_f
+	fimul	dword [var_timer]
+	fdiv	dword [num_rand_rotate_div]
+	pop	eax
+	pop	ecx
+	fstp	dword [ebp + ecx * 4 - 4]
+	loop	.looppi
+	call	func_glRotate3f
+	sub	ebp, var_multiuse_safe - var_multiuse
+	ret
+
+
+; Satunnainen bob
+func_rand_bob:
+	add	ebp, var_multiuse_safe - var_multiuse
+	mov	ecx, 3
+.looppi:
+	push	ecx
+	push	dword 13
+	call	func_rand_d
+	add	eax, 13 + 15
+	push	eax
+	call	func_rand_sin
+	add	esp, 2 * 4
+	pop	ecx
+	fstp	dword [ebp + ecx * 4 - 4]
+	loop	.looppi
+	call	func_glTranslate3f
+	sub	ebp, var_multiuse_safe - var_multiuse
+	ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Värit ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; Lukee ainokaisen parametrinsa eax:sta, ja asettaa värin sen mukaisesti
+func_glColor1i:
+	lea	eax, [eax * 4 + num_color]
+	push	eax
+	call	glColor4ubv
+	pop	eax
+	ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Kordinaattisyöttö ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; Lukee pinosta 3 tavua kordinaattidataa ja syöttää ne GL:lle
+
+func_feed_cordinate:
+	mov	ecx, 3
+.looppi:
+	push	ecx
+	fild	dword [esp + ecx * 4 + 4]
+	push	dword 1
+	call	func_rand_f
+	faddp	st1, st0
+	pop	ecx
+	pop	ecx
+	fstp	dword [esp + ecx * 4]
+	loop	.looppi
+
+	pop	ebx
+	call	glVertex3f
+	push	ebx
+	ret
+
+func_feed_cordinate_safe:
+	mov	ecx, 3
+.looppi:
+	fild	dword [esp + ecx * 4]
+	fstp	dword [esp + ecx * 4]
+	loop	.looppi
+
+	pop	ebx
+	call	glVertex3f
+	push	ebx
+	ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Mallipiirtelijä (pakattua dataa) ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; Piirtää mallin (triangle strip), ottaa datan edi:ssä.
+
+func_feed_model:
+	push	dword GL_TRIANGLE_STRIP
+	call	glBegin
+	movsx	ecx, byte [edi]
+	inc	edi
+
+.looppi:
+	push	ecx
+	movsx	eax, byte [edi + 3]
+	push	eax
+	call	func_glColor1i
+
+	mov	ecx, 3
+.getloop:
+	movsx	eax, byte [edi + ecx - 1]
+	push	eax
+	loop	.getloop
+	call	func_feed_cordinate
+
+	add	esp, 4 * 4
+	add	edi, 4
+	pop	ecx
+	loop	.looppi
+
+	call	glEnd
+	pop	eax
+	ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Kuvapiirtelijä (pakattua dataa) ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+func_feed_picture:
+	pusha
+
+	movsx	eax, byte [edi + 2]
+	call	func_glColor1i
+	mov	ecx, 20
+
+.bigloop:
+	push	ecx
+	mov	edi, dword [esp + 4]
+	movsx	ecx, word [edi + 0]
+	add	edi, 3
+.loop:
+	push	ecx
+	movsx	eax, byte [edi + 0]
+	movsx	edx, byte [edi + 1]
+	push	dword 0
+	push	edx
+	push	eax
+
+	cmp	eax, 0
+	jge	.feed_cordinate
+	not	dword [esp + 0]
+	call	glEnd
+	push	dword GL_LINE_STRIP
+	call	glBegin
+	pop	eax
+.feed_cordinate:
+	call	func_feed_cordinate
+
+.loop_loppu:
+	add	esp, 3 * 4
+	pop	ecx
+	add	edi, 2
+	loop	.loop
+.bigloop_loppu:
+	pop	ecx
+	loop	.bigloop
+
+.loppu:
+	call	glEnd
+	popa
+	ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Yleinen translatointiefu ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; Ottaa parametrinaan edi:ssä paikkainterpolaatiodatan ja esi:ssä aikadatan.
+; Kutsuu pinossa olevaa funktiota translatoinnin jälkeen
+efu_sub_translate:
+	call	glLoadIdentity
+	call	func_interpolate_translate
+	call	dword [esp + 4]
+	ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Yleinen tähtiefu ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+%define TAEHTIEFU_SAKARAT	160
+
+; Piirtää tähden paikkaan joka on juuri nyt GL:n matriisipinossa. Asettaa myös
+; valon samaiseen kohtaan.
+
+efu_taehti:
+	mov	ecx, TAEHTIEFU_SAKARAT
+.looppi:
+	push	ecx
+; Väritys
+	;mov	esi, num_color + 1 * 4
+	;push	dword [esi]
+	;cmp	byte [esi], 0
+	;jnz	.color_jatkuu
+	;call	func_rand_i
+	;and	eax, 0x00FFFFFF
+	;or	eax, 0x20000000
+	;mov	dword [esi], eax
+.color_jatkuu:
+; Translatointi
+	call	glLoadIdentity
+	call	func_glTranslate3f
+
+; Pyöritään ja hyöritään sattumanvaraisesti
+	call	func_rand_rotate
+; Nyt sakara
+	mov	edi, malli_sakara
+	call	func_feed_model
+	;pop	dword [esi]
+; Looppi loppuu
+	pop	ecx
+	loop	.looppi
+
+.loppu:
+	ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Yleinen kenttäefu ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+%define KENTTA_COUNT		60
+%define KENTTA_DISTRIBUTION	300
+
+; Ottaa pinossa osoitteen josta löytyy count, distribution, particle (word)
+
+efu_field:
+	;mov	ebx, dword [esp + 4]
+	;movsx	ecx, word [ebx + 0]
+	mov	ecx, KENTTA_COUNT
+
+.looppi:
+	push	ecx
+	mov	edi, var_multiuse_safe
+	call	glLoadIdentity
+
+	mov	ecx, 6
+.translateloop:
+	push	ecx
+	push	KENTTA_DISTRIBUTION
+	;movsx	eax, word [ebx + 2]
+	;push	eax
+	call	func_rand_d
+	pop	ecx
+	pop	ecx
+	mov	word [edi + ecx * 2 - 2], ax
+	loop	.translateloop
+
+	;push	dword [ebx + 4]
+	push	efu_taehti
+	call	efu_sub_translate
+	pop	eax
+
+	pop	ecx
+	loop	.looppi
+
+.loppu:
+	ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Magneetti ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; Lukee yhden parametrin pinosta, palauttaa rvon fpu-pinon pohjalla
+
+func_magneetti:
+	fild	dword [esp + 4]
+	fild	dword [var_timer]
+	fidiv	word [num_magneetti_kentta_ycorr]
+	faddp	st1, st0
+	fsincos
+	faddp	st1, st0
+	fmul	dword [num_magneetti_mul]
+	ret	
+
+%define MAGNEETTI_KAYRAT	1
+
+efu_magneetti:
+	call	glLoadIdentity
+
+	mov	ecx, 72
+.keskuslooppi:
+	push	ecx
+	mov	edi, var_kayra
+	mov	word [edi + 0], 72
+	mov	byte [edi + 2], 0
+
+	call	func_magneetti
+	fimul	word [num_magneetti_keskusmul]
+	fistp	dword [esp + 0]
+	pop	edx
+	mov	eax, ecx
+	add	eax, 19
+	mov	byte [edi + 3 + ecx * 2 - 2 + 0], al
+	mov	byte [edi + 3 + ecx * 2 - 2 + 1], dl
+	loop	.keskuslooppi
+
+	not	byte [edi + 3]
+	call	func_feed_picture
+
+	mov	ebx, 10
+.bikloop:
+	mov	ecx, 72
+.kenttalooppi:
+	push	ecx
+	mov	edi, var_kayra
+	fild	dword [esp + 0]
+	fld1
+	fsubp	st1, st0
+	fmul	dword [num_magneetti_clamp]
+	fld	st0 ; Nyt pinon pohjalla on kahdesti clampattu arvo
+	fimul	word [num_magneetti_kenttamul]
+	fsin
+	fmul	dword [num_magneetti_kenttascale]
+	fld1
+	faddp	st1, st0
+	call	func_magneetti
+	faddp	st1, st0
+	fld	st1
+	fsincos
+	fmul	st2
+	fimul	word [num_magneetti_kentta_ycorr]
+	fistp	dword [esp + 0]
+	mov	eax, dword [esp + 0]
+	add	eax, 55
+	fmul	st1
+	fimul	word [num_magneetti_kentta_ycorr]
+	fistp	dword [esp + 0]
+	pop	edx
+	mov	byte [edi + 3 + ecx * 2 - 2 + 0], al
+	mov	byte [edi + 3 + ecx * 2 - 2 + 1], dl
+	fstp	st0
+	fstp	st0
+	loop	.kenttalooppi
+
+	mov	dword [ebp + 0], 0x42100000
+	mov	dword [ebp + 4], 0
+	mov	dword [ebp + 8], 0
+	call	func_glRotate3f
+
+	not	byte [edi + 3]
+	call	func_feed_picture
+	dec	ebx
+	jnz	.bikloop
+
+.loppu:
+	ret	
+
+num_magneetti_mul		dd	0.01
+num_magneetti_clamp		dd	0.044248
+num_magneetti_kenttamul		dw	3
+num_magneetti_kenttascale	dd	0.5
+num_magneetti_kentta_ycorr	dw	35
+num_magneetti_keskusmul		dw	200
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Wrappity ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+efu_chiyo:
+	mov	edi, kuva_chiyo
+	call	func_feed_picture
+	ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Kuplaefu ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+%define KUPLA_SPAN	750
+%define KUPLA_JITTER	15
+%define KUPLA_BOBSPAN	100
+%define RAAMI_COUNT	20
+%define RAAMI_DIFF	30
+
+; Kuplaefu
+
+efu_linear:
+	mov	esi, dword [esp + 4]
+
+	cmp	byte [esi + 0], 0
+	jz	.noraami
+
+	mov	ebx, RAAMI_COUNT * RAAMI_DIFF
+.raamiloop:
+	call	glLoadIdentity
+	mov	dword [ebp + 0], 0xc1c80000	; -25.0
+	mov	dword [ebp + 4], 0xc2ce0000	; -103.0
+	mov	dword [ebp + 8], ebx
+	fild	dword [ebp + 8]
+	fstp	dword [ebp + 8]
+	call	func_glTranslate3f
+	mov	edi, kuva_raami
+	call	func_feed_picture
+	sub	ebx, RAAMI_DIFF
+	jnz	.raamiloop
+
+; Loopataan
+.noraami:
+	movsx	ecx, word [esi + 1]
+.looppi:
+	push	ecx
+; Lähdetään nollista
+	call	glLoadIdentity
+
+; Translatointi Z
+	push	dword KUPLA_SPAN
+	call	func_rand_1
+	fimul	word [num_kupla_len]
+	fstp	dword [ebp + 8]
+; X/Y
+	mov	edi, 2
+.translateloop:
+	push	dword KUPLA_JITTER
+	call	dword func_rand_f
+	fstp	dword [ebp + edi * 4 - 4]
+	dec	edi
+	jnz	.translateloop
+
+	call	func_glTranslate3f
+	add	esp, 3 * 4
+
+	call	func_rand_i
+	cmp	eax, 0
+	jl	.kupla
+	call	dword [esi + 3 + 4]
+	jmp	short .loop_loppu
+	
+.kupla:
+	call	dword [esi + 3 + 0]
+	
+.loop_loppu:
+	pop	ecx
+	loop	.looppi
+
+.loppu:
+	ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Piirtää kuplan ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+efu_kupla_particle:
+	call	func_rand_bob
+
+	push	dword KUPLA_BOBSPAN
+	call	func_rand_sin
+	fmul	dword [num_kupla_bobscale]
+	fadd	dword [num_kupla_bobbase]
+	fstp	dword [esp + 0]
+; Väri
+	mov	eax, 4
+	call	func_glColor1i
+	push	dword 24
+	call	func_glutSphere
+
+.loppu:
+	add	esp, 2 * 4
+	ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Piirtää hassun viivan ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+efu_hairio_particle:
+	mov	edi, malli_hairio
+	call	func_feed_model
+
+	;__null	eax
+	;call	func_glColor1i
+
+	;sub	esp, 8
+
+	;fld1
+	;fst	dword [esp + 0]
+	;fstp	dword [esp + 4]
+	;push	dword 90
+	;call	func_rand_f
+	;fstp	dword [esp + 8]
+	;call	glScalef
+
+	;push	dword 6
+	;call	func_glutSphere
+	;add	esp, 4 * 4
+	ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Sakura (lehti) ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+efu_sakura:
+	call	func_rand_bob
+	call	func_rand_rotate
+	mov	edi, malli_sakura
+	call	func_feed_model
+	ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Lyapunov ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+%define LYAPUNOV_WIDTH		720
+%define LYAPUNOV_HEIGHT		540
+%define LYAPUNOV_ITERATIONS	20
+%define LYAPUNOV_COLOR		3
+
+efu_lyapunov:
+	call	glLoadIdentity
+	push	dword GL_POINTS
+	call	glBegin
+	mov	ebx, dword [esp + 8]
+
+	mov	esi, LYAPUNOV_HEIGHT
+.loop_h:
+
+	mov	edi, LYAPUNOV_WIDTH
+.loop_w:
+; st1 = X, st0 = sum, edx = sequence
+	mov	dl, byte [ebx + 0]
+	fld	dword [num_lyapunov_seed]
+	fld1
+
+	mov	ecx, LYAPUNOV_ITERATIONS
+.loop_iter:
+	ror	dl, 1
+	jc	.by_y
+.by_x:
+	push	edi
+	fild	dword [esp + 0]
+	fisub	word [num_lyapunov_xsub]
+	fidiv	word [ebx + 1]
+	fadd	dword [ebx + 3]
+	jmp	short .by_over
+.by_y:
+	push	esi
+	fild	dword [esp + 0]
+	fisub	word [num_lyapunov_ysub]
+	fidiv	word [ebx + 1]
+	fadd	dword [ebx + 7]
+.by_over:
+	pop	eax
+; st2 = X, st1 = sum, st0 = R
+; X = R*X*(1-X)
+	fld1
+	fsub	st0, st3
+	fmul	st1
+	fmulp	st3, st0
+
+; st2 = X, st1 = sum, st0 = R
+; sum = sum * abs(R-2*R*X)
+	fld	st0	
+	fmul	st3
+	fsub	st1, st0
+	fsubp	st1, st0
+	fabs
+	fmulp	st1, st0
+
+.loppu_iter:
+	loop	.loop_iter
+
+.iterations_over:
+; st1 = X, st0 = sum
+; sum = log(sum) / iterations
+	fldln2		
+	fld	st1
+	fyl2x
+	fidiv	word [num_lyapunov_iter]
+	fstp	st1
+
+; st1 = X, st0 = sum
+	fldz
+	fucomi	st0, st1
+	jbe	.color
+	fld	st1
+	fchs
+	fstp	st1
+.color:
+	fimul	word [num_fade_div]
+	mov	ecx, num_color + LYAPUNOV_COLOR * 4
+	fistp	dword [ecx]
+	mov	eax, [ecx]
+	cmp	eax, 255
+	jle	.nocap
+	shl	eax, 6
+	or	eax, 0x00000FFF
+.nocap:
+	or	eax, 0xFF000000
+	mov	dword [ecx], eax
+	mov	eax, LYAPUNOV_COLOR
+	push	ebx
+	call	func_glColor1i
+.cordinate:
+	push	dword -LYAPUNOV_WIDTH + 1
+	push	esi
+	push	edi
+	call	func_feed_cordinate_safe
+	add	esp, 3 * 4
+	pop	ebx
+
+.loppu_w:
+	fstp	st0
+	fstp	st0
+
+	dec	edi
+	jnz	.loop_w
+
+.loppu_h:
+	dec	esi
+	jnz	.loop_h
+
+.loppu:
+	call	glEnd
+	pop	eax
+	ret	
+
+num_lyapunov_seed	dd	0.499999
+num_lyapunov_xsub	dw	LYAPUNOV_WIDTH / 2 + 1
+num_lyapunov_ysub	dw	LYAPUNOV_HEIGHT / 2 + 1
+num_lyapunov_iter	dw	LYAPUNOV_ITERATIONS
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Interpolaattori ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; Lataa 3 arvoa edi:ssä passatusta osoitteesta (short) ja liu-uttaa niitä
+; kohti arvoja, jotka löytyvät ks. osoitteen perästä.
+; Liu-utus esi:ssä passattujen aika-arvojen mukaan (short).
+; Täten intron maksimipituus on hyvin rajoitettu, vitunkos väliä!
+; Interpoloidut arvot menevät osoitteeseen ebp.
+; Tuhoaa ecx:n
+
+func_interpolate:
+	fild	dword [esi + 0]
+	fild	dword [var_timer]
+	fsub	st1
+	fild	dword [esi + 4]
+	fsub	st2
+	fdivp	st1, st0
+; Kolmelle muuttujalle
+	mov	ecx, 3
+.loop:
+	fild	word [edi + ecx * 2 - 2]
+	fild	word [edi + ecx * 2 - 2 + 6]
+	fsub	st1
+	fmul	st2
+	faddp	st1
+	fstp	dword [ebp + ecx * 4 - 4]
+	loop	.loop
+.loppu:
+	fstp	st0
+	fstp	st0
+	ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Rotatetranslate ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; Lukee paikkajutun / rotaatiojutun pinosta ja interpoloi.
+; interpolaatiodata: edi, aikadata: esi
+
+func_interpolate_translate:
+	call	func_interpolate
+	call	func_glTranslate3f
+	ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Kameraefu ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+%define GL_CLEAR_BIT	GL_COLOR_BUFFER_BIT + GL_DEPTH_BUFFER_BIT
+%define LYAPUNOV_TIME	88200 * 5
+; %define LYAPUNOV_TIME	1
+;%define FADE_TIME	(1000 / TIMER_MILLISECONDS) * 1
+
+; Asettaa kameran johonkin paikkaan osoittamaan suuntaan x
+; edi == data, esi == aika
+
+efu_kamera:
+	push	ebx
+	push	dword GL_PROJECTION
+	call	glMatrixMode
+	call	glLoadIdentity
+
+	;mov	ecx, 3
+;.clearloop:
+	;movsx	eax, byte [edi + ecx - 1]
+	;push	eax
+	;fild	dword [esp + 0]
+	;fidiv	word [num_fade_div]
+	;fstp	dword [esp + 0]
+	;loop	.clearloop
+
+	;call	glClearColor
+	;push	dword GL_COLOR_BUFFER_BIT
+	;call	glClear
+
+	sub	esp, 6 * 8 - 1 * 4
+	mov	ecx, 6
+.frustumloop:
+	fld	dword [num_frustum + ecx * 4 - 4]
+	fstp	qword [esp + ecx * 8 - 8]
+	;lea	eax, [ecx * 2]
+	;fild	word [num_frustum + ecx * 2 - 2]
+	;fidiv	word [num_frustum_div]
+	;fst	qword [esp + eax * 8 - 8]
+	;fchs
+	;fstp	qword [esp + eax * 8 - 16]
+	loop	.frustumloop
+	;fld1
+	;fstp	qword [esp + 4 * 8]
+	call	glFrustum
+
+.over:
+	lea	eax, [edi + 24]
+	push	eax		; Lyapunov pinoon
+
+.lyapunov:
+	mov	eax, dword [var_timer]
+	sub	eax, dword [esi]
+	cmp	eax, LYAPUNOV_TIME
+	jg	.no_lyapunov
+	mov	ebx, efu_lyapunov
+	mov	edi, control_lyapunov
+	;mov	dword [num_frustum], 0x00030004
+	jmp	short .jatkuu
+.no_lyapunov:
+	mov	ebx, func_rand_i
+
+.jatkuu:
+	call	func_interpolate
+	call	func_glRotate3f
+	add	edi, 12
+	call	func_interpolate_translate
+	
+.matrixmode:
+	push	dword GL_MODELVIEW
+	call	glMatrixMode
+.clearblend:
+	push	dword GL_ZERO
+	push	dword GL_ZERO
+	call	glBlendFunc
+	call	glLoadIdentity
+	push	dword 0x447A0000
+	push	dword 20
+	call	func_glutSphere
+.blend:
+	push	dword GL_DST_ALPHA
+	push	dword GL_SRC_ALPHA
+	call	glBlendFunc
+	add	esp, 7 * 4
+
+	call	ebx
+	add	esp, 6 * 8 + 1 * 4
+	pop	ebx
+	ret
+
+;.clear:
+;	mov	eax, dword [var_timer]
+;	sub	eax, dword [esi]
+;	cmp	eax, FADE_TIME
+;	jle	.noclamp
+;	mov	eax, FADE_TIME
+;.noclamp:
+;	push	eax
+;	fld1
+;	fild	dword [esp + 0]
+;	fidiv	dword [num_fade_time]
+;	fsubp	st1, st0
+
+;	add	edi, 12
+;	mov	ecx, 3
+;.clearloop:
+;	movsx	eax, byte [edi + ecx - 1]
+;	lea	edx, [eax * 8]
+;	push	edx
+;	fild	dword [esp + 0]
+;	fmul	st1
+;	push	eax
+;	fiadd	dword [esp + 0]
+;	pop	eax
+;	fidiv	dword [num_fade_div]
+;	fstp	dword [esp + 0]
+;	loop	.clearloop
+	
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Main ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; Juurifunktio
+
+%ifdef AUTOMAKE
+main:
+%else
+_start:
+%endif
+	finit
+; SDL_Init
+	push	dword SDL_INIT_VIDEO + SDL_INIT_AUDIO
+	call	SDL_Init
+
+; Ajastin
+	;push	dword func_timer
+	;push	dword TIMER_MILLISECONDS
+	;call	SDL_SetTimer
+
+; Näyttö
+	push	dword SDL_HWSURFACE + SDL_OPENGL + SDL_FULLSCREEN
+	push	dword SCREEN_B
+	push	dword SCREEN_H
+	push	dword SCREEN_W
+	call	SDL_SetVideoMode
+	;mov	dword [var_screen], eax
+
+
+;;; generoi hunpa ja play
+
+pedopee:	
+	
+TEMPO equ 1780
+
+	
+	
+;;; synthetize muzzach
+
+	;; runpuja
+	
+ 	mov esi, hhsong
+ 	mov edx, hihat
+ 	mov edi, left + 20000
+ 	call do_voice
+ 	call mix
+
+	mov esi, bdsong
+ 	mov edx, basari
+ 	mov edi, left + 20000
+ 	call do_voice
+ 	call mix
+
+ 	mov esi, snaresong
+ 	mov edx, snare
+ 	mov edi, left + 20000
+ 	call do_voice
+ 	call mix
+
+	mov edx, basso1
+	mov esi, bassong
+	mov edi, left + 20000
+	call do_voice
+	call mix
+	
+	mov edx, padchord
+	mov esi, padsong
+	mov edi, left + 20000
+	call do_voice
+	call mix
+
+ 	mov edx, vowel
+ 	mov esi, puhe
+  	mov edi, left + 20000
+ 	call do_voice
+  	call mix		
+
+	.eipedo
+
+	;; eka vikaks
+	xor eax, eax
+	push eax
+	push audiospec		;desired
+	call SDL_OpenAudio
+
+	xor eax, eax
+	push eax
+	call SDL_PauseAudio
+	
+; Viewport 0, 0, w, h
+	;push	dword SCREEN_H
+	;push	dword SCREEN_W
+	;push	dword 0
+	;push	dword 0
+	;call	glViewport
+
+; Depthtest on oletuksena poissa päältä, emme oikeastaan halua sitä päälle
+	;push	dword GL_DEPTH_TEST
+	;call	glDisable
+; Näyttäisi myös siltä että cleardepthiä ei tarvita, palauta jos ongelmia
+	;fld1
+	;fstp	qword [esp + 0]
+	;call	glClearDepth
+; Muu syvyysasia
+	;push	dword GL_LESS
+	;call	glDepthFunc
+
+; Smooth on defaultti
+	;push	dword GL_SMOOTH
+	;call	glShadeModel
+; Perspektiivinkorjausta ei tarvinne
+	;push	dword GL_NICEST
+	;push	dword GL_PERSPECTIVE_CORRECTION_HINT
+	;call	glHint
+	
+; Vertex ja color array päälle
+	;push	dword GL_VERTEX_ARRAY
+	;call	glEnableClientState
+	;push	dword GL_COLOR_ARRAY
+	;call	glEnableClientState
+
+; Normalisaatiota ei todennäköisesti tarvitse koska piirto käy Quadriceilla
+	;push	dword GL_NORMALIZE
+	;call	glEnable
+
+; Värimateriaali päälle
+	;push	dword GL_AMBIENT_AND_DIFFUSE
+	;push	dword GL_FRONT_AND_BACK
+	;call	glColorMaterial
+	;push	dword GL_COLOR_MATERIAL
+	;call	glEnable
+
+; Blend ja alpha
+	push	dword GL_ALPHA_TEST
+	call	glEnable
+	push	dword GL_BLEND
+	call	glEnable
+	
+; Ei cullauksia
+	;push	dword GL_CULL_FACE
+	;call	glDisable
+
+; Quadricin asetukset
+	;call	gluNewQuadric
+	;mov	dword [var_quadric], eax
+	;push	dword GLU_SMOOTH
+	;push	eax
+	;call	gluQuadricNormals
+
+; Aloitetaan pääloop
+.mainloop:
+	mov	ebp, var_multiuse
+	mov	dword [var_rand], 0xFFCC0D23
+
+	mov	eax, dword [var_timer]
+	mov	ebx, EFU_COUNT
+.efuloop:
+	cmp	eax, dword [control_efutime + ebx * 4]
+	jge	.efu_found
+	dec	ebx
+	jnz	.efuloop
+
+; ebx:ssä on tämänhetkinen efun järjestysnumero
+.efu_found:
+	lea	esi, [ebx * 4 + control_efutime]
+	push	esi
+	imul	eax, ebx, 35
+	lea	edi, [eax + control_camera]
+	call	efu_kamera
+	mov	esi, dword [esp + 0]
+	cmp	edi, 0
+	je	.swapbuffers
+
+; ebx:ssä on efun järjestysnumero, toimitaan sen mukaan
+.valitseefu:
+	cmp	ebx, 1
+	jl	.efu1
+	je	.efu2
+	cmp	ebx, 3
+	jl	.efu3
+	je	.efu4
+;; 	jmp	short .quit ; MEH MÖH MEE
+	jmp .quit
+	
+.efu1:
+	push	dword num_linear.sakura
+	call	efu_linear
+	jmp	short .swapbuffers
+;.efu2:
+;	mov	edi, control_taehtipos_1
+;	push	dword efu_taehti
+;	call	efu_sub_translate
+;	mov	esi, dword [esp + 4]
+;	mov	dword [esp + 0], num_field.hairio
+;	call	efu_sub_field
+;	jmp	.swapbuffers
+.efu2:
+	push	dword num_linear.kupla
+	mov	byte [num_color.hairio + 3], 0x30
+	call	efu_linear
+	jmp	short .swapbuffers
+.efu3:
+	push	dword 0
+	call	efu_field
+	call	efu_magneetti
+	jmp	short .swapbuffers
+.efu4:
+	mov	edi, control_kuvapos
+	push	dword efu_chiyo
+	call	efu_sub_translate
+	jmp	short .swapbuffers
+
+.swapbuffers:
+	add	esp, 8
+	call	SDL_GL_SwapBuffers
+	push	ebp
+	call	SDL_PollEvent
+	cmp	eax, 0
+	je	.mainloop
+	cmp	byte [ebp + 0], byte 2	; SDL_KEYDOWN
+	jne	.mainloop
+
+; Poista myöhemmin
+	;add	dword [var_timer], 100000
+	;jmp	near .mainloop
+
+; C
+	;call	c_main
+
+	;call	SDL_OpenAudio
+
+.quit:
+	call	SDL_Quit
+	__null	eax
+	inc	eax
+	int	0x80
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Data ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+SECTION .data
+
+; Vakioita
+num_fade_div:
+num_rand_detail:
+	dw	256
+num_frustum:
+	dd	-0.5, 0.5, -0.375, 0.375, 1.0
+num_rand_rotate_div:
+	dd	2000.0
+num_2pi			dd	6.283185
+num_kupla_bobbase	dd	3.0
+num_kupla_bobscale	dd	0.3
+num_kupla_len		dw	550
+;num_rand_detail		dw	64
+
+; Sisältää kaikki värit, taulukoituina (dword per). Tähän viitataan indeksillä
+; muualta, jolloin ks. väri työnnetään pinoon.
+num_color:
+.hairio:
+	db	0xFF, 0x50, 0x00, 0xA0
+.sakara_kirkas:
+	db	0xFF, 0xFF, 0xA0, 0x03
+.sakara_tumma:
+	db	0x00, 0x00, 0x00, 0x00
+.lyapunov:
+	db	0x00, 0x00, 0x00, 0x00
+.kupla:
+ 	db	0x48, 0x24, 0xC0, 0xFF
+.chiyo:
+	db	0xFF, 0xFF, 0xFF, 0xA0
+.sakura:
+	db	0xe7, 0xbe, 0xe2, 0x40
+.raami:
+	db	0xF0, 0x40, 0x80, 0x30
+
+; Efektien alkamisajankohdat litanjana
+control_efutime:
+	dd 0, EFU_1_LOPPU, EFU_2_LOPPU, EFU_3_LOPPU, EFU_4_LOPPU
+
+; Pistä tähän ohjausdata
+control_camera:
+.rot1:
+	dw 75, 530, 20
+	dw 105, -640, -5
+.pos1:
+	dw 0, -10, -50
+	dw 0, -90, -350
+.lyapunov1:
+	db 01010101b
+	dw 22000
+	dd 3.835, 3.835 
+.rot2:
+	dw 10, -210, -32
+	dw 0, 15, 30
+.pos2:
+	dw -140, -60, 20
+	dw 10, 12, -540
+.lyapunov2:
+	db 01000001b
+	dw 1950
+	dd 3.36, 3.750
+.rot3:
+	dw 10, 180, 5
+	dw 5, 0, -5
+.pos3:
+	dw 50, 10, 130
+	dw -60, -10, -135
+.lyapunov3:
+	db 01100110b
+	dw 100
+	dd 2.0, 2.0
+.rot4:
+	dw 0, 0, 0
+	dw 0, 0, 0
+.pos4:
+	dw 0, 0, 0
+	dw 0, 0, 0
+.lyapunov4:
+	db 10111110b
+	dw 1100
+	dd 3.260, 3.380
+
+;control_taehtipos_1:
+;	dw 0, 1000, 0
+;	dw 0, -1000, 0
+
+control_kuvapos:
+	dw -64, -64, 0
+	dw -64, -64, -500
+
+control_lyapunov:
+.rot:
+	dw 0, 0, 0
+	dw 0, 0, 0
+.pos:
+	dw -LYAPUNOV_WIDTH / 2, -LYAPUNOV_HEIGHT / 2, 0
+	dw -LYAPUNOV_WIDTH / 2, -LYAPUNOV_HEIGHT / 2, 0
+
+; Kenttäefun parametridata
+;num_field:
+;.hairio:
+;	dw	1500, 400
+;	dd	efu_hairio_particle
+;.magneetti:
+;	dw	40, 300
+;	dd	efu_taehti
+
+
+num_linear:
+.kupla:
+	db	1
+	dw	150
+	dd	efu_hairio_particle, efu_kupla_particle
+.sakura:
+	db	0
+	dw	2048
+	dd	efu_sakura, efu_sakura
+
+; Mallidata
+malli_sakara:
+	db 4
+	db -7, 0, -7, 2
+	db 0, 0, 30, 1
+	db 0, 0, 0, 1
+	db 7, 0, 7, 2
+
+malli_sakura:
+	db 6
+	db 0, 0, -2, 6
+	db -3, 0, 0, 6
+	db 3, 0, 0, 6
+	db -2, 0, 7, 6
+	db 2, 0, 7, 6
+	db 0, 0, 12, 6
+
+malli_hairio:
+	db 4
+	db 0, 4, -45, 0
+	db 0, 4, 45, 0
+	db 0, -4, -45, 0
+	db 0, -4, 45, 0
+
+kuva_chiyo:
+	dw	126
+	db	5
+        db -53,85,46,85,40,79,45,105,46,85,54,110,69,92,64,110,81,93,76,110,92,86,88,104,102,86,91,109,76,120,88,127,100,125,115,111,125,94,127,82,102,86,100,77,94,71,94,65,87,56,73,46,46,52,42,56,34,57,27,65,11,56,1,52,0,71,9,97,21,109,32,109,24,91,26,71,31,66,31,81,35,73,37,94,40,79,40,72,43,66,-52,83,57,70,54,66,50,66,44,78,46,82,51,83,-71,88,75,76,80,76,82,80,77,92,72,92,70,88,-65,60,67,52,74,50,78,56,74,64,64,60,-77,120,61,122,43,118,32,109,-89,80,85,88,75,96,69,92,-31,31,36,32,30,37,30,27,-56,37,55,27,50,37,50,27,-68,27,72,27,67,37,72,37,-80,37,79,27,74,27,74,37,-56,22,55,12,50,12,50,22,-61,22,65,17,60,12,60,22,-86,22,80,22,85,12,80,12,-46,27,42,37,40,27,-65,37,60,37,60,27,-46,12,40,17,45,22,-76,12,72,22,70,12,-94,12,90,22,88,12,-93,86,94,71,-36,73,42,56,-27,71,27,65,-41,12,40,22,-97,12,96,22
+
+kuva_raami:
+	dw	5
+	db	7
+	db	-2,126,49,126,49,78,1,78,1,126
+
+
+	
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+	;; RUNKUTI RUNKUN
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;;; "puhe"
+
+;;; vokaalit
+	;; E N U A
+vtable:
+	db 4, 14, 22, 30	;möhmöh
+
+	;; E
+	db 4, 33
+	db 5, 35
+
+	db 22, 45
+	db 23, 130
+
+ 	db 29, 120
+
+	db 0
+	
+	;; N
+	db 2, 10
+	db 3, 20
+
+	db 7, 23
+	db 8, 20
+
+	db 0
+
+	
+	;; U
+
+	db 3, 15
+	db 4, 20
+
+	db 7, 30
+	db 8, 40
+
+	db 0
+	;; A
+
+	db 6, 20
+	db 7, 40
+	db 8, 10
+	db 10, 50
+	db 11, 20
+	db 23, 20
+	db 24, 50
+	db 25, 20
+	db 0
+
+	
+
+bdconst:
+	dd 0.00002
+bdcons2:
+	dd 20000
+
+const_1000:
+	dd 2000
+	
+sineconst:
+	dd 0.0177
+
+;;; nuotit
+notetable:
+	dw 20924 		; C
+	dw 22168		; C#
+	dw 23486		; D
+	dw 24883		; D#
+	dw 26362		; E
+	dw 27930		; F
+	dw 29591		; F#
+	dw 31351		; G
+	dw 33215		; G#
+	dw 35190		; A
+	dw 37282		; A#
+	dw 39499		; B
+
+
+;;; vakioita laskentohon
+const_10:
+	dw 30
+padchords:
+
+	dw 0			; hiljaa
+	dw 0000001000000100b	;
+	dw 0000010000000100b	;
+	dw 0000000010000100b	;
+	dw 0000001000100100b	; h
+	dw 0000100010010000b	; c#
+	dw 0000001000100001b	; D
+	dw 0000010000100100b	; G
+	dw 0000010010000100b	; e
+
+
+bdsong:	
+
+	db 12, 0x01
+	db 12, 0x01
+	db 8, 0x01
+	db 12, 0x01
+	db 8, 0x01
+	db 8, 0x01
+	db 4, 0x01
+
+	db 12, 0x01
+	db 12, 0x01
+	db 8, 0x01
+	db 12, 0x01
+	db 12, 0x01
+	db 4, 0x01
+	db 2, 0x01
+	db 2, 0x01
+
+	db 0x80 + 31, 31
+	
+	db 0x00
+
+hhsong:
+	db 0x02, 0x01
+	db 0x02, 0x00
+	db 128 + 62, 5
+	
+	db 0x02, 0x01
+	db 0x02, 0x01
+
+	db 0x87, 11
+	
+	db 0x00
+
+snaresong:
+	db 8, 0x00
+	db 12, 0x01
+	db 20, 0x01
+	db 12, 0x01
+	db 4, 0x01
+	db 8, 0x01
+
+	db 8, 0x00
+	db 12, 0x01
+	db 20, 0x01
+	db 8, 0x01
+	db 8, 0x01
+	db 4, 0x01
+	db 4, 0x01
+
+	db 0x80 + 15, 27
+	
+	db 0x00
+
+	
+;;; äänet
+
+padsong:
+	db 0x04, 0x01
+	db 0x04, 0x0
+	db 0x04, 0x01
+	db 0x04, 0x02
+	db 0x04, 0x00
+	db 0x04, 0x01
+	db 0x04, 0x03
+	db 0x04, 0x01
+	db 0x04, 0x0
+	db 0x04, 0x01
+	db 0x04, 0x02
+	db 0x04, 0x00
+	db 0x04, 0x01
+	db 0x0c, 0x03
+	db 0x87, 29
+
+	db 64, 0x00
+	db 0x87, 3
+
+	db 0x02, 0x04
+	db 0x02, 0x00
+	db 0x80 + 15, 5
+
+	db 0x02, 0x05
+	db 0x02, 0x00
+	db 0x80 + 15, 5
+
+	db 0x02, 0x06
+	db 0x02, 0x00
+	db 0x80 + 15, 5
+
+	db 0x02, 0x07
+	db 0x02, 0x00
+	db 0x80 + 15, 5
+
+	db 0x02, 0x04
+	db 0x02, 0x00
+	db 0x80 + 15, 5
+
+	db 0x02, 0x07
+	db 0x02, 0x00
+	db 0x80 + 15, 5
+
+	db 0x02, 0x08
+	db 0x02, 0x00
+	db 0x80 + 15, 5
+
+	db 0x02, 0x06
+	db 0x02, 0x00
+	db 0x80 + 15, 5
+
+
+	db 0x00
+
+bassong:
+	db 0x08, 0x03
+	db 0x04, 0x00
+	db 0x04, 0x03
+	db 0x30, 0x00
+	db 0x81, 9
+	db 0x08, 0x06
+	db 0x04, 0x00
+	db 0x04, 0x06
+	db 0x30, 0x00
+
+	db 0x08, 0x08
+	db 0x04, 0x00
+	db 0x04, 0x08
+	db 0x24, 0x00
+	db 0x04, 0x0b
+	db 0x08, 0x04
+
+	db 0x81, 31
+
+	db 0x08, 0x03
+	db 0x04, 0x00
+	db 0x04, 0x03
+	db 0x30, 0x00
+
+	db 0x08, 0x05
+	db 0x04, 0x00
+	db 0x04, 0x05
+	db 0x30, 0x00
+
+	db 0x08, 0x0b
+	db 0x04, 0x00
+	db 0x04, 0x0b
+	db 0x30, 0x00
+
+	db 0x81, 9
+
+	db 0x81, 27
+
+	db 0x08, 0x03 		; nous + pad
+	db 0x04, 0x00
+	db 0x04, 0x03
+	db 0x30, 0x00
+
+	db 0x08, 0x05
+	db 0x04, 0x00
+	db 0x04, 0x05
+	db 0x30, 0x00
+
+	db 0x08, 0x06
+	db 0x04, 0x00
+	db 0x04, 0x06
+	db 0x30, 0x00
+
+	db 0x08, 0x0b
+	db 0x04, 0x00
+	db 0x04, 0x0b
+	db 0x30, 0x00
+
+	db 0x08, 0x03 		; nous + pad 4
+	db 0x04, 0x00
+	db 0x04, 0x03
+	db 0x30, 0x00
+
+	db 0x08, 0x0b
+	db 0x04, 0x00
+	db 0x04, 0x0b
+	db 0x30, 0x00
+
+	db 0x08, 0x08
+	db 0x04, 0x00
+	db 0x04, 0x08
+	db 0x30, 0x00
+
+	db 0x08, 0x06
+	db 0x04, 0x00
+	db 0x04, 0x06
+	db 36,  0x00
+
+	db 0x04, 0x08
+	db 0x08, 0x04
+
+	;; kerta
+	db 0x08, 0x03
+	db 0x04, 0x00
+	db 0x04, 0x03
+	db 0x30, 0x00
+	db 0x81, 9
+	db 0x08, 0x06
+	db 0x04, 0x00
+	db 0x04, 0x06
+	db 0x30, 0x00
+
+	db 0x08, 0x08
+	db 0x04, 0x00
+	db 0x04, 0x08
+	db 0x24, 0x00
+	db 0x04, 0x0b
+	db 0x08, 0x04
+
+	db 0x81, 31
+
+	db 0x00
+
+puhe:
+	db 64, 0x00
+	db 0x80 + 25, 3
+
+	;; pantsu
+	db 0x02, 0xaf
+	db 0x03, 0x04
+	db 0x03, 0x01
+	db 0x01, 0x93
+	db 0x02, 0x00
+	db 0x07, 0xc8
+	db 0x03, 0x03
+	
+	db 0x02, 0x00
+
+	;; kudasai
+	db 0x02, 0xaf
+	db 0x03, 0x03
+	db 0x01, 0xa3
+	db 0x03, 0x04
+	db 0x07, 0xc8
+	db 0x03, 0x04
+	db 0x03, 0x01
+
+	db 00	
+
+	;; StRuctah sdl-audiolle nee
+audiospec:
+;;; 44 ac 00 00  10 00 01 00  ff 00 00 00  00 00 00 00  04 85 04 08
+;;; 00 00 00 00
+	dd 44100		;freq
+
+	dw 0x8010
+	dw 0x01
+
+	dd 1024
+
+	dd 0
+	dd kalupakki
+	dd 0
+
+;; var_timer:
+;; 	dd 0
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Bss ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+SECTION .bss
+
+var_kayra		resd	500
+var_multiuse		resb	16
+var_multiuse_safe	resb	12
+var_rand		resd	1
+
+played:
+var_timer:
+	resd 1
+
+loopcounters:
+	resb 10000
+
+pad_note_buf:
+	resd 16*16
+	
+fputemp:
+	resd 100
+
+series:
+	resq 50
+	
+left:
+	resw 44100 * 240
+
+	
+finalmix:
+	resd 44100 * 240
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Loppu ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
