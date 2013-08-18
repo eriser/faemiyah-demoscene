@@ -1,0 +1,8 @@
+A=/tmp/a
+stty raw
+tail +9 ./i|gzip -cd>$A
+chmod 700 $A
+/tmp/a
+rm -f $A
+stty -raw
+echo "]Rc[?25h";exit

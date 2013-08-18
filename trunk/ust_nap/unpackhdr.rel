@@ -1,0 +1,9 @@
+A=/tmp/a
+stty raw
+tail +10 ./i.rel|gzip -cd>$A
+chmod 700 $A
+/tmp/a
+rm -f $A
+stty -raw
+echo "]Rc[?25h"
+echo "Trilkk, Warma, Juippi - Assembly '03 4k" ;exit
