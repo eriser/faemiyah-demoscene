@@ -97,6 +97,7 @@ EXTERN glBegin,glBlendFunc,glColor4ubv,glEnable,glEnd,glFrustum,glLoadIdentity,g
 
 ; Glut
 EXTERN glutSolidSphere
+;EXTERN glutInit,glutSolidSphere
 
 ; T‰m‰ pit‰‰ exportata
 %ifdef AUTOMAKE
@@ -1587,6 +1588,11 @@ _start:
 	push	dword SCREEN_W
 	call	SDL_SetVideoMode
 	;mov	dword [var_screen], eax
+
+; glut
+;	push	dword 0
+;	push	dword 0
+;	call	glutInit
 
 
 ;;; generoi hunpa ja play
