@@ -1,4 +1,4 @@
-# Säännöt
+# Säännöt
 .SUFFIXES: .nsm
 .c.o:
 	gcc -o $@ -c $< $(CCFLAGS)
