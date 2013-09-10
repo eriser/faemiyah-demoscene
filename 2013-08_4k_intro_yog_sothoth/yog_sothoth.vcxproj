@@ -79,6 +79,7 @@
     <ClCompile Include="src\main.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="src\audio_shader.h" />
     <ClInclude Include="src\bsd_rand.h" />
     <ClInclude Include="src\image_png.hpp" />
     <ClInclude Include="src\intro.h" />
