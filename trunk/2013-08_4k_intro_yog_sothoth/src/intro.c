@@ -777,7 +777,7 @@ ICONST char g_shader_fragment_background[] = ""
 // Transformations
 //"d *= 1.0/(0.01*length(s));"
 //"d *= (1.0-smoothstep(0, 1.5708, angle));"
-"gl_FragColor = vec4(mix(vec3(.2,.15,.1),vec3(.4,.5,.6),length((texture3D(t,e*.003).xyz+texture3D(t,e*.007).xyz+texture3D(t,e*.02).xyz+texture3D(t,e*.05).xyz))/(2*s+.02)*(1-smoothstep(0,1.5,s))),1)+vec4(mix(vec3(0),vec3(l[1].y,.2,l[1].z),1/(.01*abs(d.x*d.y)+1)+1/(.01*pow(abs(d.x)-abs(d.y),2)+1)),1);"
+"gl_FragColor=vec4(mix(vec3(.2,.15,.1),vec3(.4,.5,.6),length((texture3D(t,e*.003).xyz+texture3D(t,e*.007).xyz+texture3D(t,e*.02).xyz+texture3D(t,e*.05).xyz))/(2*s+.02)*(1-smoothstep(0,1.5,s))),1)+vec4(mix(vec3(0),vec3(l[1].y,.2,l[1].z),1/(.01*abs(d.x*d.y)+1)+1/(.01*pow(abs(d.x)-abs(d.y),2)+1)),1);"
 //"f = vec4(mix(vec3(1.0), vec3(0.4, 0.5, 0.6), d), 1.0);"
 "}";
 
@@ -790,7 +790,7 @@ ICONST char g_shader_fragment_fbo[] = ""
 "gl_FragColor=vec4(0);"
 "for(int n=3;n>=0;--n)"
 "{"
-"ivec2 s=ivec2(gl_FragCoord.xy + vec2(n%2==1?-l[1].x:l[1].x,n>1?-l[1].x:l[1].x));"
+"ivec2 s=ivec2(gl_FragCoord.xy+vec2(n%2==1?-l[1].x:l[1].x,n>1?-l[1].x:l[1].x));"
 "gl_FragColor+=texelFetch(t,s,n)/4;"
 "}"
 "}";
