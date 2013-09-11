@@ -741,6 +741,20 @@ SCONST char shader_vars[] =
 "++i;}}"
 "vec3 f(float s,float t){";
 
+#if defined(USE_LD)
+SCONST char shader_func_fragment_newton[] =
+"vec2 i;"
+"i.x=(s-500)/400;"
+"i.y=(t-500)/400;"
+"i=w(i)-w(i*1.2)+w(i*1.4)-w(i*1.6)+w(i*1.8);"
+/*"c.r=c.g=0.4*i.y;"
+"c.b=0.5*i.y;"
+"c.a=i.y*16;"*/
+"return vec3((s-500)*0.375,2*sqrt(i.x)/8.0-2.0,(t-500)*0.375);}"
+"vec4 e(vec4 c){"
+"return c*0.5";
+#endif
+
 SCONST char shader_funcs_newton[] =
 "vec2 i;"
 "i.x=(s-500)/400;"
@@ -869,10 +883,21 @@ SFUNCTION unsigned program_create(const char *vf)
 SFUNCTION void program_create(const char *vf)
 #endif
 {
-  unsigned vi = shader_create(vf, shader_vertex, GL_VERTEX_SHADER),
-           fi = shader_create(vf, shader_fragment, GL_FRAGMENT_SHADER);
+  unsigned vi = shader_create(vf, shader_vertex, GL_VERTEX_SHADER);
+  unsigned fi;
+  unsigned ret;
+#if defined(USE_LD)
+  if(vf == shader_funcs_newton)
+  {
+    fi = shader_create(shader_func_fragment_newton, shader_fragment, GL_FRAGMENT_SHADER);
+  }
+  else
+#endif
+  {
+    fi = shader_create(vf, shader_fragment, GL_FRAGMENT_SHADER);
+  }
 
-  unsigned ret = dlCreateProgram();
+  ret = dlCreateProgram();
   dlAttachShader(ret, vi);
   dlAttachShader(ret, fi);
   dlLinkProgram(ret);
