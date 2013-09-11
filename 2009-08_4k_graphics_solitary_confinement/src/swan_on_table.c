@@ -4,28 +4,36 @@
 #define _USE_MATH_DEFINES
 #include <math.h>
 
+#if defined(USE_LD)
 #if defined(WIN32)
-#define USE_LD
 #include "windows.h"
 #include "GL/glew.h"
+#include "SDL.h"
+#elif defined(__APPLE__)
+#include <math.h>
+#include "GL/glew.h"
+#include "SDL/SDL.h"
+#else
+#include <math.h>
+#include "GL/glew.h"
+#include "SDL.h"
+#endif
+#else
+#include <math.h>
 #include "GL/gl.h"
 #include "GL/glext.h"
-#include "GL/wglext.h"
-#elif !defined(MODE_REL)
-#include "config.h"
+#include "GL/glu.h"
+#include "SDL.h"
 #endif
 
-#if defined(MODE_REL)
-#define SFUNCTION __attribute__((regparm(3))) static
-#define SCONST static
-#else
+#include <float.h>
+
+#if defined(USE_LD)
 #define SFUNCTION static
 #define SCONST static const
-#endif
-
-#include "SDL.h"
-#if !defined(WIN32)
-#include "SDL_opengl.h"
+#else
+#define SFUNCTION static
+#define SCONST static
 #endif
 
 //######################################
@@ -81,7 +89,7 @@ static char dnload_symbols[] =
 #define dlDrawElements glDrawElements
 #define dlEnable glEnable
 #define dlInterleavedArrays glInterleavedArrays
-#define dlLinkProgram	glLinkProgram
+#define dlLinkProgram glLinkProgram
 #define dlLoadIdentity glLoadIdentity
 #define dlMatrixMode glMatrixMode
 #define dlShaderSource glShaderSource
@@ -158,21 +166,21 @@ static char dnload_symbols[] =
 //######################################
 
 typedef struct {
-	float x,y,z;
+  float x,y,z;
 } point;
 
 typedef struct iarray_struct
 {
-	float cr;
-	float cg;
-	float cb;
-	float ca;
-	float nx;
-	float ny;
-	float nz;
-	float px;
-	float py;
-	float pz;
+  float cr;
+  float cg;
+  float cb;
+  float ca;
+  float nx;
+  float ny;
+  float nz;
+  float px;
+  float py;
+  float pz;
 } interleaved_array;
 
 static interleaved_array draw_array[DRAW_HEAP];
@@ -188,145 +196,145 @@ static GLuint iiter = 0;
 /* Cross Product */
 SFUNCTION void CrossProduct(point *i1, point *i2, point *dst)
 {
-	dst->x = i1->y * i2->z - i1->z * i2->y;
-	dst->y = i1->z * i2->x - i1->x * i2->z;
-	dst->z = i1->x * i2->y - i1->y * i2->x;
+  dst->x = i1->y * i2->z - i1->z * i2->y;
+  dst->y = i1->z * i2->x - i1->x * i2->z;
+  dst->z = i1->x * i2->y - i1->y * i2->x;
 
-	{
-		float len = (float)dsqrtf(dst->x * dst->x + dst->y * dst->y + dst->z * dst->z);
+  {
+    float len = (float)dsqrtf(dst->x * dst->x + dst->y * dst->y + dst->z * dst->z);
 
-		dst->x /= len;
-		dst->y /= len;
-		dst->z /= len;
-	}
+    dst->x /= len;
+    dst->y /= len;
+    dst->z /= len;
+  }
 }
 
 SFUNCTION void Draw_One_Triangle(point *p1, point *p2, point *p3)
 {
-	point p4, p5;
+  point p4, p5;
 
-	diter[0].px = p1->x;
-	diter[0].py = p1->y;
-	diter[0].pz = p1->z;
+  diter[0].px = p1->x;
+  diter[0].py = p1->y;
+  diter[0].pz = p1->z;
 
-	diter[1].px = p2->x;
-	diter[1].py = p2->y;
-	diter[1].pz = p2->z;
+  diter[1].px = p2->x;
+  diter[1].py = p2->y;
+  diter[1].pz = p2->z;
 
-	diter[2].px = p3->x;
-	diter[2].py = p3->y;
-	diter[2].pz = p3->z;
+  diter[2].px = p3->x;
+  diter[2].py = p3->y;
+  diter[2].pz = p3->z;
 
-	p4.x = p2->x - p1->x;
-	p4.y = p2->y - p1->y;
-	p4.z = p2->z - p1->z;
-	
-	p5.x = p3->x - p1->x;
-	p5.y = p3->y - p1->y;
-	p5.z = p3->z - p1->z;
+  p4.x = p2->x - p1->x;
+  p4.y = p2->y - p1->y;
+  p4.z = p2->z - p1->z;
+  
+  p5.x = p3->x - p1->x;
+  p5.y = p3->y - p1->y;
+  p5.z = p3->z - p1->z;
 
-	CrossProduct(&p4, &p5, (point*)(&(diter[0].nx)));
-	diter[2].nx = diter[1].nx = diter[0].nx;
-	diter[2].ny = diter[1].ny = diter[0].ny;
-	diter[2].nz = diter[1].nz = diter[0].nz;
+  CrossProduct(&p4, &p5, (point*)(&(diter[0].nx)));
+  diter[2].nx = diter[1].nx = diter[0].nx;
+  diter[2].ny = diter[1].ny = diter[0].ny;
+  diter[2].nz = diter[1].nz = diter[0].nz;
 
 #if 0
-	diter[0].nx = p4.y * p5.z - p4.z * p5.y;
-	diter[0].ny = p4.z * p5.x - p4.x * p5.z;
-	diter[0].nz = p4.x * p5.y - p4.y * p5.x;
+  diter[0].nx = p4.y * p5.z - p4.z * p5.y;
+  diter[0].ny = p4.z * p5.x - p4.x * p5.z;
+  diter[0].nz = p4.x * p5.y - p4.y * p5.x;
 
-	diter[2].nx = diter[1].nx = diter[0].nx;
-	diter[2].ny = diter[1].ny = diter[0].ny;
-	diter[2].nz = diter[1].nz = diter[0].nz;
+  diter[2].nx = diter[1].nx = diter[0].nx;
+  diter[2].ny = diter[1].ny = diter[0].ny;
+  diter[2].nz = diter[1].nz = diter[0].nz;
 #endif
 
-	diter[0].cr = diter[1].cr = diter[2].cr = 1.0f;
-	diter[0].cg = diter[1].cg = diter[2].cg = 1.0f;
-	diter[0].cb = diter[1].cb = diter[2].cb = 1.0f;
-	diter[0].ca = diter[1].ca = diter[2].ca = 1.0f;
+  diter[0].cr = diter[1].cr = diter[2].cr = 1.0f;
+  diter[0].cg = diter[1].cg = diter[2].cg = 1.0f;
+  diter[0].cb = diter[1].cb = diter[2].cb = 1.0f;
+  diter[0].ca = diter[1].ca = diter[2].ca = 1.0f;
 
-	index_array[iiter] = iiter++;
-	index_array[iiter] = iiter++;
-	index_array[iiter] = iiter++;
-	diter += 3;
+  index_array[iiter] = iiter++;
+  index_array[iiter] = iiter++;
+  index_array[iiter] = iiter++;
+  diter += 3;
 }
 
 /* Let's draw a paper triangle */
 SFUNCTION void Draw_Paper_Triangle(point *head, point *base, point *flapL, point *flapR)
 {
-	Draw_One_Triangle(head, base, flapL);
+  Draw_One_Triangle(head, base, flapL);
 
-	Draw_One_Triangle(head, flapR, base);
+  Draw_One_Triangle(head, flapR, base);
 
-	Draw_One_Triangle(head, flapL, flapR);
+  Draw_One_Triangle(head, flapL, flapR);
 
-	Draw_One_Triangle(base, flapR, flapL);
+  Draw_One_Triangle(base, flapR, flapL);
 }
 
 SFUNCTION void Draw_Flap_Circle(float r_base, float h_base, float r_head,
-		float h_head, float r_flaps, float h_flaps, int flaps, float begin,
-		float end)
+    float h_head, float r_flaps, float h_flaps, int flaps, float begin,
+    float end)
 {
-	point base, head, flapL, flapR;
-	float angle_unit;
-	int i;
-	begin = (float)(begin*M_PI/120.0);
-	end = (float)(end*M_PI/120.0);
-	//begin = (float)(begin*M_PI/180.0);
-	//end = (float)(end*M_PI/180.0);
+  point base, head, flapL, flapR;
+  float angle_unit;
+  int i;
+  begin = (float)(begin*M_PI/120.0);
+  end = (float)(end*M_PI/120.0);
+  //begin = (float)(begin*M_PI/180.0);
+  //end = (float)(end*M_PI/180.0);
 
-	// Katsotaanpa kuinka auki kukin paperikolmio on
-	angle_unit = (end-begin) / (2*(float)flaps);
+  // Katsotaanpa kuinka auki kukin paperikolmio on
+  angle_unit = (end-begin) / (2*(float)flaps);
 
-	for(i=0; i<flaps; i++)
-	{
-		base.x = r_base*(float)dcosf(begin+(i*2+1)*angle_unit);
-		base.y = h_base;
-		base.z = r_base*(float)dsinf(begin+(i*2+1)*angle_unit);
-		head.x = r_head*(float)dcosf(begin+(i*2+1)*angle_unit);
-		head.y = h_head;
-		head.z = r_head*(float)dsinf(begin+(i*2+1)*angle_unit);
-		flapL.x = r_flaps*(float)dcosf(begin+i*2*angle_unit);
-		flapL.y = h_flaps;
-		flapL.z = r_flaps*(float)dsinf(begin+i*2*angle_unit);
-		flapR.x = r_flaps*(float)dcosf(begin+(i+1)*2*angle_unit);
-		flapR.y = h_flaps;
-		flapR.z = r_flaps*(float)dsinf(begin+(i+1)*2*angle_unit);
-		Draw_Paper_Triangle(&head, &base, &flapL, &flapR);
-	}
+  for(i=0; i<flaps; i++)
+  {
+    base.x = r_base*(float)dcosf(begin+(i*2+1)*angle_unit);
+    base.y = h_base;
+    base.z = r_base*(float)dsinf(begin+(i*2+1)*angle_unit);
+    head.x = r_head*(float)dcosf(begin+(i*2+1)*angle_unit);
+    head.y = h_head;
+    head.z = r_head*(float)dsinf(begin+(i*2+1)*angle_unit);
+    flapL.x = r_flaps*(float)dcosf(begin+i*2*angle_unit);
+    flapL.y = h_flaps;
+    flapL.z = r_flaps*(float)dsinf(begin+i*2*angle_unit);
+    flapR.x = r_flaps*(float)dcosf(begin+(i+1)*2*angle_unit);
+    flapR.y = h_flaps;
+    flapR.z = r_flaps*(float)dsinf(begin+(i+1)*2*angle_unit);
+    Draw_Paper_Triangle(&head, &base, &flapL, &flapR);
+  }
 }
 
 SCONST unsigned char neck_position_data[] =
 {
-	 8, 0,
-	17, 5,
-	26, 11,
-	32, 18,
-	36, 27,
-	39, 35,
-	40, 46,
-	39, 54,
-	37, 64,
-	34, 73,
-	29, 82,
-	24, 89,
-	18, 98,
-	12, 105,
-	 6, 113,
-	 2, 122,
-	 0, 132,
-	 1, 142,
-	 4, 150,
-	10, 156,
-	17, 160,
-	25, 162,
-	35, 161,
-	45, 157
+   8, 0,
+  17, 5,
+  26, 11,
+  32, 18,
+  36, 27,
+  39, 35,
+  40, 46,
+  39, 54,
+  37, 64,
+  34, 73,
+  29, 82,
+  24, 89,
+  18, 98,
+  12, 105,
+   6, 113,
+   2, 122,
+   0, 132,
+   1, 142,
+   4, 150,
+  10, 156,
+  17, 160,
+  25, 162,
+  35, 161,
+  45, 157
 };
 
 /*static const unsigned short int neck_angle_data[] =
 {
-	
+  
    341,
      0,
      9,
@@ -383,29 +391,29 @@ SCONST unsigned char neck_angle_data[] =
 
 SFUNCTION void Draw_Neck(float x, float y, float z)
 {
-	point base, head, flapL, flapR;
-	double angle;
-	int i;
-	for(i=0; i<24; i++)
-	{
-		//angle = (float)(neck_angle_data[i]*M_PI/180.0);
-		angle = (float)(neck_angle_data[i]*M_PI/120.0f);
-		base.x = x + neck_position_data[i*2+0];
-		base.y = y + neck_position_data[i*2+1];
-		base.z = z;
-		head.x = base.x + TRIANGLE_SIZE*(float)dsinf(angle);
-		head.y = base.y - TRIANGLE_SIZE*(float)dcosf(angle);
-		head.z = base.z;
-		
-		flapL.x = base.x + TRIANGLE_SIZE*(float)dcosf(angle);
-		flapL.y = base.y + TRIANGLE_SIZE*(float)dsinf(angle);
-		flapL.z = base.z - (0.4f - i/80.0f)*TRIANGLE_SIZE;
-		
-		flapR.x = flapL.x;
-		flapR.y = flapL.y;
-		flapR.z = base.z + (0.4f - i/80.0f)*TRIANGLE_SIZE;
-		Draw_Paper_Triangle(&head, &base, &flapL, &flapR);
-	}
+  point base, head, flapL, flapR;
+  double angle;
+  int i;
+  for(i=0; i<24; i++)
+  {
+    //angle = (float)(neck_angle_data[i]*M_PI/180.0);
+    angle = (float)(neck_angle_data[i]*M_PI/120.0f);
+    base.x = x + neck_position_data[i*2+0];
+    base.y = y + neck_position_data[i*2+1];
+    base.z = z;
+    head.x = base.x + TRIANGLE_SIZE*(float)dsinf(angle);
+    head.y = base.y - TRIANGLE_SIZE*(float)dcosf(angle);
+    head.z = base.z;
+    
+    flapL.x = base.x + TRIANGLE_SIZE*(float)dcosf(angle);
+    flapL.y = base.y + TRIANGLE_SIZE*(float)dsinf(angle);
+    flapL.z = base.z - (0.4f - i/80.0f)*TRIANGLE_SIZE;
+    
+    flapR.x = flapL.x;
+    flapR.y = flapL.y;
+    flapR.z = base.z + (0.4f - i/80.0f)*TRIANGLE_SIZE;
+    Draw_Paper_Triangle(&head, &base, &flapL, &flapR);
+  }
 }
 
 /** Cylinder detail leve. */
@@ -417,44 +425,44 @@ SFUNCTION void Draw_Neck(float x, float y, float z)
 /* Draw a cylinder */
 SFUNCTION void Draw_Cylinder(point *begin, point *end, float r1, float r2)
 {
-	// Calculate two normals for the vector
-	point n1,n2,temp1,temp2,temp3,temp4;
-	int i;
-	temp1.x = end->x - begin->x;
-	temp1.y = end->y - begin->y;
-	temp1.z = end->z - begin->z;
-	temp2.x = temp2.y = temp2.z = 128.0f;
-	
-	CrossProduct(&temp1, &temp2, &n1);
-	CrossProduct(&temp1, &n1, &n2);
+  // Calculate two normals for the vector
+  point n1,n2,temp1,temp2,temp3,temp4;
+  int i;
+  temp1.x = end->x - begin->x;
+  temp1.y = end->y - begin->y;
+  temp1.z = end->z - begin->z;
+  temp2.x = temp2.y = temp2.z = 128.0f;
+  
+  CrossProduct(&temp1, &temp2, &n1);
+  CrossProduct(&temp1, &n1, &n2);
 
-	for(i = 0; (i < CYLINDER_DETAIL); i++)
-	{
-		float	tmpi = i * CYLINDER_STEP,
-					ci = dcosf(tmpi),
-					si = dsinf(tmpi),
-					ci1 = dcosf(tmpi + CYLINDER_STEP),
-					si1 = dsinf(tmpi + CYLINDER_STEP);					
-		temp1.x = begin->x + r1 * (n1.x * ci + n2.x * si);
-		temp1.y = begin->y + r1 * (n1.y * ci + n2.y * si);
-		temp1.z = begin->z + r1 * (n1.z * ci + n2.z * si);
-		temp2.x = begin->x + r1 * (n1.x * ci1 + n2.x * si1);
-		temp2.y = begin->y + r1 * (n1.y * ci1 + n2.y * si1);
-		temp2.z = begin->z + r1 * (n1.z * ci1 + n2.z * si1);
-		temp3.x = end->x + r2 * (n1.x * ci + n2.x * si);
-		temp3.y = end->y + r2 * (n1.y * ci + n2.y * si);
-		temp3.z = end->z + r2 * (n1.z * ci + n2.z * si);
-		temp4.x = end->x + r2 * (n1.x * ci1 + n2.x * si1);
-		temp4.y = end->y + r2 * (n1.y * ci1 + n2.y * si1);
-		temp4.z = end->z + r2 * (n1.z * ci1 + n2.z * si1);
+  for(i = 0; (i < CYLINDER_DETAIL); i++)
+  {
+    float  tmpi = i * CYLINDER_STEP,
+          ci = dcosf(tmpi),
+          si = dsinf(tmpi),
+          ci1 = dcosf(tmpi + CYLINDER_STEP),
+          si1 = dsinf(tmpi + CYLINDER_STEP);          
+    temp1.x = begin->x + r1 * (n1.x * ci + n2.x * si);
+    temp1.y = begin->y + r1 * (n1.y * ci + n2.y * si);
+    temp1.z = begin->z + r1 * (n1.z * ci + n2.z * si);
+    temp2.x = begin->x + r1 * (n1.x * ci1 + n2.x * si1);
+    temp2.y = begin->y + r1 * (n1.y * ci1 + n2.y * si1);
+    temp2.z = begin->z + r1 * (n1.z * ci1 + n2.z * si1);
+    temp3.x = end->x + r2 * (n1.x * ci + n2.x * si);
+    temp3.y = end->y + r2 * (n1.y * ci + n2.y * si);
+    temp3.z = end->z + r2 * (n1.z * ci + n2.z * si);
+    temp4.x = end->x + r2 * (n1.x * ci1 + n2.x * si1);
+    temp4.y = end->y + r2 * (n1.y * ci1 + n2.y * si1);
+    temp4.z = end->z + r2 * (n1.z * ci1 + n2.z * si1);
 
-		//Muista tsekata tämä -> kaksi funktiokutsua veke
-		Draw_One_Triangle(&temp1,&temp2,&temp3);
-		Draw_One_Triangle(&temp2,&temp1,&temp3);
+    //Muista tsekata tämä -> kaksi funktiokutsua veke
+    Draw_One_Triangle(&temp1,&temp2,&temp3);
+    Draw_One_Triangle(&temp2,&temp1,&temp3);
 
-		Draw_One_Triangle(&temp2,&temp3,&temp4);
-		Draw_One_Triangle(&temp2,&temp4,&temp3);
-	}
+    Draw_One_Triangle(&temp2,&temp3,&temp4);
+    Draw_One_Triangle(&temp2,&temp4,&temp3);
+  }
 }
 
 #define BUFFER_SIZE 1024
@@ -464,192 +472,192 @@ SFUNCTION void Draw_Cylinder(point *begin, point *end, float r1, float r2)
 /* Draw the Cage */
 /*static void Draw_Cage(int sectionsx, int sectionsy)
 {
-	point temp[BUFFER_SIZE];
-	float temporary1, temporary2;
-	int i,j;
-	//Pillars up
-	for(j=0; j<=sectionsy; j++)
-	{
-		for(i=0; i<=sectionsx; i++)
-		{
-			temporary1 = (float)(i*2*M_PI/(float)sectionsx);
-			temp[j*sectionsx+i].x = CAGE_RADIUS*(float)dcosf(temporary1);
-			temp[j*sectionsx+i].z = CAGE_RADIUS*(float)dsinf(temporary1);
-			temp[j*sectionsx+i].y = j*CAGE_HEIGHT;
-			if(i>0)
-			{
-				Draw_Cylinder(&temp[j*sectionsx+i],&temp[j*sectionsx+i-1],CAGE_BAR_THICKNESS,CAGE_BAR_THICKNESS);
-			}
-			if(j>0)
-			{
-				Draw_Cylinder(&temp[(j-1)*sectionsx+i],&temp[j*sectionsx+i],CAGE_BAR_THICKNESS,CAGE_BAR_THICKNESS);
-			}
-			else
-			{
-				temp[i+1].x = temp[i+1].y = temp[i+1].z = 0.0;
-				Draw_Cylinder(&temp[i],&temp[i+1],CAGE_BAR_THICKNESS,CAGE_BAR_THICKNESS);
-			}
-		}
-	}
-	//Round roof
-	for(j=0; j<=CAGE_DETAIL; j++)
-	{
-		for(i=0; i<sectionsx; i++)
-		{
-			temporary1 = (float)(i*2*M_PI/(float)sectionsx);
-			temporary2 = (float)(j*(M_PI/2.0)/CAGE_DETAIL);
-			temp[j*sectionsx+i].x = CAGE_RADIUS*(float)(dcosf(temporary2)*dcosf(temporary1));
-			temp[j*sectionsx+i].z = CAGE_RADIUS*(float)(dcosf(temporary2)*dsinf(temporary1));
-			temp[j*sectionsx+i].y = (sectionsy+(float)dsinf(temporary2))*CAGE_HEIGHT;
-			if(j>0)
-			{
-				Draw_Cylinder(&temp[(j-1)*sectionsx+i],&temp[j*sectionsx+i],CAGE_BAR_THICKNESS,CAGE_BAR_THICKNESS);
-			}
-		}
-	}
+  point temp[BUFFER_SIZE];
+  float temporary1, temporary2;
+  int i,j;
+  //Pillars up
+  for(j=0; j<=sectionsy; j++)
+  {
+    for(i=0; i<=sectionsx; i++)
+    {
+      temporary1 = (float)(i*2*M_PI/(float)sectionsx);
+      temp[j*sectionsx+i].x = CAGE_RADIUS*(float)dcosf(temporary1);
+      temp[j*sectionsx+i].z = CAGE_RADIUS*(float)dsinf(temporary1);
+      temp[j*sectionsx+i].y = j*CAGE_HEIGHT;
+      if(i>0)
+      {
+        Draw_Cylinder(&temp[j*sectionsx+i],&temp[j*sectionsx+i-1],CAGE_BAR_THICKNESS,CAGE_BAR_THICKNESS);
+      }
+      if(j>0)
+      {
+        Draw_Cylinder(&temp[(j-1)*sectionsx+i],&temp[j*sectionsx+i],CAGE_BAR_THICKNESS,CAGE_BAR_THICKNESS);
+      }
+      else
+      {
+        temp[i+1].x = temp[i+1].y = temp[i+1].z = 0.0;
+        Draw_Cylinder(&temp[i],&temp[i+1],CAGE_BAR_THICKNESS,CAGE_BAR_THICKNESS);
+      }
+    }
+  }
+  //Round roof
+  for(j=0; j<=CAGE_DETAIL; j++)
+  {
+    for(i=0; i<sectionsx; i++)
+    {
+      temporary1 = (float)(i*2*M_PI/(float)sectionsx);
+      temporary2 = (float)(j*(M_PI/2.0)/CAGE_DETAIL);
+      temp[j*sectionsx+i].x = CAGE_RADIUS*(float)(dcosf(temporary2)*dcosf(temporary1));
+      temp[j*sectionsx+i].z = CAGE_RADIUS*(float)(dcosf(temporary2)*dsinf(temporary1));
+      temp[j*sectionsx+i].y = (sectionsy+(float)dsinf(temporary2))*CAGE_HEIGHT;
+      if(j>0)
+      {
+        Draw_Cylinder(&temp[(j-1)*sectionsx+i],&temp[j*sectionsx+i],CAGE_BAR_THICKNESS,CAGE_BAR_THICKNESS);
+      }
+    }
+  }
 }*/
 
 /* Draw the Cage */
 SFUNCTION void Draw_Cage(int sectionsx, int sectionsy)
 {
-	point temp1,temp2;
-	int i,j;
-	//Pillars up
-	for(j=0; j<sectionsy; j++)
-	{
-		for(i=0; i<sectionsx; i++)
-		{
-			temp1.x = CAGE_RADIUS*(float)dcosf(i*2*M_PI/(float)sectionsx);
-			temp1.z = CAGE_RADIUS*(float)dsinf(i*2*M_PI/(float)sectionsx);
-			temp1.y = j*CAGE_HEIGHT;
-			temp2.x = temp2.y = temp2.z = 0.0;
-			if(j==0)
-			{
-				Draw_Cylinder(&temp1,&temp2,CAGE_BAR_THICKNESS,CAGE_BAR_THICKNESS);
-			}
-			temp2.x = temp1.x;
-			temp2.z = temp1.z;
-			temp2.y = (j+1)*CAGE_HEIGHT;
-			Draw_Cylinder(&temp1,&temp2,CAGE_BAR_THICKNESS,CAGE_BAR_THICKNESS);
-			temp1.x = CAGE_RADIUS*(float)dcosf((i+1)*2*M_PI/(float)sectionsx);
-			temp1.z = CAGE_RADIUS*(float)dsinf((i+1)*2*M_PI/(float)sectionsx);
-			temp1.y = (j+1)*CAGE_HEIGHT;
-			Draw_Cylinder(&temp1,&temp2,CAGE_BAR_THICKNESS,CAGE_BAR_THICKNESS);
-			if(j==0)
-			{
-				temp1.y=temp2.y=0;
-				Draw_Cylinder(&temp1,&temp2,CAGE_BAR_THICKNESS,CAGE_BAR_THICKNESS);
-			}
-		}
-	}
-	//Round roof
-	for(j=0; j<CAGE_DETAIL; j++)
-	{
-		for(i=0; i<sectionsx; i++)
-		{
-			temp1.x = (float)dcosf(j*(M_PI/2.0)/CAGE_DETAIL)*CAGE_RADIUS*(float)dcosf(i*2*M_PI/(float)sectionsx);
-			temp1.z = (float)dcosf(j*(M_PI/2.0)/CAGE_DETAIL)*CAGE_RADIUS*(float)dsinf(i*2*M_PI/(float)sectionsx);
-			temp1.y = (sectionsy+(float)dsinf(j*(M_PI/2.0)/CAGE_DETAIL))*CAGE_HEIGHT;
-			temp2.x = (float)dcosf((j+1)*(M_PI/2.0)/CAGE_DETAIL)*CAGE_RADIUS*(float)dcosf(i*2*M_PI/(float)sectionsx);
-			temp2.z = (float)dcosf((j+1)*(M_PI/2.0)/CAGE_DETAIL)*CAGE_RADIUS*(float)dsinf(i*2*M_PI/(float)sectionsx);
-			temp2.y = (sectionsy+(float)dsinf((j+1)*(M_PI/2.0)/CAGE_DETAIL))*CAGE_HEIGHT;
-			Draw_Cylinder(&temp1,&temp2,CAGE_BAR_THICKNESS,CAGE_BAR_THICKNESS);
-		}
-	}
+  point temp1,temp2;
+  int i,j;
+  //Pillars up
+  for(j=0; j<sectionsy; j++)
+  {
+    for(i=0; i<sectionsx; i++)
+    {
+      temp1.x = CAGE_RADIUS*(float)dcosf(i*2*M_PI/(float)sectionsx);
+      temp1.z = CAGE_RADIUS*(float)dsinf(i*2*M_PI/(float)sectionsx);
+      temp1.y = j*CAGE_HEIGHT;
+      temp2.x = temp2.y = temp2.z = 0.0;
+      if(j==0)
+      {
+        Draw_Cylinder(&temp1,&temp2,CAGE_BAR_THICKNESS,CAGE_BAR_THICKNESS);
+      }
+      temp2.x = temp1.x;
+      temp2.z = temp1.z;
+      temp2.y = (j+1)*CAGE_HEIGHT;
+      Draw_Cylinder(&temp1,&temp2,CAGE_BAR_THICKNESS,CAGE_BAR_THICKNESS);
+      temp1.x = CAGE_RADIUS*(float)dcosf((i+1)*2*M_PI/(float)sectionsx);
+      temp1.z = CAGE_RADIUS*(float)dsinf((i+1)*2*M_PI/(float)sectionsx);
+      temp1.y = (j+1)*CAGE_HEIGHT;
+      Draw_Cylinder(&temp1,&temp2,CAGE_BAR_THICKNESS,CAGE_BAR_THICKNESS);
+      if(j==0)
+      {
+        temp1.y=temp2.y=0;
+        Draw_Cylinder(&temp1,&temp2,CAGE_BAR_THICKNESS,CAGE_BAR_THICKNESS);
+      }
+    }
+  }
+  //Round roof
+  for(j=0; j<CAGE_DETAIL; j++)
+  {
+    for(i=0; i<sectionsx; i++)
+    {
+      temp1.x = (float)dcosf(j*(M_PI/2.0)/CAGE_DETAIL)*CAGE_RADIUS*(float)dcosf(i*2*M_PI/(float)sectionsx);
+      temp1.z = (float)dcosf(j*(M_PI/2.0)/CAGE_DETAIL)*CAGE_RADIUS*(float)dsinf(i*2*M_PI/(float)sectionsx);
+      temp1.y = (sectionsy+(float)dsinf(j*(M_PI/2.0)/CAGE_DETAIL))*CAGE_HEIGHT;
+      temp2.x = (float)dcosf((j+1)*(M_PI/2.0)/CAGE_DETAIL)*CAGE_RADIUS*(float)dcosf(i*2*M_PI/(float)sectionsx);
+      temp2.z = (float)dcosf((j+1)*(M_PI/2.0)/CAGE_DETAIL)*CAGE_RADIUS*(float)dsinf(i*2*M_PI/(float)sectionsx);
+      temp2.y = (sectionsy+(float)dsinf((j+1)*(M_PI/2.0)/CAGE_DETAIL))*CAGE_HEIGHT;
+      Draw_Cylinder(&temp1,&temp2,CAGE_BAR_THICKNESS,CAGE_BAR_THICKNESS);
+    }
+  }
 }
 
 /* Draw s foot of the table */
 SFUNCTION void Draw_Table_Foot(float x, float z)
 {
-	int i;
-	point begin, end;
-	float tableprofile[TABLE_DETAIL];
-	for(i=0; i<TABLE_DETAIL; i++)
-	{
-		float t = (float)(2*M_PI*i/TABLE_DETAIL);
-		tableprofile[i] = 0.4f+0.2f*dcosf(t) + 0.02f*dcosf(M_PI/2+t*5);
-	}
-	for(i=0; i<TABLE_DETAIL-1; i++)
-	{
-		begin.x = end.x = x;
-		begin.z = end.z = z;
-		begin.y = -TABLE_HEIGHT*(1-i/(float)TABLE_DETAIL);
-		end.y = -TABLE_HEIGHT*(1-(i+1)/(float)TABLE_DETAIL);
-		Draw_Cylinder(&begin, &end, TABLE_FOOT_RADIUS*tableprofile[i], TABLE_FOOT_RADIUS*tableprofile[i+1]);
-	}
+  int i;
+  point begin, end;
+  float tableprofile[TABLE_DETAIL];
+  for(i=0; i<TABLE_DETAIL; i++)
+  {
+    float t = (float)(2*M_PI*i/TABLE_DETAIL);
+    tableprofile[i] = 0.4f+0.2f*dcosf(t) + 0.02f*dcosf(M_PI/2+t*5);
+  }
+  for(i=0; i<TABLE_DETAIL-1; i++)
+  {
+    begin.x = end.x = x;
+    begin.z = end.z = z;
+    begin.y = -TABLE_HEIGHT*(1-i/(float)TABLE_DETAIL);
+    end.y = -TABLE_HEIGHT*(1-(i+1)/(float)TABLE_DETAIL);
+    Draw_Cylinder(&begin, &end, TABLE_FOOT_RADIUS*tableprofile[i], TABLE_FOOT_RADIUS*tableprofile[i+1]);
+  }
 }
 
 /* Draw the round table */
 SFUNCTION void Draw_Table()
 {
-	int i;
-	point begin, end;
-	float tempy[BUFFER_SIZE];
-	float tempr[BUFFER_SIZE];
-	for(i=0; i<5; i++)
-	{
-		Draw_Table_Foot((TABLE_RADIUS + (TABLE_SIDE_RADIUS+TABLE_FLAT_PART_LEN)/2)*(float)dcosf(-0.2+i*2*M_PI/5), (TABLE_RADIUS + (TABLE_SIDE_RADIUS+TABLE_FLAT_PART_LEN)/2)*(float)dsinf(-0.2+i*2*M_PI/5));
-	}
-	for(i=0; i<=TABLE_DETAIL; i++)
-	{
-		float temporary = (float)(i*2*M_PI/TABLE_DETAIL);
-		tempy[i] = -2.0f + TABLE_SIDE_RADIUS*(float)dsinf(temporary);
-		tempr[i] = TABLE_RADIUS + TABLE_SIDE_RADIUS*(float)dcosf(temporary);
-		if((i<=TABLE_DETAIL/4)||(i>3*TABLE_DETAIL/4))
-		{
-			tempr[i]+=TABLE_FLAT_PART_LEN;
-		}
-		if(i>0)
-		{
-			begin.x = end.x = 0.0;
-			begin.z = end.z = 0.0;
-			begin.y = tempy[i-1];
-			end.y = tempy[i];
-			Draw_Cylinder(&begin, &end, tempr[i-1], tempr[i]);
-		}
-	}
+  int i;
+  point begin, end;
+  float tempy[BUFFER_SIZE];
+  float tempr[BUFFER_SIZE];
+  for(i=0; i<5; i++)
+  {
+    Draw_Table_Foot((TABLE_RADIUS + (TABLE_SIDE_RADIUS+TABLE_FLAT_PART_LEN)/2)*(float)dcosf(-0.2+i*2*M_PI/5), (TABLE_RADIUS + (TABLE_SIDE_RADIUS+TABLE_FLAT_PART_LEN)/2)*(float)dsinf(-0.2+i*2*M_PI/5));
+  }
+  for(i=0; i<=TABLE_DETAIL; i++)
+  {
+    float temporary = (float)(i*2*M_PI/TABLE_DETAIL);
+    tempy[i] = -2.0f + TABLE_SIDE_RADIUS*(float)dsinf(temporary);
+    tempr[i] = TABLE_RADIUS + TABLE_SIDE_RADIUS*(float)dcosf(temporary);
+    if((i<=TABLE_DETAIL/4)||(i>3*TABLE_DETAIL/4))
+    {
+      tempr[i]+=TABLE_FLAT_PART_LEN;
+    }
+    if(i>0)
+    {
+      begin.x = end.x = 0.0;
+      begin.z = end.z = 0.0;
+      begin.y = tempy[i-1];
+      end.y = tempy[i];
+      Draw_Cylinder(&begin, &end, tempr[i-1], tempr[i]);
+    }
+  }
 }
 
 SCONST unsigned char section_amount_data[] =
 {
-	30, 0, 0,
-	30, 0, 0,
-	30, 0, 0,
-	30, 0, 0,
-	30, 0, 0,
-	27, 0, 0,
-	26, 0, 0,
-	10, 10, 3,
-	9, 9, 2,
-	8, 8, 1,
-	7, 7, 0,
-	6, 6, 0,
-	5, 5, 0,
-	4, 4, 0,
-	3, 3, 0,
-	2, 2, 0,
-	1, 1, 0
+  30, 0, 0,
+  30, 0, 0,
+  30, 0, 0,
+  30, 0, 0,
+  30, 0, 0,
+  27, 0, 0,
+  26, 0, 0,
+  10, 10, 3,
+  9, 9, 2,
+  8, 8, 1,
+  7, 7, 0,
+  6, 6, 0,
+  5, 5, 0,
+  4, 4, 0,
+  3, 3, 0,
+  2, 2, 0,
+  1, 1, 0
 };
 
 /*static const unsigned short int section_angle_data[] =
 {
-	6, 0, 0, 366, 0, 0,
-	0, 0, 0, 360, 0, 0,
-	6, 0, 0, 366, 0, 0,
-	0, 0, 0, 360, 0, 0,
-	6, 0, 0, 366, 0, 0,
-	24, 0, 0, 348, 0, 0,
-	30, 0, 0, 342, 0, 0,
-	36, 216, 168, 156, 336, 204,
-	42, 222, 174, 150, 330, 198,
-	48, 228, 180, 144, 324, 192,
-	54, 234, 0, 138, 318, 0,
-	60, 240, 0, 132, 312, 0,
-	66, 246, 0, 126, 306, 0,
-	72, 252, 0, 120, 300, 0,
-	78, 258, 0, 114, 294, 0,
-	84, 264, 0, 108, 288, 0,
-	90, 270, 0, 102, 282, 0
+  6, 0, 0, 366, 0, 0,
+  0, 0, 0, 360, 0, 0,
+  6, 0, 0, 366, 0, 0,
+  0, 0, 0, 360, 0, 0,
+  6, 0, 0, 366, 0, 0,
+  24, 0, 0, 348, 0, 0,
+  30, 0, 0, 342, 0, 0,
+  36, 216, 168, 156, 336, 204,
+  42, 222, 174, 150, 330, 198,
+  48, 228, 180, 144, 324, 192,
+  54, 234, 0, 138, 318, 0,
+  60, 240, 0, 132, 312, 0,
+  66, 246, 0, 126, 306, 0,
+  72, 252, 0, 120, 300, 0,
+  78, 258, 0, 114, 294, 0,
+  84, 264, 0, 108, 288, 0,
+  90, 270, 0, 102, 282, 0
 };*/
 
 SCONST unsigned char section_angle_data[] =
@@ -676,34 +684,34 @@ SCONST unsigned char section_angle_data[] =
 /* Scene to screen */
 SFUNCTION void Draw_Swan()
 {
-	int i,j;
-	float base_r, base_h, head_r, head_h, flaps_r, flaps_h;
-	// Draw the body
-	for(i=0; i<17; i++)
-	{
-		
-		if(i<8)
-		{
-			base_r = INITIAL_R+SWAN_RADIUS*(float)dsinf(M_PI*i/16.0);
-			base_h = INITIAL_H+SWAN_RADIUS*(-(float)dcosf(M_PI*i/16.0)+1);
-		}
-		else
-		{
-			base_r = INITIAL_R+0.6f*SWAN_RADIUS + 0.4f*SWAN_RADIUS*(float)dsinf(M_PI/2 + M_PI*(i-8)/10.0);
-			base_h = INITIAL_H+(((float)i-8.0f)/6.0f + 1.0f)*SWAN_RADIUS;
-		}
-		head_r = base_r + TRIANGLE_SIZE*(float)dsinf(i*M_PI*SWAN_LAYER_ANGLE_STEP/180);
-		head_h = base_h - TRIANGLE_SIZE*(float)dcosf(i*M_PI*SWAN_LAYER_ANGLE_STEP/180);
-		flaps_r = base_r + TRIANGLE_SIZE*(float)dcosf(i*M_PI*SWAN_LAYER_ANGLE_STEP/180);
-		flaps_h = base_h + TRIANGLE_SIZE*(float)dsinf(i*M_PI*SWAN_LAYER_ANGLE_STEP/180);
+  int i,j;
+  float base_r, base_h, head_r, head_h, flaps_r, flaps_h;
+  // Draw the body
+  for(i=0; i<17; i++)
+  {
+    
+    if(i<8)
+    {
+      base_r = INITIAL_R+SWAN_RADIUS*(float)dsinf(M_PI*i/16.0);
+      base_h = INITIAL_H+SWAN_RADIUS*(-(float)dcosf(M_PI*i/16.0)+1);
+    }
+    else
+    {
+      base_r = INITIAL_R+0.6f*SWAN_RADIUS + 0.4f*SWAN_RADIUS*(float)dsinf(M_PI/2 + M_PI*(i-8)/10.0);
+      base_h = INITIAL_H+(((float)i-8.0f)/6.0f + 1.0f)*SWAN_RADIUS;
+    }
+    head_r = base_r + TRIANGLE_SIZE*(float)dsinf(i*M_PI*SWAN_LAYER_ANGLE_STEP/180);
+    head_h = base_h - TRIANGLE_SIZE*(float)dcosf(i*M_PI*SWAN_LAYER_ANGLE_STEP/180);
+    flaps_r = base_r + TRIANGLE_SIZE*(float)dcosf(i*M_PI*SWAN_LAYER_ANGLE_STEP/180);
+    flaps_h = base_h + TRIANGLE_SIZE*(float)dsinf(i*M_PI*SWAN_LAYER_ANGLE_STEP/180);
 
-		for(j=0; j<3; j++)
-		{
-			Draw_Flap_Circle(base_r, base_h, head_r, head_h, flaps_r, flaps_h, section_amount_data[i*3+j], section_angle_data[i*6+j], section_angle_data[i*6+j+3]);
-		}
-	}
-	// Draw the neck
-	Draw_Neck(0.9f*SWAN_RADIUS, 0.65f*SWAN_RADIUS, 0.0f);
+    for(j=0; j<3; j++)
+    {
+      Draw_Flap_Circle(base_r, base_h, head_r, head_h, flaps_r, flaps_h, section_amount_data[i*3+j], section_angle_data[i*6+j], section_angle_data[i*6+j+3]);
+    }
+  }
+  // Draw the neck
+  Draw_Neck(0.9f*SWAN_RADIUS, 0.65f*SWAN_RADIUS, 0.0f);
 }
 
 //######################################
@@ -822,37 +830,37 @@ SCONST char shader_fragment[] =
 
 static char *shader_parts[] =
 {
-	shader_vars,
-	NULL,
-	shader_front,
-	NULL
+  shader_vars,
+  NULL,
+  shader_front,
+  NULL
 };
 
 SFUNCTION unsigned shader_create(const char *sf, const char *ss, GLenum st)
 {
-	unsigned ret = dlCreateShader(st);
+  unsigned ret = dlCreateShader(st);
 
-	shader_parts[1] = (char*)sf;
-	shader_parts[3] = (char*)ss;
+  shader_parts[1] = (char*)sf;
+  shader_parts[3] = (char*)ss;
 
-	dlShaderSource(ret, 4, (const GLchar**)shader_parts, NULL);
-	dlCompileShader(ret);
+  dlShaderSource(ret, 4, (const GLchar**)shader_parts, NULL);
+  dlCompileShader(ret);
 #if defined(USE_LD)
-	{
-		GLint status;
-		glGetShaderiv(ret, GL_COMPILE_STATUS, &status);
-		if(status != GL_TRUE)
-		{
-			char slog[4096];
-			GLsizei len;
-			glGetShaderInfoLog(ret, 4096, &len, slog);
-			puts(slog);
-			exit(1);
-		}
-	}
-	printf("GLSL shader with %p and %p: %u\n", sf, ss, ret);
+  {
+    GLint status;
+    glGetShaderiv(ret, GL_COMPILE_STATUS, &status);
+    if(status != GL_TRUE)
+    {
+      char slog[4096];
+      GLsizei len;
+      glGetShaderInfoLog(ret, 4096, &len, slog);
+      puts(slog);
+      exit(1);
+    }
+  }
+  printf("GLSL shader with %p and %p: %u\n", sf, ss, ret);
 #endif
-	return ret;
+  return ret;
 }
 
 #if defined(USE_LD)
@@ -861,28 +869,28 @@ SFUNCTION unsigned program_create(const char *vf)
 SFUNCTION void program_create(const char *vf)
 #endif
 {
-	unsigned vi = shader_create(vf, shader_vertex, GL_VERTEX_SHADER),
-					 fi = shader_create(vf, shader_fragment, GL_FRAGMENT_SHADER);
+  unsigned vi = shader_create(vf, shader_vertex, GL_VERTEX_SHADER),
+           fi = shader_create(vf, shader_fragment, GL_FRAGMENT_SHADER);
 
-	unsigned ret = dlCreateProgram();
-	dlAttachShader(ret, vi);
-	dlAttachShader(ret, fi);
-	dlLinkProgram(ret);
+  unsigned ret = dlCreateProgram();
+  dlAttachShader(ret, vi);
+  dlAttachShader(ret, fi);
+  dlLinkProgram(ret);
 #if defined(USE_LD)
-	{
-		GLint status;
-		glGetProgramiv(ret, GL_LINK_STATUS, &status);
-		if(status != GL_TRUE)
-		{
-			char slog[4096];
-			GLsizei len;
-			glGetProgramInfoLog(ret, 4096, &len, slog);
-			puts(slog);
-			exit(1);
-		}
-	}
-	printf("GLSL program with %p compiles to: %u\n", vf, ret);
-	return ret;
+  {
+    GLint status;
+    glGetProgramiv(ret, GL_LINK_STATUS, &status);
+    if(status != GL_TRUE)
+    {
+      char slog[4096];
+      GLsizei len;
+      glGetProgramInfoLog(ret, 4096, &len, slog);
+      puts(slog);
+      exit(1);
+    }
+  }
+  printf("GLSL program with %p compiles to: %u\n", vf, ret);
+  return ret;
 #endif
 }
 
@@ -906,78 +914,78 @@ unsigned program_table;
 
 SFUNCTION void map_grid(unsigned xsize, unsigned ysize)
 {
-	GLuint *iter = index_array;
-	unsigned ii,jj;
-	for(ii = 0; (ii < xsize); ++ii)
-	{
-		for(jj = 0; (jj < ysize); ++jj)
-		{
-			unsigned idx = ii * ysize + jj;
-			interleaved_array *aa = draw_array + idx;
+  GLuint *iter = index_array;
+  unsigned ii,jj;
+  for(ii = 0; (ii < xsize); ++ii)
+  {
+    for(jj = 0; (jj < ysize); ++jj)
+    {
+      unsigned idx = ii * ysize + jj;
+      interleaved_array *aa = draw_array + idx;
 
-			aa->cr = aa->cg = aa->cb = aa->ca = 1.0f;
-			aa->px = (float)ii;
-			aa->py = (float)jj;
-			aa->nx = aa->ny = aa->nz = 0.0f;
-			aa->pz = 0.0f;
+      aa->cr = aa->cg = aa->cb = aa->ca = 1.0f;
+      aa->px = (float)ii;
+      aa->py = (float)jj;
+      aa->nx = aa->ny = aa->nz = 0.0f;
+      aa->pz = 0.0f;
 
-			if((ii < xsize - 1) && (jj < ysize - 1))
-			{
-				iter[0] = idx;
-				iter[1] = idx + 1;
-				iter[2] = idx + ysize + 1;
-				iter[3] = idx + ysize;
-				iter += 4;
-			}
-		}
-	}
-	dlDrawElements(GL_QUADS, (xsize - 1) * (ysize - 1) * 4, GL_UNSIGNED_INT, index_array);
+      if((ii < xsize - 1) && (jj < ysize - 1))
+      {
+        iter[0] = idx;
+        iter[1] = idx + 1;
+        iter[2] = idx + ysize + 1;
+        iter[3] = idx + ysize;
+        iter += 4;
+      }
+    }
+  }
+  dlDrawElements(GL_QUADS, (xsize - 1) * (ysize - 1) * 4, GL_UNSIGNED_INT, index_array);
 }
 
 SFUNCTION void draw()
 {
-	point begin, end;
-	dlMatrixMode(GL_MODELVIEW);
-	dlLoadIdentity();
+  point begin, end;
+  dlMatrixMode(GL_MODELVIEW);
+  dlLoadIdentity();
 
-	dluLookAt(300.0, 300.0, 200.0,
-			0.0, 70.0, 0.0,
-			0.0, 1.0, 0.0);
+  dluLookAt(300.0, 300.0, 200.0,
+      0.0, 70.0, 0.0,
+      0.0, 1.0, 0.0);
 
-	/*glColor4f(1.0, 1.0, 1.0, 1.0);
-	glBegin(GL_QUADS);
-	glVertex3f(-100.0f, 0.0, -100.0f);
-	glVertex3f(100.0f, 0.0, -100.0f);
-	glVertex3f(100.0f, 0.0, 100.0f);
-	glVertex3f(-100.0f, 0.0, 100.0f);
-	glEnd();*/
+  /*glColor4f(1.0, 1.0, 1.0, 1.0);
+  glBegin(GL_QUADS);
+  glVertex3f(-100.0f, 0.0, -100.0f);
+  glVertex3f(100.0f, 0.0, -100.0f);
+  glVertex3f(100.0f, 0.0, 100.0f);
+  glVertex3f(-100.0f, 0.0, 100.0f);
+  glEnd();*/
 
-	//glUseProgram(program_table);
-	//map_grid(NEWTON_DETAIL, NEWTON_DETAIL);
+  //glUseProgram(program_table);
+  //map_grid(NEWTON_DETAIL, NEWTON_DETAIL);
 
-	dlUseProgram(program_table);
-	Draw_Table();
-	dlDrawElements(GL_TRIANGLES, iiter, GL_UNSIGNED_INT, index_array);
+  dlUseProgram(program_table);
+  Draw_Table();
+  dlDrawElements(GL_TRIANGLES, iiter, GL_UNSIGNED_INT, index_array);
 
-	//Draw the goddamn glass
-	dlUseProgram(program_glass);
-	begin.x = begin.z = end.x = end.z = 0.0;
-	begin.y = -2.01f;
-	end.y = -2.00f;
-	Draw_Cylinder(&begin, &end, TABLE_RADIUS, 0);
-	dlDrawElements(GL_TRIANGLES, iiter, GL_UNSIGNED_INT, index_array);
+  //Draw the goddamn glass
+  dlUseProgram(program_glass);
+  begin.x = begin.z = end.x = end.z = 0.0;
+  begin.y = -2.01f;
+  end.y = -2.00f;
+  Draw_Cylinder(&begin, &end, TABLE_RADIUS, 0);
+  dlDrawElements(GL_TRIANGLES, iiter, GL_UNSIGNED_INT, index_array);
 
-	dlUseProgram(program_newton);
-	map_grid(NEWTON_DETAIL, NEWTON_DETAIL);
+  dlUseProgram(program_newton);
+  map_grid(NEWTON_DETAIL, NEWTON_DETAIL);
 
-	// Non-rectangular stuff
-	dlUseProgram(program_neutral);
-	Draw_Swan();
-	dlDrawElements(GL_TRIANGLES, iiter, GL_UNSIGNED_INT, index_array);
+  // Non-rectangular stuff
+  dlUseProgram(program_neutral);
+  Draw_Swan();
+  dlDrawElements(GL_TRIANGLES, iiter, GL_UNSIGNED_INT, index_array);
 
-	dlUseProgram(program_cage);
-	Draw_Cage(20,2);
-	dlDrawElements(GL_TRIANGLES, iiter, GL_UNSIGNED_INT, index_array);
+  dlUseProgram(program_cage);
+  Draw_Cage(20,2);
+  dlDrawElements(GL_TRIANGLES, iiter, GL_UNSIGNED_INT, index_array);
 }
 
 //######################################
@@ -1011,127 +1019,127 @@ void _start()
 
 #if !defined(WIN32)
 #if defined(USE_LD)
-	// This is a replica of the loader to determine function addresses.
-	{
-		char *iter = (char*)dnload_symbols;
-		do {
-			for(;;)
-			{
-				void **olditer = (void**)iter;
-				while(*(iter++));
-				if(!*(iter))
-				{
-					break;
-				}
-				printf("dlfcn symbol offset %s: %i\n", iter, (int)(((char*)olditer) - dnload_symbols));
-			}
-		} while(*(++iter));
-	}
+  // This is a replica of the loader to determine function addresses.
+  {
+    char *iter = (char*)dnload_symbols;
+    do {
+      for(;;)
+      {
+        void **olditer = (void**)iter;
+        while(*(iter++));
+        if(!*(iter))
+        {
+          break;
+        }
+        printf("dlfcn symbol offset %s: %i\n", iter, (int)(((char*)olditer) - dnload_symbols));
+      }
+    } while(*(++iter));
+  }
 #else
-	// Load some symbols.
-	{
-		char *iter = (char*)dnload_symbols;
-		do {
-			void *handle = dlopen(iter, RTLD_LAZY);
+  // Load some symbols.
+  {
+    char *iter = (char*)dnload_symbols;
+    do {
+      void *handle = dlopen(iter, RTLD_LAZY);
 
-			for(;;)
-			{
-				void **olditer = (void**)iter;
+      for(;;)
+      {
+        void **olditer = (void**)iter;
 
-				while(*(iter++));
-				if(!*(iter))
-				{
-					break;
-				}
+        while(*(iter++));
+        if(!*(iter))
+        {
+          break;
+        }
 
-				*olditer = dlsym(handle, iter);			
-			}
-		} while(*(++iter));
-	}
+        *olditer = dlsym(handle, iter);      
+      }
+    } while(*(++iter));
+  }
 #endif
 #endif
 
-	//init_Graphics();
-	DDL_Init(SDL_INIT_VIDEO);
-	DDL_SetVideoMode(1280, 720, 32, SDL_OPENGL);
-#if defined(WIN32)
-	{
-		GLenum err = glewInit();
-		if(err != GLEW_OK)
-		{
-			//problem: glewInit failed, something is seriously wrong
-			//sprintf(ErrorMessage, "Error: %s\n", glewGetErrorString(err));
-			return -1;
-		}
-	}
+  //init_Graphics();
+  DDL_Init(SDL_INIT_VIDEO);
+  DDL_SetVideoMode(1280, 720, 32, SDL_OPENGL);
+#if defined(USE_LD)
+  {
+    GLenum err = glewInit();
+    if(err != GLEW_OK)
+    {
+      //problem: glewInit failed, something is seriously wrong
+      //sprintf(ErrorMessage, "Error: %s\n", glewGetErrorString(err));
+      return -1;
+    }
+  }
 #endif
-	
-	{
-		/* change to the projection matrix and set our viewing volume. */
-		dlMatrixMode(GL_PROJECTION);
-		dlLoadIdentity();
-		dluPerspective(45.0, 1280.0 / 720.0, 1.0, 8192.0);
-	}
+  
+  {
+    /* change to the projection matrix and set our viewing volume. */
+    dlMatrixMode(GL_PROJECTION);
+    dlLoadIdentity();
+    dluPerspective(45.0, 1280.0 / 720.0, 1.0, 8192.0);
+  }
 
-	{
-		dlEnable(GL_CULL_FACE);
-		dlEnable(GL_DEPTH_TEST);
-		dlEnable(GL_BLEND);
-		dlBlendFunc(GL_SRC_ALPHA,	GL_ONE_MINUS_SRC_ALPHA);
-		dlInterleavedArrays(GL_C4F_N3F_V3F, 0, draw_array);
-	}
+  {
+    dlEnable(GL_CULL_FACE);
+    dlEnable(GL_DEPTH_TEST);
+    dlEnable(GL_BLEND);
+    dlBlendFunc(GL_SRC_ALPHA,  GL_ONE_MINUS_SRC_ALPHA);
+    dlInterleavedArrays(GL_C4F_N3F_V3F, 0, draw_array);
+  }
 
 #if defined(USE_LD)
-	program_newton = program_create(shader_funcs_newton);
-	program_cage = program_create(shader_funcs_cage);
-	program_glass = program_create(shader_funcs_glass);
-	program_neutral = program_create(shader_funcs_neutral);
-	program_table = program_create(shader_funcs_table);
+  program_newton = program_create(shader_funcs_newton);
+  program_cage = program_create(shader_funcs_cage);
+  program_glass = program_create(shader_funcs_glass);
+  program_neutral = program_create(shader_funcs_neutral);
+  program_table = program_create(shader_funcs_table);
 #else
-	program_create(shader_funcs_newton);
-	program_create(shader_funcs_cage);
-	program_create(shader_funcs_glass);
-	program_create(shader_funcs_neutral);
-	program_create(shader_funcs_table);
+  program_create(shader_funcs_newton);
+  program_create(shader_funcs_cage);
+  program_create(shader_funcs_glass);
+  program_create(shader_funcs_neutral);
+  program_create(shader_funcs_table);
 #endif
 
-	/* wait for events */
-	for(;;)
-	{
-		SDL_Event event;
-		if(DDL_PollEvent(&event) && (event.type == SDL_KEYDOWN))
-		{
+  /* wait for events */
+  for(;;)
+  {
+    SDL_Event event;
+    if(DDL_PollEvent(&event) && (event.type == SDL_KEYDOWN))
+    {
 #if defined(USE_LD)
-			if(event.key.keysym.sym == SDLK_ESCAPE)
-			{
+      if(event.key.keysym.sym == SDLK_ESCAPE)
+      {
 #endif
-				break;
+        break;
 #if defined(USE_LD)
-			}
+      }
 #endif
-		}
+    }
 
-		{
-			static unsigned int drawn = 0;
-			if(!drawn)
-			{
-				dlClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-				draw();
-				drawn = 1;
-			}
-		}
+    {
+      static unsigned int drawn = 0;
+      if(!drawn)
+      {
+        dlClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        draw();
+        drawn = 1;
+      }
+    }
 
-		DDL_GL_SwapBuffers();
+    DDL_GL_SwapBuffers();
 #if defined(USE_LD)
-		SDL_Delay(10);
+    SDL_Delay(10);
 #endif
-	}
+  }
 
-	DDL_Quit();
+  DDL_Quit();
 #if !defined(USE_LD)
-	asm("movl $1,%eax\nxor %ebx,%ebx\nint $128\n");
+  asm("movl $1,%eax\nxor %ebx,%ebx\nint $128\n");
 #else
-	return 0;
+  return 0;
 #endif
 }
 

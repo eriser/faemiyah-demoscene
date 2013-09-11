@@ -33,13 +33,13 @@ AC_OUTPUT
 
 echo "
 Configuration for $PACKAGE_TARNAME $PACKAGE_VERSION:
-	Enable debug:               $ENABLE_DEBUG
-	Enable optimizations:       $optimizations
-	C Compiler:                 $CC
-	C compiler flags:           $CFLAGS
-	C++ Compiler:               $CXX
-	C++ compiler flags:         $CXXFLAGS
-	Linker flags:               $LDFLAGS
-	Libs:                       $LIBS
-	Install prefix:             $prefix
+  Enable debug:          $ENABLE_DEBUG
+  Enable optimizations:  $optimizations
+  C Compiler:            $CC
+  C compiler flags:      $CFLAGS
+  C++ Compiler:          $CXX
+  C++ compiler flags:    $CXXFLAGS
+  Linker flags:          $LDFLAGS
+  Libs:                  $LIBS
+  Install prefix:        $prefix
 Type 'make' to build and 'make install' to install $PACKAGE."
