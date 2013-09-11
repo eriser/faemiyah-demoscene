@@ -828,7 +828,7 @@ SCONST char shader_fragment[] =
 "gl_FragColor=g;"
 "}";
 
-static char *shader_parts[] =
+static const char *shader_parts[] =
 {
   shader_vars,
   NULL,
@@ -1126,10 +1126,10 @@ void _start()
         dlClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         draw();
         drawn = 1;
+        DDL_GL_SwapBuffers(); /* Only flip once. */
       }
     }
 
-    DDL_GL_SwapBuffers();
 #if defined(USE_LD)
     SDL_Delay(10);
 #endif
