@@ -736,8 +736,7 @@ SCONST char shader_vars[] =
 "i2=m(i2,i2);"
 "i2=m(i2,i2);"
 "i1=i2+i1;"
-"float c=i/64.0;"
-"if(length(i1)>4)return vec2(float(i),c);"
+"if(length(i1)>4)return vec2(float(i),i/64.);"
 "++i;}}"
 "vec3 f(float s,float t){";
 
