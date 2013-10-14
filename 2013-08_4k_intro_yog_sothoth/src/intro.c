@@ -1495,11 +1495,11 @@ void _start()
     dlGenTextures(1, &useless);
 #endif
     dlBindTexture(GL_TEXTURE_2D_MULTISAMPLE, g_fbo_texture);
-    dlTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, AA_LEVEL, GL_RGBA, SCREEN_W, SCREEN_H, GL_FALSE);
+    dlTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, AA_LEVEL, GL_RGBA, screen_w, screen_h, GL_FALSE);
 
     dlGenRenderbuffersEXT(1, &renderbuffer);
     dlBindRenderbufferEXT(GL_RENDERBUFFER, renderbuffer);
-    dlRenderbufferStorageMultisampleEXT(GL_RENDERBUFFER, AA_LEVEL, GL_DEPTH_COMPONENT, SCREEN_W, SCREEN_H);
+    dlRenderbufferStorageMultisampleEXT(GL_RENDERBUFFER, AA_LEVEL, GL_DEPTH_COMPONENT, screen_w, screen_h);
 
 #if defined(USE_LD)
     dlGenFramebuffersEXT(1, &g_fbo);
