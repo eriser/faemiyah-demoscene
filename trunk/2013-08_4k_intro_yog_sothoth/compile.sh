@@ -20,7 +20,7 @@ if test "x${UNAME}" = "xLinux" ; then
   fi
   STAT_FLAGS="-c \"%s\""
 elif test "x${UNAME}" = "xFreeBSD" ; then
-  CC="gcc48 -std=gnu99"
+  CC="gcc49 -std=gnu99"
   if test `uname -m` = "amd64" ; then
     CC_FLAGS="${OPT_FLAGS} -mpreferred-stack-boundary=4"
   else
