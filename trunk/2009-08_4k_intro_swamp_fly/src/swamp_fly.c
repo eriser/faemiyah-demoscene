@@ -13,7 +13,6 @@
 #define IVARIABLE static
 #define ICONST static
 #elif !defined(MODE_REL)
-#include "config.h"
 #define IFUNCTION static
 #define IVARIABLE static
 #define ICONST static const
@@ -101,8 +100,10 @@
 #include <SDL/SDL.h>
 #include <SDL/SDL_opengl.h>
 #else
+#define GL_GLEXT_PROTOTYPES
 #include "SDL.h"
 #include "SDL_opengl.h"
+#include "GL/glext.h"
 #endif
 
 //######################################

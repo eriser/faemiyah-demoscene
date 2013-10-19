@@ -4,6 +4,7 @@
 #include <string.h>
 
 #include "png.h"
+#include "zlib.h"
 #ifdef __APPLE__
 #include "SDL/SDL_opengl.h"
 #else

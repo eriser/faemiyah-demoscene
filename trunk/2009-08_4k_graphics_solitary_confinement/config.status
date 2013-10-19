@@ -604,7 +604,7 @@ S["ENABLE_SDL"]="yes"
 S["ENABLE_SDL_FALSE"]="#"
 S["ENABLE_SDL_TRUE"]=""
 S["SDL_LIBS"]="-L/usr/local/lib -Wl,-rpath,/usr/local/lib -lSDL -pthread"
-S["SDL_CFLAGS"]="-I/usr/local/include/SDL -I/usr/local/include -D_GNU_SOURCE=1 -D_REENTRANT"
+S["SDL_CFLAGS"]="-I/usr/local/include/SDL -I/usr/local/include -D_GNU_SOURCE=1 -D_REENTRANT -D_THREAD_SAFE"
 S["SDL_CONFIG"]="/usr/local/bin/sdl-config"
 S["ENABLE_OPENGL"]="yes"
 S["ENABLE_OPENGL_FALSE"]="#"
@@ -633,7 +633,7 @@ S["CXXFLAGS"]="-O3 -fcx-limited-range -ffinite-math-only -fno-math-errno -fno-ro
 "gle-precision-constant -fomit-frame-pointer -fdiagnostics-show-option -Wall -Wcast-align -Wconversion -Wextra -Winit-self -Winvalid-pch -Wmissing-fo"\
 "rmat-attribute -Wmissing-include-dirs -Wpacked -Wredundant-decls -Wshadow -Wswitch-default -Wwrite-strings -Wundef -Wctor-dtor-privacy -Werror=non-v"\
 "irtual-dtor -Woverloaded-virtual -ftracer -fweb -pipe -Werror=return-type -march=native -I/usr/local/include/SDL -I/usr/local/include -D_GNU_SOURCE="\
-"1 -D_REENTRANT"
+"1 -D_REENTRANT -D_THREAD_SAFE"
 S["CXX"]="g++"
 S["am__fastdepCC_FALSE"]="#"
 S["am__fastdepCC_TRUE"]=""
@@ -649,13 +649,17 @@ S["OBJEXT"]="o"
 S["EXEEXT"]=""
 S["ac_ct_CC"]="gcc"
 S["CPPFLAGS"]="-isystem /usr/local/include"
-S["LDFLAGS"]="-L/usr/local/lib"
+S["LDFLAGS"]="-s -L/usr/local/lib"
 S["CFLAGS"]="-O3 -fcx-limited-range -ffinite-math-only -fno-math-errno -fno-rounding-math -fno-signaling-nans -fno-trapping-math -fgcse-las -fgcse-sm -fsee -fsin"\
 "gle-precision-constant -fomit-frame-pointer -fdiagnostics-show-option -Wall -Wcast-align -Wconversion -Wextra -Winit-self -Winvalid-pch -Wmissing-fo"\
 "rmat-attribute -Wmissing-include-dirs -Wpacked -Wredundant-decls -Wshadow -Wswitch-default -Wwrite-strings -Wundef -Wbad-function-cast -Wmissing-dec"\
 "larations -Wmissing-prototypes -Wnested-externs -Wold-style-definition -Wstrict-prototypes -ftracer -fweb -pipe -Werror=return-type -Werror-implicit"\
-"-function-declaration -march=native -I/usr/local/include/SDL -I/usr/local/include -D_GNU_SOURCE=1 -D_REENTRANT"
+"-function-declaration -march=native -I/usr/local/include/SDL -I/usr/local/include -D_GNU_SOURCE=1 -D_REENTRANT -D_THREAD_SAFE"
 S["CC"]="gcc -std=gnu99"
+S["AM_BACKSLASH"]="\\"
+S["AM_DEFAULT_VERBOSITY"]="1"
+S["AM_DEFAULT_V"]="$(AM_DEFAULT_VERBOSITY)"
+S["AM_V"]="$(V)"
 S["am__untar"]="$${TAR-tar} xf -"
 S["am__tar"]="$${TAR-tar} chof - \"$$tardir\""
 S["AMTAR"]="$${TAR-tar}"
@@ -667,10 +671,10 @@ S["MKDIR_P"]="./install-sh -c -d"
 S["INSTALL_STRIP_PROGRAM"]="$(install_sh) -c -s"
 S["STRIP"]=""
 S["install_sh"]="${SHELL} /usr/local/src/faemiyah-demoscene/2009-08_4k_graphics_solitary_confinement/install-sh"
-S["MAKEINFO"]="${SHELL} /usr/local/src/faemiyah-demoscene/2009-08_4k_graphics_solitary_confinement/missing --run makeinfo"
-S["AUTOHEADER"]="${SHELL} /usr/local/src/faemiyah-demoscene/2009-08_4k_graphics_solitary_confinement/missing --run autoheader"
-S["AUTOMAKE"]="${SHELL} /usr/local/src/faemiyah-demoscene/2009-08_4k_graphics_solitary_confinement/missing --run automake-1.12"
-S["AUTOCONF"]="${SHELL} /usr/local/src/faemiyah-demoscene/2009-08_4k_graphics_solitary_confinement/missing --run autoconf"
+S["MAKEINFO"]="${SHELL} /usr/local/src/faemiyah-demoscene/2009-08_4k_graphics_solitary_confinement/missing makeinfo"
+S["AUTOHEADER"]="${SHELL} /usr/local/src/faemiyah-demoscene/2009-08_4k_graphics_solitary_confinement/missing autoheader"
+S["AUTOMAKE"]="${SHELL} /usr/local/src/faemiyah-demoscene/2009-08_4k_graphics_solitary_confinement/missing automake-1.14"
+S["AUTOCONF"]="${SHELL} /usr/local/src/faemiyah-demoscene/2009-08_4k_graphics_solitary_confinement/missing autoconf"
 S["ACLOCAL"]="aclocal -I ."
 S["VERSION"]="r0"
 S["PACKAGE"]="swan_on_table"
@@ -679,18 +683,18 @@ S["am__isrc"]=""
 S["INSTALL_DATA"]="${INSTALL} -m 644"
 S["INSTALL_SCRIPT"]="${INSTALL}"
 S["INSTALL_PROGRAM"]="${INSTALL}"
-S["target_os"]="freebsd9.1"
+S["target_os"]="freebsd9.2"
 S["target_vendor"]="unknown"
 S["target_cpu"]="amd64"
-S["target"]="amd64-unknown-freebsd9.1"
-S["host_os"]="freebsd9.1"
+S["target"]="amd64-unknown-freebsd9.2"
+S["host_os"]="freebsd9.2"
 S["host_vendor"]="unknown"
 S["host_cpu"]="amd64"
-S["host"]="amd64-unknown-freebsd9.1"
-S["build_os"]="freebsd9.1"
+S["host"]="amd64-unknown-freebsd9.2"
+S["build_os"]="freebsd9.2"
 S["build_vendor"]="unknown"
 S["build_cpu"]="amd64"
-S["build"]="amd64-unknown-freebsd9.1"
+S["build"]="amd64-unknown-freebsd9.2"
 S["target_alias"]=""
 S["host_alias"]=""
 S["build_alias"]=""
@@ -999,7 +1003,7 @@ $as_echo "$as_me: executing $ac_file commands" >&6;}
 
   case $ac_file$ac_mode in
     "depfiles":C) test x"$AMDEP_TRUE" != x"" || {
-  # Autoconf 2.62 quotes --file arguments for eval, but not when files
+  # Older Autoconf quotes --file arguments for eval, but not when files
   # are listed without --file.  Let's play safe and only enable the eval
   # if we detect the quoting.
   case $CONFIG_FILES in
@@ -1050,7 +1054,7 @@ $as_echo X"$mf" |
     DEPDIR=`sed -n 's/^DEPDIR = //p' < "$mf"`
     test -z "$DEPDIR" && continue
     am__include=`sed -n 's/^am__include = //p' < "$mf"`
-    test -z "am__include" && continue
+    test -z "$am__include" && continue
     am__quote=`sed -n 's/^am__quote = //p' < "$mf"`
     # Find all dependency output files, they are included files with
     # $(DEPDIR) in their names.  We invoke sed twice because it is the

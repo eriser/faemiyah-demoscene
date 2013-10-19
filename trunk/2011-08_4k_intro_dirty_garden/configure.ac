@@ -1,4 +1,4 @@
-AC_INIT([dirty_garden], [1.0.0], [trilkk@iki.fi])
+AC_INIT([dirty_garden], [1.0.0], [devel@faemiyah.fi])
 
 AC_CANONICAL_BUILD
 AC_CANONICAL_HOST
