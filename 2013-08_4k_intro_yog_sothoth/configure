@@ -7100,7 +7100,7 @@ ac_compiler_gnu=$ac_cv_c_compiler_gnu
 $as_echo_n "checking if linker accepts -flto... " >&6; }
   LDFLAGS_save=$LDFLAGS
 
-  LDFLAGS_addsave=$DFLAGS
+  LDFLAGS_addsave=$LDFLAGS
   if test "x$LDFLAGS_addsave" != "x" ; then
     flag=`echo "-flto" | sed 's/-/\\\-/g'`
     if test -z "`echo \"${LDFLAGS}\" | grep \"${flag}\"`" ; then
@@ -7356,7 +7356,7 @@ ac_compiler_gnu=$ac_cv_c_compiler_gnu
 $as_echo_n "checking if linker accepts -s... " >&6; }
   LDFLAGS_save=$LDFLAGS
 
-  LDFLAGS_addsave=$DFLAGS
+  LDFLAGS_addsave=$LDFLAGS
   if test "x$LDFLAGS_addsave" != "x" ; then
     flag=`echo "-s" | sed 's/-/\\\-/g'`
     if test -z "`echo \"${LDFLAGS}\" | grep \"${flag}\"`" ; then
@@ -10040,7 +10040,7 @@ ac_compiler_gnu=$ac_cv_c_compiler_gnu
 $as_echo_n "checking if linker accepts ... " >&6; }
   LDFLAGS_save=$LDFLAGS
 
-  LDFLAGS_addsave=$DFLAGS
+  LDFLAGS_addsave=$LDFLAGS
   if test "x$LDFLAGS_addsave" != "x" ; then
     flag=`echo "" | sed 's/-/\\\-/g'`
     if test -z "`echo \"${LDFLAGS}\" | grep \"${flag}\"`" ; then
@@ -10359,7 +10359,7 @@ $as_echo "no" >&6; }
 $as_echo_n "checking for library directory /opt/lib... " >&6; }
   if test -d "/opt/lib" ; then
 
-  LDFLAGS_addsave=$DFLAGS
+  LDFLAGS_addsave=$LDFLAGS
   if test "x$LDFLAGS_addsave" != "x" ; then
     flag=`echo "-L/opt/lib" | sed 's/-/\\\-/g'`
     if test -z "`echo \"${LDFLAGS}\" | grep \"${flag}\"`" ; then
@@ -10417,7 +10417,7 @@ $as_echo "no" >&6; }
 $as_echo_n "checking for library directory /opt/local/lib... " >&6; }
   if test -d "/opt/local/lib" ; then
 
-  LDFLAGS_addsave=$DFLAGS
+  LDFLAGS_addsave=$LDFLAGS
   if test "x$LDFLAGS_addsave" != "x" ; then
     flag=`echo "-L/opt/local/lib" | sed 's/-/\\\-/g'`
     if test -z "`echo \"${LDFLAGS}\" | grep \"${flag}\"`" ; then
@@ -10475,7 +10475,7 @@ $as_echo "no" >&6; }
 $as_echo_n "checking for library directory /sw/lib... " >&6; }
   if test -d "/sw/lib" ; then
 
-  LDFLAGS_addsave=$DFLAGS
+  LDFLAGS_addsave=$LDFLAGS
   if test "x$LDFLAGS_addsave" != "x" ; then
     flag=`echo "-L/sw/lib" | sed 's/-/\\\-/g'`
     if test -z "`echo \"${LDFLAGS}\" | grep \"${flag}\"`" ; then
@@ -10533,7 +10533,7 @@ $as_echo "no" >&6; }
 $as_echo_n "checking for library directory /usr/local/lib... " >&6; }
   if test -d "/usr/local/lib" ; then
 
-  LDFLAGS_addsave=$DFLAGS
+  LDFLAGS_addsave=$LDFLAGS
   if test "x$LDFLAGS_addsave" != "x" ; then
     flag=`echo "-L/usr/local/lib" | sed 's/-/\\\-/g'`
     if test -z "`echo \"${LDFLAGS}\" | grep \"${flag}\"`" ; then
@@ -10591,7 +10591,7 @@ $as_echo "no" >&6; }
 $as_echo_n "checking for library directory /usr/X11R6/lib... " >&6; }
   if test -d "/usr/X11R6/lib" ; then
 
-  LDFLAGS_addsave=$DFLAGS
+  LDFLAGS_addsave=$LDFLAGS
   if test "x$LDFLAGS_addsave" != "x" ; then
     flag=`echo "-L/usr/X11R6/lib" | sed 's/-/\\\-/g'`
     if test -z "`echo \"${LDFLAGS}\" | grep \"${flag}\"`" ; then

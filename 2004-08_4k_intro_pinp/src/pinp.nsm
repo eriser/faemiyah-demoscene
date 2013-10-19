@@ -90,14 +90,13 @@
 %define GLU_SMOOTH				100000
 
 ; SDL
-EXTERN SDL_GL_SwapBuffers,SDL_Init,SDL_PollEvent,SDL_Quit,SDL_SetVideoMode,SDL_OpenAudio,SDL_PauseAudio
+EXTERN SDL_GL_SwapBuffers,SDL_Init,SDL_PollEvent,SDL_Quit,SDL_SetVideoMode,SDL_OpenAudio,SDL_PauseAudio,SDL_ShowCursor
 
 ; GL
 EXTERN glBegin,glBlendFunc,glColor4ubv,glEnable,glEnd,glFrustum,glLoadIdentity,glMatrixMode,glRotatef,glTranslatef,glVertex3f
 
 ; Glut
-EXTERN glutSolidSphere
-;EXTERN glutInit,glutSolidSphere
+EXTERN glutInit,glutSolidSphere
 
 ; T‰m‰ pit‰‰ exportata
 %ifdef AUTOMAKE
@@ -1590,9 +1589,12 @@ _start:
 	;mov	dword [var_screen], eax
 
 ; glut
-;	push	dword 0
-;	push	dword 0
-;	call	glutInit
+	push	dword control_efutime ; pointer to integer value 0
+	push	dword control_efutime ; pointer to null string
+	call	glutInit
+
+	push	dword 0
+	call	SDL_ShowCursor
 
 
 ;;; generoi hunpa ja play
@@ -2310,9 +2312,11 @@ audiospec:
 	dd 44100		;freq
 
 	dw 0x8010
-	dw 0x01
+        db 0x01
+	db 0x00
 
-	dd 1024
+	dw 1024
+        dw 0
 
 	dd 0
 	dd kalupakki

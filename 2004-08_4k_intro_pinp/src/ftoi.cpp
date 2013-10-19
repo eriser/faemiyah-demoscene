@@ -1,15 +1,16 @@
+#include <inttypes.h>
 #include <iostream>
 #include <stdio.h>
-#include <inttypes.h>
+#include <stdlib.h>
 
 int main(int argc, char **args)
 {
-	int32_t long_integer;
-	int32_t *ptri = &long_integer;
+  int32_t long_integer;
+  int32_t *ptri = &long_integer;
   uint32_t *ptru;
-	float floating_point_single_precision;
+  float floating_point_single_precision;
   float *ptrf = &floating_point_single_precision;
-	double floating_point_double_precision;
+  double floating_point_double_precision;
   double *ptrd = &floating_point_double_precision;
 
   if(argc < 2)

@@ -58,7 +58,7 @@ dnl Add a linker flag to current LDFLAGS if it is not already there.
 dnl AC_ADD_LDFLAG([FLAG])
 AC_DEFUN([AC_ADD_LDFLAG],
 [
-  LDFLAGS_addsave=[$DFLAGS]
+  LDFLAGS_addsave=[$LDFLAGS]
   if test "x$LDFLAGS_addsave" != "x" ; then
     flag=`echo "$1" | sed 's/-/\\\-/g'`
     if test -z "`echo \"${LDFLAGS}\" | grep \"${flag}\"`" ; then
@@ -159,7 +159,7 @@ AC_DEFUN([AC_CHECK_CCRUN],
   AC_MSG_CHECKING([if $CC runs $1])
   CFLAGS_save=[$CFLAGS]
   AC_ADD_CCFLAG([$1])
-  AC_RUN_IFELSE(AC_LANG_PROGRAM([], []),
+  AC_RUN_IFELSE([AC_LANG_PROGRAM([], [])],
     flag=[yes],
     flag=[no],
     flag=[no])
@@ -178,7 +178,7 @@ AC_DEFUN([AC_CHECK_CXXRUN],
   AC_MSG_CHECKING([if $CXX runs $1])
   CXXFLAGS_save=[$CXXFLAGS]
   AC_ADD_CXXFLAG([$1])
-  AC_RUN_IFELSE(AC_LANG_PROGRAM([], []),
+  AC_RUN_IFELSE([AC_LANG_PROGRAM([], [])],
     flag=[yes],
     flag=[no],
     flag=[no])
