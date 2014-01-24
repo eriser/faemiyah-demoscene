@@ -254,32 +254,32 @@ IVARIABLE uint32_t bsd_rand_next = 1;
  */
 IFUNCTION int bsd_rand(void)
 {
-/*
- * Compute x = (7^5 * x) mod (2^31 - 1)
- * wihout overflowing 31 bits:
- *      (2^31 - 1) = 127773 * (7^5) + 2836
- * From "Random number generators: good ones are hard to find",
- * Park and Miller, Communications of the ACM, vol. 31, no. 10,
- * October 1988, p. 1195.
- */
-	long hi, lo, x;
+  /*
+   * Compute x = (7^5 * x) mod (2^31 - 1)
+   * wihout overflowing 31 bits:
+   *      (2^31 - 1) = 127773 * (7^5) + 2836
+   * From "Random number generators: good ones are hard to find",
+   * Park and Miller, Communications of the ACM, vol. 31, no. 10,
+   * October 1988, p. 1195.
+   */
+  long hi, lo, x;
 
-	/* Can't be initialized with 0, so use another value. */
-	if(bsd_rand_next == 0)
-	{
-		bsd_rand_next = 123459876;
-	}
-	hi = bsd_rand_next / 127773;
-	lo = bsd_rand_next % 127773;
-	x = 16807 * lo - 2836 * hi;
-	if (x < 0)
-		x += 0x7fffffff;
-	return ((bsd_rand_next = x) % ((uint32_t)BSD_RAND_MAX + 1));
+  /* Can't be initialized with 0, so use another value. */
+  if(bsd_rand_next == 0)
+  {
+    bsd_rand_next = 123459876;
+  }
+  hi = bsd_rand_next / 127773;
+  lo = bsd_rand_next % 127773;
+  x = 16807 * lo - 2836 * hi;
+  if (x < 0)
+    x += 0x7fffffff;
+  return (int)((bsd_rand_next = (unsigned)x) % ((uint32_t)BSD_RAND_MAX + 1));
 }
 
 IFUNCTION void bsd_srand(uint32_t seed)
 {
-	bsd_rand_next = seed;
+  bsd_rand_next = seed;
 }
 
 #endif
@@ -292,7 +292,7 @@ IFUNCTION void bsd_srand(uint32_t seed)
  */
 IFUNCTION float rand16(void)
 {
-	return (float)(drand() & 0xFFFF);
+  return (float)(drand() & 0xFFFF);
 }
 
 /** Random number from 0 to this.
@@ -302,7 +302,7 @@ IFUNCTION float rand16(void)
  */
 IFUNCTION float frand(float op)
 {
-	return rand16() / 65535.0f * op;
+  return rand16() / 65535.0f * op;
 }
 
 /** Random number from -num to num.
@@ -312,7 +312,7 @@ IFUNCTION float frand(float op)
  */
 IFUNCTION float frand2(float op)
 {
-	return frand(op) * 2.0f - op;
+  return frand(op) * 2.0f - op;
 }
 
 //######################################
@@ -336,25 +336,27 @@ IVARIABLE int16_t *audio_position = audio_buffer;
  */
 static void audio_callback(void *userdata_not_in_use, uint8_t *stream, int len)
 {
-	do {
-		*((int16_t*)stream) = *audio_position;
-		stream += 2;
-		++audio_position;
-	} while(len -= 2);
+  (void)userdata_not_in_use;
+
+  do {
+    *((int16_t*)stream) = *audio_position;
+    stream += 2;
+    ++audio_position;
+  } while(len -= 2);
 }
 
 /** SDL audio specification struct. */
 IVARIABLE SDL_AudioSpec audio_spec =
 {
-	44100,
-	AUDIO_S16SYS,
-	1,
-	0,
-	1024,
-	0,
-	0,
-	audio_callback,
-	NULL
+  44100,
+  AUDIO_S16SYS,
+  1,
+  0,
+  1024,
+  0,
+  0,
+  audio_callback,
+  NULL
 };
 
 //######################################
@@ -507,10 +509,10 @@ ICONST char fshader[] =
 /** Shader part table. */
 IVARIABLE char *shader_parts[] =
 {
-	(char*)shader_vars,
-	NULL,
-	(char*)shader_main_head,
-	NULL
+  (char*)shader_vars,
+  NULL,
+  (char*)shader_main_head,
+  NULL
 };
 
 #if defined(USE_LD)
@@ -548,52 +550,52 @@ IVARIABLE float uniform[8];
  */
 IFUNCTION unsigned shader_create(const char *sf, const char *ss, GLenum st)
 {
-	int ii;
-	unsigned ret = dlCreateShader(st);
+  int ii;
+  unsigned ret = dlCreateShader(st);
 
-	shader_parts[1] = (char*)sf;
-	shader_parts[3] = (char*)ss;
+  shader_parts[1] = (char*)sf;
+  shader_parts[3] = (char*)ss;
 #if defined(USE_LD)
-	if(st == GL_FRAGMENT_SHADER)
-	{
-		shader_parts[0] = (char*)shader_vars_fragment;
-		shader_parts[1] = (char*)"";
-		shader_parts[2] = (char*)shader_main_head_fragment;
-	}
-	else
-	{
-		shader_parts[0] = (char*)shader_vars;
-		shader_parts[2] = (char*)shader_main_head;
-	}
+  if(st == GL_FRAGMENT_SHADER)
+  {
+    shader_parts[0] = (char*)shader_vars_fragment;
+    shader_parts[1] = (char*)"";
+    shader_parts[2] = (char*)shader_main_head_fragment;
+  }
+  else
+  {
+    shader_parts[0] = (char*)shader_vars;
+    shader_parts[2] = (char*)shader_main_head;
+  }
 #endif
-	dlShaderSource(ret, 4, (const char**)shader_parts, NULL);
-	dlCompileShader(ret);
+  dlShaderSource(ret, 4, (const char**)shader_parts, NULL);
+  dlCompileShader(ret);
 #if defined(USE_LD)
-	for(ii = 0; (ii < 4); ++ii)
-	{
-		printf("%s", shader_parts[ii]);
-	}
-	puts("");
-	{
-		char slog[4096];
-		GLint status;
-		GLsizei len;
+  for(ii = 0; (ii < 4); ++ii)
+  {
+    printf("%s", shader_parts[ii]);
+  }
+  puts("");
+  {
+    char slog[4096];
+    GLint status;
+    GLsizei len;
 
-		glGetShaderInfoLog(ret, 4096, &len, slog);
-		if(strlen(slog) > 0)
-		{
-			puts(slog);
-		}
+    glGetShaderInfoLog(ret, 4096, &len, slog);
+    if(strlen(slog) > 0)
+    {
+      puts(slog);
+    }
 
-		glGetShaderiv(ret, GL_COMPILE_STATUS, &status);
-		if(status != GL_TRUE)
-		{
-			DDL_Quit();
-			exit(1);
-		}
-	}
+    glGetShaderiv(ret, GL_COMPILE_STATUS, &status);
+    if(status != GL_TRUE)
+    {
+      DDL_Quit();
+      exit(1);
+    }
+  }
 #endif
-	return ret;
+  return ret;
 }
 
 /** \brief Create a program.
@@ -610,34 +612,34 @@ IFUNCTION unsigned program_create(const char *vf)
 IFUNCTION void program_create(const char *vf)
 #endif
 {
-	unsigned vi = shader_create(vf, vshader, GL_VERTEX_SHADER),
-					 fi = shader_create(vf, fshader, GL_FRAGMENT_SHADER);
+  unsigned vi = shader_create(vf, vshader, GL_VERTEX_SHADER),
+           fi = shader_create(vf, fshader, GL_FRAGMENT_SHADER);
 
-	unsigned ret = dlCreateProgram();
-	dlAttachShader(ret, vi);
-	dlAttachShader(ret, fi);
-	dlLinkProgram(ret);
+  unsigned ret = dlCreateProgram();
+  dlAttachShader(ret, vi);
+  dlAttachShader(ret, fi);
+  dlLinkProgram(ret);
 #if defined(USE_LD)
-	{
-		char slog[4096];
-		GLint status;
-		GLsizei len;
+  {
+    char slog[4096];
+    GLint status;
+    GLsizei len;
 
-		glGetProgramInfoLog(ret, 4096, &len, slog);
-		if(strlen(slog) > 0)
-		{
-			puts(slog);
-		}
+    glGetProgramInfoLog(ret, 4096, &len, slog);
+    if(strlen(slog) > 0)
+    {
+      puts(slog);
+    }
 
-		glGetProgramiv(ret, GL_LINK_STATUS, &status);
-		if(status != GL_TRUE)
-		{
-			DDL_Quit();
-			exit(1);
-		}
-	}
-	printf("GLSL program with %p compiles to: %u\n", vf, ret);
-	return ret;
+    glGetProgramiv(ret, GL_LINK_STATUS, &status);
+    if(status != GL_TRUE)
+    {
+      DDL_Quit();
+      exit(1);
+    }
+  }
+  printf("GLSL program with %p compiles to: %u\n", vf, ret);
+  return ret;
 #endif
 }
 
@@ -656,36 +658,36 @@ IFUNCTION void program_create(const char *vf)
  */
 ICONST int8_t dragonfly_data[] = 
 {
-	// Middle point
-	3, 0, 0, 0, 0,
-	// Head
-	5, 6, 0, 0, 0,
-	// Upper jaw
-	5, 9, 0, 0, 0,
-	2, 9, 0, 0, 0,
-	// Lower jaw
-	2, 8, 0, 0, 0,
-	// Tail
-	4, -11, 0, 0, 0,
-	1, -28, 0, 0, 0,
-	// Leg UL
-	4, 5, 5, 1, 64,
-	-2, 7, 2, 1, 64,
-	// Leg UR
-	4, 5, -5, 1, 0,
-	-2, 7, -2, 1, 0,
-	// Leg LL
-	2, -5, 4, 1, 0,
-	-2, -3, 2, 1, 0,
-	// Leg LR
-	2, -5, -4, 1, 64,
-	-2, -3, -2, 1, 64,
-	// Wing UL
-	10, -3, 7, 0, 0,
-	12, -16, 11, 0, 0,
-	// Wing UR
-	10, -3, -7, 0, 0,
-	12, -16, -11, 0, 0
+  // Middle point
+  3, 0, 0, 0, 0,
+  // Head
+  5, 6, 0, 0, 0,
+  // Upper jaw
+  5, 9, 0, 0, 0,
+  2, 9, 0, 0, 0,
+  // Lower jaw
+  2, 8, 0, 0, 0,
+  // Tail
+  4, -11, 0, 0, 0,
+  1, -28, 0, 0, 0,
+  // Leg UL
+  4, 5, 5, 1, 64,
+  -2, 7, 2, 1, 64,
+  // Leg UR
+  4, 5, -5, 1, 0,
+  -2, 7, -2, 1, 0,
+  // Leg LL
+  2, -5, 4, 1, 0,
+  -2, -3, 2, 1, 0,
+  // Leg LR
+  2, -5, -4, 1, 64,
+  -2, -3, -2, 1, 64,
+  // Wing UL
+  10, -3, 7, 0, 0,
+  12, -16, 11, 0, 0,
+  // Wing UR
+  10, -3, -7, 0, 0,
+  12, -16, -11, 0, 0
 };
 
 /** \brief Dragonfly index data.
@@ -695,24 +697,24 @@ ICONST int8_t dragonfly_data[] =
  */
 ICONST uint8_t dragonfly_index[] =
 {
-	0, 1,
-	1, 2,
-	2, 3,
-	1, 4,
-	0, 5,
-	5, 6,
-	0, 7,
-	7, 8,
-	0, 9,
-	9, 10,
-	0, 11,
-	11, 12,
-	0, 13,
-	13, 14,
-	0, 15,
-	15, 16,
-	0, 17,
-	17, 18
+  0, 1,
+  1, 2,
+  2, 3,
+  1, 4,
+  0, 5,
+  5, 6,
+  0, 7,
+  7, 8,
+  0, 9,
+  9, 10,
+  0, 11,
+  11, 12,
+  0, 13,
+  13, 14,
+  0, 15,
+  15, 16,
+  0, 17,
+  17, 18
 };
 
 //######################################
@@ -725,46 +727,46 @@ ICONST uint8_t dragonfly_index[] =
  */
 typedef struct iarray_struct
 {
-	/** TexCoord (T2F). */
-	float ts;
+  /** TexCoord (T2F). */
+  float ts;
 
-	/** TexCoord (T2F). */
-	float tt;
+  /** TexCoord (T2F). */
+  float tt;
 
-	float tu;
-	float tv;
+  float tu;
+  float tv;
 
-	/** Color (C4F). */
-	float cr;
+  /** Color (C4F). */
+  float cr;
 
-	/** Color (C4F). */
-	float cg;
+  /** Color (C4F). */
+  float cg;
 
-	/** Color (C4F). */
-	float cb;
+  /** Color (C4F). */
+  float cb;
 
-	/** Color (C4F). */
-	float ca;
+  /** Color (C4F). */
+  float ca;
 
-	/** Normal (N3F). */
-	float nx;
+  /** Normal (N3F). */
+  float nx;
 
-	/** Normal (N3F). */
-	float ny;
+  /** Normal (N3F). */
+  float ny;
 
-	/** Normal (N3F). */
-	float nz;
+  /** Normal (N3F). */
+  float nz;
 
-	/* Vertex (V3F). */
-	float px;
+  /* Vertex (V3F). */
+  float px;
 
-	/* Vertex (V3F). */
-	float py;
+  /* Vertex (V3F). */
+  float py;
 
-	/* Vertex (V3F). */
-	float pz;
+  /* Vertex (V3F). */
+  float pz;
 
-	float pw;
+  float pw;
 } iarray_t;
 
 /** Drawing array size (should be enough). */
@@ -777,7 +779,7 @@ IVARIABLE iarray_t draw_array[DRAW_ARRAY_SIZE];
 IVARIABLE float draw_normal[DRAW_ARRAY_SIZE];
 
 /** \brief Index array for draws. */
-IVARIABLE int draw_index[DRAW_ARRAY_SIZE * 4];
+IVARIABLE unsigned draw_index[DRAW_ARRAY_SIZE * 4];
 
 /** \brief Fill the iarray_t contents as uniform replacement.
  *
@@ -793,11 +795,11 @@ IVARIABLE int draw_index[DRAW_ARRAY_SIZE * 4];
  */
 IFUNCTION void uniform_fill(iarray_t *dst)
 {
-	int ii;
-	for(ii = 0; (ii < 7); ++ii)
-	{
-		((float*)dst)[ii + 4] = uniform[ii];
-	}
+  int ii;
+  for(ii = 0; (ii < 7); ++ii)
+  {
+    ((float*)dst)[ii + 4] = uniform[ii];
+  }
 }
 
 /** \brief Issue one grid draw mapping command.
@@ -807,39 +809,39 @@ IFUNCTION void uniform_fill(iarray_t *dst)
  * @param k K parameter.
  * @param l L parameter.
  */
-IFUNCTION void draw_mapped(int icnt, int jcnt, float k, float l)
+IFUNCTION void draw_mapped(unsigned icnt, unsigned jcnt, float k, float l)
 {
-	iarray_t *aiter = draw_array;
-	int ii, jj;
-	int *iiter = draw_index;
+  iarray_t *aiter = draw_array;
+  unsigned ii, jj;
+  unsigned *iiter = draw_index;
 
-	for(ii = 0; (ii < icnt); ++ii)
-	{
-		for(jj = 0; (jj < jcnt); ++jj)
-		{
-			int idx = (ii * jcnt) + jj;
+  for(ii = 0; (ii < icnt); ++ii)
+  {
+    for(jj = 0; (jj < jcnt); ++jj)
+    {
+      unsigned idx = (ii * jcnt) + jj;
 
-			uniform_fill(aiter);
+      uniform_fill(aiter);
 
-			aiter->ts = aiter->tt = 0.5f;
-			aiter->px = (float)ii;
-			aiter->py = (float)jj;
-			aiter->pz = k;
-			aiter->pw = l;
-			++aiter;
+      aiter->ts = aiter->tt = 0.5f;
+      aiter->px = (float)ii;
+      aiter->py = (float)jj;
+      aiter->pz = k;
+      aiter->pw = l;
+      ++aiter;
 
-			if((ii < icnt - 1) && (jj < jcnt - 1))
-			{
-				iiter[0] = idx;
-				iiter[1] = idx + 1;
-				iiter[2] = idx + jcnt + 1;
-				iiter[3] = idx + jcnt;
-				iiter += 4;
-			}
-		}
-	}
+      if((ii < icnt - 1) && (jj < jcnt - 1))
+      {
+        iiter[0] = idx;
+        iiter[1] = idx + 1;
+        iiter[2] = idx + jcnt + 1;
+        iiter[3] = idx + jcnt;
+        iiter += 4;
+      }
+    }
+  }
 
-	dlDrawElements(GL_QUADS, (icnt - 1) * (jcnt - 1) * 4, GL_UNSIGNED_INT, draw_index);
+  dlDrawElements(GL_QUADS, (GLsizei)((icnt - 1) * (jcnt - 1) * 4), GL_UNSIGNED_INT, draw_index);
 }
 
 /** \brief Draw a line graphics model.
@@ -848,55 +850,55 @@ IFUNCTION void draw_mapped(int icnt, int jcnt, float k, float l)
  */
 IFUNCTION void draw_dragonfly(float y, float currtick)
 {
-	unsigned ii, jj, *iiter, dcnt;
-	iarray_t *aiter;
-	float *fptr = draw_normal;
-	currtick *= 0.001f; // SECONDS.
+  unsigned ii, jj, *iiter, dcnt;
+  iarray_t *aiter;
+  float *fptr = draw_normal;
+  currtick *= 0.001f; // SECONDS.
 
-	for(ii = 0; (ii < (int)(sizeof(dragonfly_data))); ii += 5)
-	{
-		const int8_t *ppnt = dragonfly_data + ii;
+  for(ii = 0; (ii < (int)(sizeof(dragonfly_data))); ii += 5)
+  {
+    const int8_t *ppnt = dragonfly_data + ii;
 
-		fptr[2] = (float)(ppnt[2]);
-		fptr[1] = (float)(ppnt[1]) + y +
-			dsinf((float)(ppnt[3]) * currtick +
-					(float)(ppnt[4]) * (M_PI / 64.0f));
-		fptr[0] = (float)(ppnt[0]) +
-			dsinf(currtick + fptr[1] * 0.5f);
+    fptr[2] = (float)(ppnt[2]);
+    fptr[1] = (float)(ppnt[1]) + y +
+      dsinf((float)(ppnt[3]) * currtick +
+          (float)(ppnt[4]) * ((float)M_PI / 64.0f));
+    fptr[0] = (float)(ppnt[0]) +
+      dsinf(currtick + fptr[1] * 0.5f);
 
-		fptr += 3;
-	}
+    fptr += 3;
+  }
 
-	aiter = draw_array;
-	iiter = draw_index;
-	dcnt = 0;
+  aiter = draw_array;
+  iiter = draw_index;
+  dcnt = 0;
 
-	for(ii = 0; (ii < sizeof(dragonfly_index)); ii += 2)
-	{
-		for(jj = 0; (jj < 384); ++jj)
-		{
-			float lenmul;
-			int idx1 = dragonfly_index[ii],
-					idx2 = dragonfly_index[ii + 1];
-			float *fl1 = draw_normal + (idx1 * 3),
-						*fl2 = draw_normal + (idx2 * 3);
+  for(ii = 0; (ii < sizeof(dragonfly_index)); ii += 2)
+  {
+    for(jj = 0; (jj < 384); ++jj)
+    {
+      float lenmul;
+      int idx1 = dragonfly_index[ii],
+          idx2 = dragonfly_index[ii + 1];
+      float *fl1 = draw_normal + (idx1 * 3),
+            *fl2 = draw_normal + (idx2 * 3);
 
-			uniform_fill(aiter);
+      uniform_fill(aiter);
 
-			lenmul = frand(1.0f);
-			aiter->px = (fl2[0] - fl1[0]) * lenmul + fl1[0] + frand2(1.0f);
-			aiter->py = (fl2[1] - fl1[1]) * lenmul + fl1[1] + frand2(1.0f);
-			aiter->pz = (fl2[2] - fl1[2]) * lenmul + fl1[2] + frand2(1.0f);
-			aiter->pw = currtick + frand(1.0f);
-			*(iiter) = dcnt;
+      lenmul = frand(1.0f);
+      aiter->px = (fl2[0] - fl1[0]) * lenmul + fl1[0] + frand2(1.0f);
+      aiter->py = (fl2[1] - fl1[1]) * lenmul + fl1[1] + frand2(1.0f);
+      aiter->pz = (fl2[2] - fl1[2]) * lenmul + fl1[2] + frand2(1.0f);
+      aiter->pw = currtick + frand(1.0f);
+      *(iiter) = dcnt;
 
-			++aiter;
-			++iiter;
-			++dcnt;
-		}
-	}
+      ++aiter;
+      ++iiter;
+      ++dcnt;
+    }
+  }
 
-	dlDrawElements(GL_POINTS, dcnt, GL_UNSIGNED_INT, draw_index);
+  dlDrawElements(GL_POINTS, (GLsizei)dcnt, GL_UNSIGNED_INT, draw_index);
 }
 
 //######################################
@@ -976,17 +978,17 @@ IVARIABLE uint8_t flag_record = 0;
 
 ICONST uint16_t camera_switch_table[] =
 {
-	1,
-	10798,
-	18496,
-	27926,
-	30200,
-	35000,
-	39500,
-	46601,
-	51309,
-	56500,
-	65535
+  1,
+  10798,
+  18496,
+  27926,
+  30200,
+  35000,
+  39500,
+  46601,
+  51309,
+  56500,
+  65535
 };
 
 /** \brief Perform drawing.
@@ -995,93 +997,92 @@ ICONST uint16_t camera_switch_table[] =
  */
 IFUNCTION void draw(int currtick)
 {
-	int cslot, cleft, ii;
-	unsigned csrand;
-	float fcleft, ftick = (float)currtick;
+  int cslot, cleft, ii;
+  unsigned csrand;
+  float fcleft, ftick = (float)currtick;
 
-	dlMatrixMode(GL_MODELVIEW);
-	dlLoadIdentity();
-	dlClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+  dlMatrixMode(GL_MODELVIEW);
+  dlLoadIdentity();
+  dlClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-	cslot = 0;
-	csrand;
-	for(;;++cslot)
-	{
-		csrand = camera_switch_table[cslot];
-		if(currtick < camera_switch_table[cslot + 1])
-		{
-			break;
-		}
-	}
-	cleft = currtick - (int)csrand;
-	fcleft = (float)cleft;
-	dsrand(csrand);
-	uniform[0] = frand2(CAMERA_SPAN) + frand2(CAMERA_MOVE) * fcleft;
-	uniform[1] = frand2(CAMERA_SPAN) + frand2(CAMERA_MOVE) * fcleft;
-	uniform[2] = frand2(CAMERA_SPAN) + frand2(CAMERA_MOVE) * fcleft;
-	if(cslot > 8)
-	{
-		uniform[0] = -16.0f;
-		uniform[1] = 90.0f;
-		uniform[2] = -4.0f;
-	}
-	dluLookAt(uniform[0], uniform[1], uniform[2],
-			0.0, frand(CAMERA_SPAN) + frand2(CAMERA_MOVE) + (((cslot == 0) || (cslot == 2) || (cslot == 3) || (cslot == 5)) ? -16.0f : 0.0f), 0.0,
-			0.0, 1.0, 0.0);
-	//dluLookAt(0.0, 30.0, 50.0, 0.0, 25.0, 0.0, 0.0, 1.0, 0.0);
-	uniform[3] = ftick;
-	// Beat color.
-	uniform[5] = uniform[6] = 0.0f;
-	if(cleft < CAMERA_FLASH)
-	{
-		uniform[6] = 1.0f - fcleft / (float)CAMERA_FLASH;
-	}
-	if(currtick < CAMERA_FADE)
-	{
-		uniform[6] = fcleft / (float)(CAMERA_FADE) - 1.0f;
-	}
-	if(currtick > FALL_START - CAMERA_FADE)
-	{
-		uniform[6] = (float)(currtick - (FALL_START - CAMERA_FADE)) / (float)CAMERA_FADE;
-	}
-	if(currtick > FALL_START)
-	{
-		uniform[5] = (float)(currtick - FALL_START) / (float)(FALL_END - FALL_START);
-		uniform[6] = 1.0f - uniform[5];
-	}
-	if(currtick > FALL_END)
-	{
-		uniform[6] = 1.0f - (float)(currtick - FALL_END) / (float)((INTRO_LENGTH - FALL_END) / 2);
-	}
+  cslot = 0;
+  for(;;++cslot)
+  {
+    csrand = camera_switch_table[cslot];
+    if(currtick < camera_switch_table[cslot + 1])
+    {
+      break;
+    }
+  }
+  cleft = currtick - (int)csrand;
+  fcleft = (float)cleft;
+  dsrand(csrand);
+  uniform[0] = frand2(CAMERA_SPAN) + frand2(CAMERA_MOVE) * fcleft;
+  uniform[1] = frand2(CAMERA_SPAN) + frand2(CAMERA_MOVE) * fcleft;
+  uniform[2] = frand2(CAMERA_SPAN) + frand2(CAMERA_MOVE) * fcleft;
+  if(cslot > 8)
+  {
+    uniform[0] = -16.0f;
+    uniform[1] = 90.0f;
+    uniform[2] = -4.0f;
+  }
+  dluLookAt(uniform[0], uniform[1], uniform[2],
+      0.0, frand(CAMERA_SPAN) + frand2(CAMERA_MOVE) + (((cslot == 0) || (cslot == 2) || (cslot == 3) || (cslot == 5)) ? -16.0f : 0.0f), 0.0,
+      0.0, 1.0, 0.0);
+  //dluLookAt(0.0, 30.0, 50.0, 0.0, 25.0, 0.0, 0.0, 1.0, 0.0);
+  uniform[3] = ftick;
+  // Beat color.
+  uniform[5] = uniform[6] = 0.0f;
+  if(cleft < CAMERA_FLASH)
+  {
+    uniform[6] = 1.0f - fcleft / (float)CAMERA_FLASH;
+  }
+  if(currtick < CAMERA_FADE)
+  {
+    uniform[6] = fcleft / (float)(CAMERA_FADE) - 1.0f;
+  }
+  if(currtick > FALL_START - CAMERA_FADE)
+  {
+    uniform[6] = (float)(currtick - (FALL_START - CAMERA_FADE)) / (float)CAMERA_FADE;
+  }
+  if(currtick > FALL_START)
+  {
+    uniform[5] = (float)(currtick - FALL_START) / (float)(FALL_END - FALL_START);
+    uniform[6] = 1.0f - uniform[5];
+  }
+  if(currtick > FALL_END)
+  {
+    uniform[6] = 1.0f - (float)(currtick - FALL_END) / (float)((INTRO_LENGTH - FALL_END) / 2);
+  }
 
-	dsrand(8);
-	dlUseProgram(program_leaf);
-	dlEnable(GL_CULL_FACE);
-	uniform[4] = 1.0f;
-	for(ii = 0; (ii < 256); ++ii)
-	{
-		float x = frand2(LEAF_SPAN),
-					z = frand2(LEAF_SPAN);
-		draw_mapped(LEAF_DETAIL_U, LEAF_DETAIL_V, x, z);
-	}
-	uniform[4] = 0.1f;
-	draw_mapped(LEAF_DETAIL_U, LEAF_DETAIL_V, -3.0f, 0.0f);
-	dlDisable(GL_CULL_FACE);
+  dsrand(8);
+  dlUseProgram(program_leaf);
+  dlEnable(GL_CULL_FACE);
+  uniform[4] = 1.0f;
+  for(ii = 0; (ii < 256); ++ii)
+  {
+    float x = frand2(LEAF_SPAN),
+          z = frand2(LEAF_SPAN);
+    draw_mapped(LEAF_DETAIL_U, LEAF_DETAIL_V, x, z);
+  }
+  uniform[4] = 0.1f;
+  draw_mapped(LEAF_DETAIL_U, LEAF_DETAIL_V, -3.0f, 0.0f);
+  dlDisable(GL_CULL_FACE);
 
-	dlDepthMask(GL_FALSE);
+  dlDepthMask(GL_FALSE);
 
-	dlUseProgram(program_water);
-	draw_mapped(WATER_DETAIL, WATER_DETAIL, 0.0f, 0.0f);
+  dlUseProgram(program_water);
+  draw_mapped(WATER_DETAIL, WATER_DETAIL, 0.0f, 0.0f);
 
-	dlBlendFunc(GL_SRC_ALPHA, GL_ONE);
+  dlBlendFunc(GL_SRC_ALPHA, GL_ONE);
 
-	dlUseProgram(program_fire);
-	uniform[4] = (currtick > FALL_START - CAMERA_FADE) ? uniform[6] : 0.0f;
-	draw_dragonfly(DRAGONFLY_START + ftick * ((DRAGONFLY_END - DRAGONFLY_START) / FIRE_EVENT_START),
-			ftick);
+  dlUseProgram(program_fire);
+  uniform[4] = (currtick > FALL_START - CAMERA_FADE) ? uniform[6] : 0.0f;
+  draw_dragonfly(DRAGONFLY_START + ftick * ((DRAGONFLY_END - DRAGONFLY_START) / FIRE_EVENT_START),
+      ftick);
 
-	dlBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-	dlDepthMask(GL_TRUE);
+  dlBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+  dlDepthMask(GL_TRUE);
 }
 
 //######################################
@@ -1102,7 +1103,7 @@ IFUNCTION void draw(int currtick)
  */
 int MAINPROG(int argc, char *argv[])
 {
-	int ii;
+  int ii;
 #else
 /** Required ELF symbol. */
 void *environ;
@@ -1113,92 +1114,92 @@ void *__progname;
 void _start()
 {
 #endif
-	uint32_t starttick;
-	SDL_Event event;
+  uint32_t starttick;
+  SDL_Event event;
 
 #if !defined(WIN32)
 #if defined(USE_LD)
-	// This is a replica of the loader to determine function addresses.
-	{
-		char *iter = (char*)dnload_symbols;
-		do {
-			for(;;)
-			{
-				void **olditer = (void**)iter;
-				while(*(iter++));
-				if(!*(iter))
-				{
-					break;
-				}
-				printf("dlfcn symbol offset %s: %i\n", iter, (int)(((char*)olditer) - dnload_symbols));
-			}
-		} while(*(++iter));
-	}
+  // This is a replica of the loader to determine function addresses.
+  {
+    char *iter = (char*)dnload_symbols;
+    do {
+      for(;;)
+      {
+        void **olditer = (void**)iter;
+        while(*(iter++));
+        if(!*(iter))
+        {
+          break;
+        }
+        printf("dlfcn symbol offset %s: %i\n", iter, (int)(((char*)olditer) - dnload_symbols));
+      }
+    } while(*(++iter));
+  }
 #else
-	// Load some symbols.
-	{
-		char *iter = (char*)dnload_symbols;
-		do {
-			void *handle = dlopen(iter, RTLD_LAZY);
+  // Load some symbols.
+  {
+    char *iter = (char*)dnload_symbols;
+    do {
+      void *handle = dlopen(iter, RTLD_LAZY);
 
-			for(;;)
-			{
-				void **olditer = (void**)iter;
+      for(;;)
+      {
+        void **olditer = (void**)iter;
 
-				while(*(iter++));
-				if(!*(iter))
-				{
-					break;
-				}
+        while(*(iter++));
+        if(!*(iter))
+        {
+          break;
+        }
 
-				*olditer = dlsym(handle, iter);			
-			}
-		} while(*(++iter));
-	}
+        *olditer = dlsym(handle, iter);			
+      }
+    } while(*(++iter));
+  }
 #endif
 #endif
 
-	// Graphics init.
-	DDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO);
-	{
+  // Graphics init.
+  DDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO);
+  {
 #if defined(USE_LD)
 #if defined(SCREEN_F)
-		uint32_t sdl_flags = SDL_OPENGL | SDL_FULLSCREEN;
+    uint32_t sdl_flags = SDL_OPENGL | SDL_FULLSCREEN;
 #else
-		uint32_t sdl_flags = SDL_OPENGL;
+    uint32_t sdl_flags = SDL_OPENGL;
 #endif
-		for(ii = 1; (ii < argc); ++ii)
-		{
-			const char *cmp = (const char*)argv[ii];
+    for(ii = 1; (ii < argc); ++ii)
+    {
+      const char *cmp = (const char*)argv[ii];
 
-			if((strcmp("-f", cmp) == 0) || (strcmp("--fullscreen", cmp) == 0))
-			{
-				sdl_flags |= SDL_FULLSCREEN;
-			}
-			else if((strcmp("-w", cmp) == 0) || (strcmp("--windowed", cmp) == 0))
-			{
-				sdl_flags &= ~SDL_FULLSCREEN;
-			}
+      if((strcmp("-f", cmp) == 0) || (strcmp("--fullscreen", cmp) == 0))
+      {
+        sdl_flags |= SDL_FULLSCREEN;
+      }
+      else if((strcmp("-w", cmp) == 0) || (strcmp("--windowed", cmp) == 0))
+      {
+        sdl_flags &= ~SDL_FULLSCREEN;
+      }
 #if defined(HAVE_LIBPNG)
-			else if((strcmp("-r", cmp) == 0) || (strcmp("--record", cmp) == 0))
-			{
-				flag_record = 1;
-			}
+      else if((strcmp("-r", cmp) == 0) || (strcmp("--record", cmp) == 0))
+      {
+        flag_record = 1;
+      }
 #endif
-			else
-			{
-				printf("Unknown flag: %s\n", cmp);
-				puts("Valid command line arguments:\n"
-						"  -f, --fullscreen    Fullscreen mode.\n"
-						"  -w, --windowed      Windowed mode."
+      else
+      {
+        printf("Unknown flag: %s\n", cmp);
+        puts("Valid command line arguments:\n"
+            "  -f, --fullscreen    Fullscreen mode.\n"
+            "  -w, --windowed      Windowed mode."
 #if defined(HAVE_LIBPNG)
-						"\n"
-						"  -r, --record        Do not run in realtime, produce png/wav output."
+            "\n"
+            "  -r, --record        Do not run in realtime, produce png/wav output."
 #endif
-						"");
-				return -1;
-			}
-		}
+            "");
+        return -1;
+      }
+    }
 #else
 #if defined(SCREEN_F)
 #define sdl_flags (SDL_OPENGL | SDL_FULLSCREEN)
@@ -1206,183 +1207,183 @@ void _start()
 #define sdl_flags SDL_OPENGL;
 #endif
 #endif
-		DDL_SetVideoMode(SCREEN_W, SCREEN_H, SCREEN_B, sdl_flags);
-	}
-	DDL_ShowCursor(0);
+    DDL_SetVideoMode(SCREEN_W, SCREEN_H, SCREEN_B, sdl_flags);
+  }
+  DDL_ShowCursor(0);
 #if defined(WIN32)
-	if(glewInit() != GLEW_OK)
-	{
-		return -1;
-	}
+  if(glewInit() != GLEW_OK)
+  {
+    return -1;
+  }
 #endif
 
-	// Drawing rules.
-	//dlEnable(GL_AUTO_NORMAL);
-	dlEnable(GL_BLEND);
-	dlEnable(GL_DEPTH_TEST);
-	dlEnable(GL_POINT_SPRITE);
-	dlEnable(GL_VERTEX_PROGRAM_POINT_SIZE);
+  // Drawing rules.
+  //dlEnable(GL_AUTO_NORMAL);
+  dlEnable(GL_BLEND);
+  dlEnable(GL_DEPTH_TEST);
+  dlEnable(GL_POINT_SPRITE);
+  dlEnable(GL_VERTEX_PROGRAM_POINT_SIZE);
 #if defined(USE_LD)
-	//dlEnable(GL_TEXTURE_2D);
-	//GLuint tex;
-	//glGenTextures(1, &tex);
-	//glBindTexture(GL_TEXTURE_2D, tex);
-	//gluBuild2DMipmaps(GL_TEXTURE_2D, GL_RGBA, 16, 16, GL_RGBA,
-	//		GL_FLOAT, draw_array);
+  //dlEnable(GL_TEXTURE_2D);
+  //GLuint tex;
+  //glGenTextures(1, &tex);
+  //glBindTexture(GL_TEXTURE_2D, tex);
+  //gluBuild2DMipmaps(GL_TEXTURE_2D, GL_RGBA, 16, 16, GL_RGBA,
+  //		GL_FLOAT, draw_array);
 #endif
-	dlTexEnvi(GL_POINT_SPRITE, GL_COORD_REPLACE, GL_TRUE);
-	dlMatrixMode(GL_PROJECTION);
-	dlLoadIdentity();
-	dluPerspective(1.0 / SCREEN_A * 90.0, SCREEN_A, 1.0, LEAF_SPAN);
+  dlTexEnvi(GL_POINT_SPRITE, GL_COORD_REPLACE, GL_TRUE);
+  dlMatrixMode(GL_PROJECTION);
+  dlLoadIdentity();
+  dluPerspective(1.0 / SCREEN_A * 90.0, SCREEN_A, 1.0, LEAF_SPAN);
 
-	// Draw data.
+  // Draw data.
 #if defined(USE_LD)
-	program_leaf = program_create(shader_func_leaf);
-	program_water = program_create(shader_func_water);
-	program_fire = program_create(shader_func_fire);
+  program_leaf = program_create(shader_func_leaf);
+  program_water = program_create(shader_func_water);
+  program_fire = program_create(shader_func_fire);
 #else
-	program_create(shader_func_leaf);
-	program_create(shader_func_water);
-	program_create(shader_func_fire);
+  program_create(shader_func_leaf);
+  program_create(shader_func_water);
+  program_create(shader_func_fire);
 #endif
-	dlInterleavedArrays(GL_T4F_C4F_N3F_V4F, 0, draw_array);
+  dlInterleavedArrays(GL_T4F_C4F_N3F_V4F, 0, draw_array);
 
-	// Prepare audio.
-	writeaudio();
+  // Prepare audio.
+  writeaudio();
 #if defined(INTRO_START)
-	audio_position += (uint64_t)INTRO_START * 44100 / 1000;
+  audio_position += (uint64_t)INTRO_START * 44100 / 1000;
 #endif
-	DDL_OpenAudio(&audio_spec, NULL);
+  DDL_OpenAudio(&audio_spec, NULL);
 #if !defined(MANUAL_ADVANCE)
 #if defined(USE_LD) && defined(HAVE_LIBPNG)
-	DDL_PauseAudio((int)flag_record);
+  DDL_PauseAudio((int)flag_record);
 #else
-	DDL_PauseAudio(0);
+  DDL_PauseAudio(0);
 #endif
 #endif
 
-	//SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 0);
-	starttick = DDL_GetTicks();	
+  //SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 0);
+  starttick = DDL_GetTicks();	
 
 #if defined(USE_LD) && defined(HAVE_LIBPNG)
-	if(flag_record)
-	{
-		int frame_idx = 0;
-		char filename[] = "swamp_fly_0000.png";
-		FILE *fptr = fopen("swamp_fly_audio.raw", "w");
-		fwrite(audio_buffer,
-				sizeof(int16_t),
-				(unsigned)(44100.0 * (double)INTRO_LENGTH / 1000.0),
-				fptr);
-		fclose(fptr);
-		for(;;)
-		{
-			int ms = (int)((float)frame_idx / 60.0f * 1000.0f + 0.5f);
-			if(ms > INTRO_LENGTH)
-			{
-				break;
-			}
-			if(DDL_PollEvent(&event) && (event.type == SDL_KEYDOWN) && (event.key.keysym.sym == SDLK_ESCAPE))
-			{
-				break;
-			}
-			draw(ms);
-			sprintf(filename, "swamp_fly_%04u.png", frame_idx);
-			write_opengl_viewport(filename);
-			DDL_GL_SwapBuffers();
-			++frame_idx;
-		}
-		DDL_Quit();
-		return 0;
-	}
+  if(flag_record)
+  {
+    int frame_idx = 0;
+    char filename[] = "swamp_fly_0000.png";
+    FILE *fptr = fopen("swamp_fly_audio.raw", "w");
+    fwrite(audio_buffer,
+        sizeof(int16_t),
+        (unsigned)(44100.0 * (double)INTRO_LENGTH / 1000.0),
+        fptr);
+    fclose(fptr);
+    for(;;)
+    {
+      int ms = (int)((float)frame_idx / 60.0f * 1000.0f + 0.5f);
+      if(ms > INTRO_LENGTH)
+      {
+        break;
+      }
+      if(DDL_PollEvent(&event) && (event.type == SDL_KEYDOWN) && (event.key.keysym.sym == SDLK_ESCAPE))
+      {
+        break;
+      }
+      draw(ms);
+      sprintf(filename, "swamp_fly_%04u.png", frame_idx);
+      write_opengl_viewport(filename);
+      DDL_GL_SwapBuffers();
+      ++frame_idx;
+    }
+    DDL_Quit();
+    return 0;
+  }
 #endif
 
-	for(;;)
-	{
-		// Perform drawing.
+  for(;;)
+  {
+    // Perform drawing.
 #if defined(MANUAL_ADVANCE)
-		static uint32_t currtick = 0,
-										currtickmul = 1;
-		draw(currtick);
+    static uint32_t currtick = 0,
+                    currtickmul = 1;
+    draw(currtick);
 #else
-		int currtick = (int)(DDL_GetTicks() - starttick);
+    int currtick = (int)(DDL_GetTicks() - starttick);
 #if defined(INTRO_START)
-		currtick += INTRO_START;
+    currtick += INTRO_START;
 #endif
 #endif
 
-		// Synchro.
+    // Synchro.
 #if defined(USE_LD) && !defined(MANUAL_ADVANCE)
-		static int tick_cumulative = 0;
+    static int tick_cumulative = 0;
 
-		if(tick_cumulative > currtick)
-		{
-			SDL_Delay((unsigned)(tick_cumulative - currtick));
-		}
-		else if((currtick > FRAME_TICKS) &&
-				(tick_cumulative < currtick - FRAME_TICKS))
-		{
-			printf("\rframeskip: %u     ", currtick - tick_cumulative);
-			fflush(stdout);
-			while(tick_cumulative < currtick - FRAME_TICKS)
-			{
-				tick_cumulative += FRAME_TICKS;
-			}
-		}
+    if(tick_cumulative > currtick)
+    {
+      SDL_Delay((unsigned)(tick_cumulative - currtick));
+    }
+    else if((currtick > FRAME_TICKS) &&
+        (tick_cumulative < currtick - FRAME_TICKS))
+    {
+      printf("\rframeskip: %u     ", currtick - tick_cumulative);
+      fflush(stdout);
+      while(tick_cumulative < currtick - FRAME_TICKS)
+      {
+        tick_cumulative += FRAME_TICKS;
+      }
+    }
 #endif
 
-		// Draw process.
-		if(currtick >= INTRO_LENGTH)
-		{
-			break;
-		}
-		draw(currtick);
-		DDL_GL_SwapBuffers();
+    // Draw process.
+    if(currtick >= INTRO_LENGTH)
+    {
+      break;
+    }
+    draw(currtick);
+    DDL_GL_SwapBuffers();
 
 #if defined(USE_LD) && !defined(MANUAL_ADVANCE)
-		tick_cumulative += FRAME_TICKS;
+    tick_cumulative += FRAME_TICKS;
 #endif
 
-		// Abort on any keypress.
-		if(DDL_PollEvent(&event) && (event.type == SDL_KEYDOWN))
-		{
+    // Abort on any keypress.
+    if(DDL_PollEvent(&event) && (event.type == SDL_KEYDOWN))
+    {
 #if defined(USE_LD)
-			switch(event.key.keysym.sym)
-			{
+      switch(event.key.keysym.sym)
+      {
 #if defined(MANUAL_ADVANCE)
-				case SDLK_RSHIFT:
-					currtickmul = 100;
-					break;
-				case SDLK_LSHIFT:
-					currtickmul = 1;
-					break;
-				case SDLK_PERIOD:
-					currtick += 20 * currtickmul;
-					break;
-				case SDLK_COMMA:
-					currtick -= 20 * currtickmul;
-					break;
+        case SDLK_RSHIFT:
+          currtickmul = 100;
+          break;
+        case SDLK_LSHIFT:
+          currtickmul = 1;
+          break;
+        case SDLK_PERIOD:
+          currtick += 20 * currtickmul;
+          break;
+        case SDLK_COMMA:
+          currtick -= 20 * currtickmul;
+          break;
 #endif
-				case SDLK_SPACE:
-					printf("Ticks: %u\n", currtick);
-				default:
-					break;
-			}
-			if(event.key.keysym.sym == SDLK_ESCAPE)
-			{
-				break;
-			}
+        case SDLK_SPACE:
+          printf("Ticks: %u\n", currtick);
+        default:
+          break;
+      }
+      if(event.key.keysym.sym == SDLK_ESCAPE)
+      {
+        break;
+      }
 #else
-			break;
+      break;
 #endif
-		}
-	}
+    }
+  }
 
-	DDL_Quit();
+  DDL_Quit();
 #if !defined(USE_LD)
-	asm("movl $1,%eax\nxor %ebx,%ebx\nint $128\n");
+  asm("movl $1,%eax\nxor %ebx,%ebx\nint $128\n");
 #else
-	return 0;
+  return 0;
 #endif
 }
 
