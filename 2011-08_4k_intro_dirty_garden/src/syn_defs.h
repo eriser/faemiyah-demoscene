@@ -38,7 +38,7 @@ typedef float sample_t;
 #define S_TICKLEN (3950 * 2)
 #define S_DELAY_LEN_MAX 13000
 
-#define S_FADE1 0.0001
+#define S_FADE1 0.0001f
 
 #define S_SONGLEN (S_TICKLEN * S_PATTERN_LEN * S_SONG_PATTERNS)
 
@@ -144,12 +144,12 @@ IVARIABLE int patterns[S_NUM_PATTERNS * S_PATTERN_LEN * 2 + PATTERN_SIZE_OPTIMIZ
 // 7
 7 + ( 3 << 4), S_TICKLEN,
 7 + ( NOTEOFF << 4), 0,
-7 + ( 3 << 4), S_TICKLEN * 1.5,
+7 + ( 3 << 4), (int)(S_TICKLEN * 1.5),
 7 + ( NOTEOFF << 4), 0,
 
 0 + ( 0 << 4), 0,
 7 + ( 3 << 4), S_TICKLEN,
-7 + ( 3 << 4), S_TICKLEN * 1.5,
+7 + ( 3 << 4), (int)(S_TICKLEN * 1.5),
 7 + ( NOTEOFF << 4), 0,
 
 // 8 hh
@@ -471,7 +471,7 @@ IVARIABLE DelayLine delays[S_NUM_DELAYS] = {
     {
       S_TICKLEN,
       0,
-      0.0, 0.0,
+      0.0f, 0.0f,
       //{0},
     },
 
@@ -479,7 +479,7 @@ IVARIABLE DelayLine delays[S_NUM_DELAYS] = {
     {
       S_TICKLEN,
       0,
-      0.0, 0.0,
+      0.0f, 0.0f,
       //{0},
     },
       
@@ -488,14 +488,14 @@ IVARIABLE DelayLine delays[S_NUM_DELAYS] = {
     { 
       S_TICKLEN,
       0,
-      0.7, 0.3 - S_FADE1,
+      0.7f, 0.3f - S_FADE1,
       //{0},
     },
 
     { 
       S_TICKLEN,
       0,
-      0.6, 0.4 - S_FADE1,
+      0.6f, 0.4f - S_FADE1,
       //{0},
     },
 
@@ -503,7 +503,7 @@ IVARIABLE DelayLine delays[S_NUM_DELAYS] = {
     { 
       S_TICKLEN,
       0,
-      0, 0.0,
+      0.0f, 0.0f,
       //{0},
     },
 
@@ -511,7 +511,7 @@ IVARIABLE DelayLine delays[S_NUM_DELAYS] = {
     {
       S_TICKLEN,
       0,
-      0.7, 0.3 - S_FADE1 * 40,
+      0.7f, 0.3f - S_FADE1 * 40.0f,
       //{0},
     },
     
@@ -519,7 +519,7 @@ IVARIABLE DelayLine delays[S_NUM_DELAYS] = {
     {
       1000,
       0,
-      -0.15, 0.0,
+      -0.15f, 0.0f,
       //{0},
     },
 
@@ -527,7 +527,7 @@ IVARIABLE DelayLine delays[S_NUM_DELAYS] = {
     {
       S_TICKLEN,
       0,
-      0.9, 0.1,
+      0.9f, 0.1f,
       //{0},
     },
 
@@ -535,14 +535,14 @@ IVARIABLE DelayLine delays[S_NUM_DELAYS] = {
     {
       S_TICKLEN,
       0,
-      0.97, 0.03 - S_FADE1 * 100,
+      0.97f, 0.03f - S_FADE1 * 100.0f,
       //{0},
     },
 
     { // snare (9 )
       S_TICKLEN,
       0,
-      0.80,-0.10,
+      0.80f, -0.10f,
       //{0},
     },
 
@@ -550,7 +550,7 @@ IVARIABLE DelayLine delays[S_NUM_DELAYS] = {
     {
       13000,
       0,
-      0.3, 0.5,
+      0.3f, 0.5f,
       //{0},
     },
 
@@ -558,23 +558,23 @@ IVARIABLE DelayLine delays[S_NUM_DELAYS] = {
     {
       10000,
       0,
-      0.4, 0.4,
+      0.4f, 0.4f,
       //{0},
     },
 };
 
 // master limiter input gainz
-#define M 0.66
+#define M 0.66f
 //#define M 0.0
 
 // the main mixer matrix
 IVARIABLE sample_t mixer[S_NUM_DELAYS*S_NUM_DELAYS] = {
     // master limiter (0, 1)
-    0, 0, 0, 0,  M*0.6 ,0, 0, 0,
-    M*0.4, M*0.25, M*0.6, 0,
+    0, 0, 0, 0,  M*0.6f ,0, 0, 0,
+    M*0.4f, M*0.25f, M*0.6f, 0,
 
-    0, 0, 0, M*0.1,  M*0.6, 0, 0, 0,
-    0, M*0.2,  0.0, M*0.6,
+    0, 0, 0, M*0.1f,  M*0.6f, 0, 0, 0,
+    0, M*0.2f,  0.0f, M*0.6f,
 
     // guitar 1 (2, 3)
     0, 0, 0, 0,  0, 0, 0, 0,
@@ -584,7 +584,7 @@ IVARIABLE sample_t mixer[S_NUM_DELAYS*S_NUM_DELAYS] = {
     0, 0, 0, 0,
 
     // dnb comp. 4
-    0, 0, 0, 0,  0, 2.4, 0, 1.3,
+    0, 0, 0, 0,  0, 2.4f, 0, 1.3f,
     0, 0, 0, 0,
 
     // bass (5)
@@ -608,13 +608,13 @@ IVARIABLE sample_t mixer[S_NUM_DELAYS*S_NUM_DELAYS] = {
     0, 0, 0, 0, 
     
     // master delay
-    0,0,0,0,  0,0.1,0.43,0,
-     0.65,/*0.5,*/
-     0.1,0, 0, 
+    0,0,0,0,  0, 0.1f, 0.43f, 0,
+    0.65f,/*0.5,*/
+    0.1f, 0, 0, 
 
-    0,0,0,0, 0 ,0.1,0.48,0.0,
-     0.65,/*0.4,*/
-    0.1,0,0, 
+    0, 0, 0, 0,  0, 0.1f, 0.48f, 0.0,
+    0.65f,/*0.4,*/
+    0.1f, 0, 0, 
 
     /* // diu */
     /* 0, 0, 0, 0,  0, 0, 0, 0, */
