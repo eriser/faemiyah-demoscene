@@ -30,7 +30,7 @@ int bsd_rand(void)
   x = 16807 * lo - 2836 * hi;
   if (x < 0)
     x += 0x7fffffff;
-  return ((bsd_rand_next = x) % ((bsd_u_long)BSD_RAND_MAX + 1));
+  return (int)((bsd_rand_next = (bsd_u_long)x) % ((bsd_u_long)BSD_RAND_MAX + 1));
 }
 
 void bsd_srand(bsd_u_int seed)
@@ -40,7 +40,7 @@ void bsd_srand(bsd_u_int seed)
 
 int bsd_rand_wrapper(void)
 {
-  static bsd_u_long cidx = 0;
+  static unsigned cidx = 0;
   int ret = bsd_rand();
   int cmp = rand();
 

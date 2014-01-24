@@ -65,7 +65,7 @@ extern "C"
 
     sprintf(filename, "yog_sothoth_%04u.png", idx);
 
-    gfx::image_png_save(std::string(filename), screen_w, screen_h, 24, image.get());
+    gfx::image_png_save(std::string(filename), (unsigned)screen_w, (unsigned)screen_h, 24, image.get());
     return;
   }
 }
