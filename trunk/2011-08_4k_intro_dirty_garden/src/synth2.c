@@ -35,26 +35,26 @@ IFUNCTION void writeaudio() {
 		if (type) {
 
 		    // trigger a note
-		    int i;
+		    int j;
 		    DelayLine *d = &delays[del];
 		    sample_t *l = lines + S_DELAY_LEN_MAX * del;
 		    int bdf = 800; // bd freq counter
 		    
-		    for (i = 0; i < d->len; i++) {
+		    for (j = 0; j < d->len; j++) {
 			sample_t val = 0.0f;
-			if (type == 1 && i < 11) {
-				val = (i & 1) ? -1 : 1;
+			if (type == 1 && j < 11) {
+				val = (j & 1) ? -1 : 1;
 			} else if (type == 2) {
 			    // saw
-			    val = -0.5 + (sample_t)i / d->len;
+			    val = -0.5f + (sample_t)j / d->len;
 			} else if (type == 3) {
 			    // bd
-			    if (i % bdf > (bdf >> 1)) {
+			    if (j % bdf > (bdf >> 1)) {
 				val = 1.0f;
 			    } else {
 				val = -1.0f;
 			    }
-			    if (bdf > 20 && !(i % 20)) bdf--;
+			    if (bdf > 20 && !(j % 20)) bdf--;
 			} else if (type == 4) {
 #ifdef SYN_TESTOUT
 			    val = -0.5 + rand() / (sample_t)(RAND_MAX);
@@ -62,7 +62,7 @@ IFUNCTION void writeaudio() {
 			    val = frand2(0.5);
 #endif
 			}
-			l[(d->pos + i) % d->len] = val;
+			l[(d->pos + j) % d->len] = val;
 		    }
 
 		}
@@ -71,9 +71,9 @@ IFUNCTION void writeaudio() {
 
 	mxr = mixer;
 	for (k = 0; k < S_NUM_DELAYS; k++) {
-	    sample_t s = 0;
+	    sample_t t = 0;
 	    for (m = 0; m < S_NUM_DELAYS; m++) {
-		s += tmp[m] * (*mxr);
+		t += tmp[m] * (*mxr);
 		mxr++;
 	    }
 
@@ -83,7 +83,7 @@ IFUNCTION void writeaudio() {
 		sample_t a;
 		sample_t *l = lines + S_DELAY_LEN_MAX * k;
 		
-		sum = s + l[d->pos] * d->f1 +
+		sum = t + l[d->pos] * d->f1 +
 			  l[(d->pos + 1) % d->len] * d->f2;
 		l[d->pos] = sum;
 		
@@ -91,7 +91,7 @@ IFUNCTION void writeaudio() {
 		    d->pos += d->len;
 		}
 		
-		a = fabs(sum);
+		a = fabsf(sum);
 		if (a > 1.0f) {
 		    sum /= a;
 		}

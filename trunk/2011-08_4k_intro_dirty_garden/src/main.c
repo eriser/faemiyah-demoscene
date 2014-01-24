@@ -311,7 +311,7 @@ IFUNCTION int bsd_rand(void)
 	x = 16807 * lo - 2836 * hi;
 	if (x < 0)
 		x += 0x7fffffff;
-	return ((bsd_rand_next = x) % ((uint32_t)BSD_RAND_MAX + 1));
+	return (int)((bsd_rand_next = (unsigned long)x) % ((uint32_t)BSD_RAND_MAX + 1));
 }
 
 IFUNCTION void bsd_srand(uint32_t seed)
@@ -365,7 +365,6 @@ IFUNCTION void feed_pseudo_position_uniform(GLint uniform, float interpolate,
 		uint8_t seed1, uint8_t seed2)
 {
 	float pos[3];
-	int ii;
 
 	dsrand((unsigned int)seed1);
 
@@ -1429,7 +1428,7 @@ void _start()
 
 		for(ii = 0; (ii < VOLUME_W * VOLUME_H * VOLUME_D); ++ii)
 		{
-			volume_data[ii] = drand();
+			volume_data[ii] = (int8_t)drand();
 		}
 
 		dlGenTextures(1, &volume);
