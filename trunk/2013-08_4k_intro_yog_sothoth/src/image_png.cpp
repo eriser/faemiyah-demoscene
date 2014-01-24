@@ -173,7 +173,7 @@ class PngReader
       png_set_keep_unknown_chunks(m_png, PNG_HANDLE_CHUNK_NEVER, keep_chunks, 0);
 
       png_init_io(m_png, m_fd); 
-      png_set_sig_bytes(m_png, skip);
+      png_set_sig_bytes(m_png, static_cast<int>(skip));
     }
 
     /** \brief Destructor. */

@@ -6,7 +6,7 @@ UNPACK="${NAME}_unpacked"
 SOURCE="src/intro.c"
 ARCHIVER="lzma"
 OPT_FLAGS="-ffast-math -fomit-frame-pointer -Os -fsingle-precision-constant `sdl-config --cflags`"
-LD_FLAGS="-L/usr/local/lib -nostdlib -nostartfiles -lc -lGL -lGLU `sdl-config --libs`"
+LD_FLAGS="-L/usr/local/lib -nostdlib -nostartfiles -lc -lGL -lGLU -lSDL -pthread"
 STRIP_FLAGS="-K .bss -K .text -K .data -R .comment -R .note -R .note.ABI-tag -R .fini -R .gnu.version -R .gnu.hash -R .eh_frame -R .eh_frame_hdr"
 
 # Collect.
