@@ -623,18 +623,17 @@ S["DEBUG_FALSE"]=""
 S["DEBUG_TRUE"]="#"
 S["EGREP"]="/usr/bin/grep -E"
 S["GREP"]="/usr/bin/grep"
-S["CPP"]="gcc -std=gnu99 -E"
+S["CPP"]="cc -E"
 S["LN_S"]="ln -s"
 S["am__fastdepCXX_FALSE"]="#"
 S["am__fastdepCXX_TRUE"]=""
 S["CXXDEPMODE"]="depmode=gcc3"
-S["ac_ct_CXX"]="g++"
-S["CXXFLAGS"]="-O3 -fcx-limited-range -ffinite-math-only -fno-math-errno -fno-rounding-math -fno-signaling-nans -fno-trapping-math -fgcse-las -fgcse-sm -fsee -fsin"\
-"gle-precision-constant -fomit-frame-pointer -fdiagnostics-show-option -Wall -Wcast-align -Wconversion -Wextra -Winit-self -Winvalid-pch -Wmissing-fo"\
-"rmat-attribute -Wmissing-include-dirs -Wpacked -Wredundant-decls -Wshadow -Wswitch-default -Wwrite-strings -Wundef -Wctor-dtor-privacy -Werror=non-v"\
-"irtual-dtor -Woverloaded-virtual -ftracer -fweb -pipe -Werror=return-type -march=native -I/usr/local/include/SDL -I/usr/local/include -D_GNU_SOURCE="\
-"1 -D_REENTRANT -D_THREAD_SAFE"
-S["CXX"]="g++"
+S["ac_ct_CXX"]="c++"
+S["CXXFLAGS"]="-Werror=unused-command-line-argument -Werror=unknown-warning-option -O3 -ffast-math -fomit-frame-pointer -fdiagnostics-show-option -Wall -Wcast-alig"\
+"n -Wconversion -Wextra -Winit-self -Winvalid-pch -Wmissing-format-attribute -Wmissing-include-dirs -Wpacked -Wredundant-decls -Wshadow -Wswitch-defa"\
+"ult -Wwrite-strings -Wundef -Wctor-dtor-privacy -Werror=non-virtual-dtor -Woverloaded-virtual -pipe -Werror=return-type -march=native -I/usr/local/i"\
+"nclude/SDL -I/usr/local/include -D_GNU_SOURCE=1 -D_REENTRANT -D_THREAD_SAFE"
+S["CXX"]="c++"
 S["am__fastdepCC_FALSE"]="#"
 S["am__fastdepCC_TRUE"]=""
 S["CCDEPMODE"]="depmode=gcc3"
@@ -647,15 +646,15 @@ S["am__include"]="include"
 S["DEPDIR"]=".deps"
 S["OBJEXT"]="o"
 S["EXEEXT"]=""
-S["ac_ct_CC"]="gcc"
+S["ac_ct_CC"]=""
 S["CPPFLAGS"]="-isystem /usr/local/include"
 S["LDFLAGS"]="-s -L/usr/local/lib"
-S["CFLAGS"]="-O3 -fcx-limited-range -ffinite-math-only -fno-math-errno -fno-rounding-math -fno-signaling-nans -fno-trapping-math -fgcse-las -fgcse-sm -fsee -fsin"\
-"gle-precision-constant -fomit-frame-pointer -fdiagnostics-show-option -Wall -Wcast-align -Wconversion -Wextra -Winit-self -Winvalid-pch -Wmissing-fo"\
-"rmat-attribute -Wmissing-include-dirs -Wpacked -Wredundant-decls -Wshadow -Wswitch-default -Wwrite-strings -Wundef -Wbad-function-cast -Wmissing-dec"\
-"larations -Wmissing-prototypes -Wnested-externs -Wold-style-definition -Wstrict-prototypes -ftracer -fweb -pipe -Werror=return-type -Werror-implicit"\
-"-function-declaration -march=native -I/usr/local/include/SDL -I/usr/local/include -D_GNU_SOURCE=1 -D_REENTRANT -D_THREAD_SAFE"
-S["CC"]="gcc -std=gnu99"
+S["CFLAGS"]="-Werror=unused-command-line-argument -Werror=unknown-warning-option -O3 -ffast-math -fomit-frame-pointer -fdiagnostics-show-option -Wall -Wcast-alig"\
+"n -Wconversion -Wextra -Winit-self -Winvalid-pch -Wmissing-format-attribute -Wmissing-include-dirs -Wpacked -Wredundant-decls -Wshadow -Wswitch-defa"\
+"ult -Wwrite-strings -Wundef -Wbad-function-cast -Wmissing-declarations -Wmissing-prototypes -Wnested-externs -Wold-style-definition -Wstrict-prototy"\
+"pes -pipe -Werror=return-type -Werror-implicit-function-declaration -march=native -I/usr/local/include/SDL -I/usr/local/include -D_GNU_SOURCE=1 -D_R"\
+"EENTRANT -D_THREAD_SAFE"
+S["CC"]="cc"
 S["AM_BACKSLASH"]="\\"
 S["AM_DEFAULT_VERBOSITY"]="1"
 S["AM_DEFAULT_V"]="$(AM_DEFAULT_VERBOSITY)"
@@ -683,18 +682,18 @@ S["am__isrc"]=""
 S["INSTALL_DATA"]="${INSTALL} -m 644"
 S["INSTALL_SCRIPT"]="${INSTALL}"
 S["INSTALL_PROGRAM"]="${INSTALL}"
-S["target_os"]="freebsd9.2"
+S["target_os"]="freebsd10.0"
 S["target_vendor"]="unknown"
 S["target_cpu"]="amd64"
-S["target"]="amd64-unknown-freebsd9.2"
-S["host_os"]="freebsd9.2"
+S["target"]="amd64-unknown-freebsd10.0"
+S["host_os"]="freebsd10.0"
 S["host_vendor"]="unknown"
 S["host_cpu"]="amd64"
-S["host"]="amd64-unknown-freebsd9.2"
-S["build_os"]="freebsd9.2"
+S["host"]="amd64-unknown-freebsd10.0"
+S["build_os"]="freebsd10.0"
 S["build_vendor"]="unknown"
 S["build_cpu"]="amd64"
-S["build"]="amd64-unknown-freebsd9.2"
+S["build"]="amd64-unknown-freebsd10.0"
 S["target_alias"]=""
 S["host_alias"]=""
 S["build_alias"]=""
