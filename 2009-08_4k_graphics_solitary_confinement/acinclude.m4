@@ -288,6 +288,10 @@ AC_DEFUN([AC_COMPILE_MODE],
   AC_CONDITIONAL_DEFINE([DEBUG], [$debug])
   AC_CONDITIONAL_DEFINE([NDEBUG], [$ndebug])
 
+  dnl Clang needs these to not clutter everything.
+  AC_CHECK_CFLAG([-Werror=unused-command-line-argument])
+  AC_CHECK_CFLAG([-Werror=unknown-warning-option])
+
   if test x$debug != xno ; then
     AC_MSG_RESULT([debug])
     AC_CHECK_CFLAG([-O0])
@@ -297,18 +301,20 @@ AC_DEFUN([AC_COMPILE_MODE],
   elif test x$optimizations != xno ; then
     AC_MSG_RESULT([optimized])
     AC_CHECK_CFLAG([-O3])
-    AC_CHECK_CFLAG([-fcx-limited-range]) dnl begin -ffast-math
-    AC_CHECK_CFLAG([-ffinite-math-only]) 
-    AC_CHECK_CFLAG([-fno-math-errno])
-    AC_CHECK_CFLAG([-fno-rounding-math])
-    AC_CHECK_CFLAG([-fno-signaling-nans])
-    AC_CHECK_CFLAG([-fno-trapping-math]) dnl no -funsafe-math-optimizations
+    AC_CHECK_CFLAG([-ffast-math])
+    dnl AC_CHECK_CFLAG([-fcx-limited-range]) dnl begin -ffast-math
+    dnl AC_CHECK_CFLAG([-ffinite-math-only]) 
+    dnl AC_CHECK_CFLAG([-fno-math-errno])
+    dnl AC_CHECK_CFLAG([-fno-rounding-math])
+    dnl AC_CHECK_CFLAG([-fno-signaling-nans])
+    dnl AC_CHECK_CFLAG([-fno-trapping-math])
+    dnl AC_CHECK_CFLAG([-funsafe-math-optimizations]) # may break something
     AC_CHECK_CFLAG([-fgcse-las])
     AC_CHECK_CFLAG([-fgcse-sm])
-    AC_CHECK_CFLAG([-flto])
+    dnl AC_CHECK_CFLAG([-flto])
     AC_CHECK_CFLAG([-fsee])
     AC_CHECK_CFLAG([-fsingle-precision-constant])
-    AC_CHECK_LDFLAG([-flto])
+    dnl AC_CHECK_LDFLAG([-flto])
   else
     AC_MSG_RESULT([normal])
     AC_CHECK_CFLAG([-O2])

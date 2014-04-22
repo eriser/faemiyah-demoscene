@@ -5237,6 +5237,219 @@ fi
 
 
 
+
+
+  if test "x$CC" != x ; then
+    ac_ext=c
+ac_cpp='$CPP $CPPFLAGS'
+ac_compile='$CC -c $CFLAGS $CPPFLAGS conftest.$ac_ext >&5'
+ac_link='$CC -o conftest$ac_exeext $CFLAGS $CPPFLAGS $LDFLAGS conftest.$ac_ext $LIBS >&5'
+ac_compiler_gnu=$ac_cv_c_compiler_gnu
+
+    { $as_echo "$as_me:${as_lineno-$LINENO}: checking if $CC accepts -Werror=unused-command-line-argument" >&5
+$as_echo_n "checking if $CC accepts -Werror=unused-command-line-argument... " >&6; }
+    CFLAGS_save=$CFLAGS
+
+  CFLAGS_addsave=$CFLAGS
+  if test "x$CFLAGS_addsave" != "x" ; then
+    flag=`echo "-Werror=unused-command-line-argument" | sed 's/-/\\\-/g'`
+    if test -z "`echo \"${CFLAGS}\" | grep \"${flag}\"`" ; then
+      CFLAGS="$CFLAGS_addsave -Werror=unused-command-line-argument"
+    fi
+  else
+    CFLAGS="-Werror=unused-command-line-argument"
+  fi
+
+    cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+int
+main ()
+{
+
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+  flag=yes
+else
+  flag=no
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+    if test x$flag = xno ; then
+      CFLAGS="$CFLAGS_save"
+    fi
+    { $as_echo "$as_me:${as_lineno-$LINENO}: result: $flag" >&5
+$as_echo "$flag" >&6; }
+    ac_ext=c
+ac_cpp='$CPP $CPPFLAGS'
+ac_compile='$CC -c $CFLAGS $CPPFLAGS conftest.$ac_ext >&5'
+ac_link='$CC -o conftest$ac_exeext $CFLAGS $CPPFLAGS $LDFLAGS conftest.$ac_ext $LIBS >&5'
+ac_compiler_gnu=$ac_cv_c_compiler_gnu
+
+  fi
+
+
+  if test "x$CXX" != x ; then
+    ac_ext=cpp
+ac_cpp='$CXXCPP $CPPFLAGS'
+ac_compile='$CXX -c $CXXFLAGS $CPPFLAGS conftest.$ac_ext >&5'
+ac_link='$CXX -o conftest$ac_exeext $CXXFLAGS $CPPFLAGS $LDFLAGS conftest.$ac_ext $LIBS >&5'
+ac_compiler_gnu=$ac_cv_cxx_compiler_gnu
+
+    { $as_echo "$as_me:${as_lineno-$LINENO}: checking if $CXX accepts -Werror=unused-command-line-argument" >&5
+$as_echo_n "checking if $CXX accepts -Werror=unused-command-line-argument... " >&6; }
+    CXXFLAGS_save=$CXXFLAGS
+
+  CXXFLAGS_addsave=$CXXFLAGS
+  if test "x$CXXFLAGS_addsave" != "x" ; then
+    flag=`echo "-Werror=unused-command-line-argument" | sed 's/-/\\\-/g'`
+    if test -z "`echo \"${CXXFLAGS}\" | grep \"${flag}\"`" ; then
+      CXXFLAGS="$CXXFLAGS_addsave -Werror=unused-command-line-argument"
+    fi
+  else
+    CXXFLAGS="-Werror=unused-command-line-argument"
+  fi
+
+    cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+int
+main ()
+{
+
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_cxx_try_compile "$LINENO"; then :
+  flag=yes
+else
+  flag=no
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+    if test x$flag = xno ; then
+      CXXFLAGS="$CXXFLAGS_save"
+    fi
+    { $as_echo "$as_me:${as_lineno-$LINENO}: result: $flag" >&5
+$as_echo "$flag" >&6; }
+    ac_ext=c
+ac_cpp='$CPP $CPPFLAGS'
+ac_compile='$CC -c $CFLAGS $CPPFLAGS conftest.$ac_ext >&5'
+ac_link='$CC -o conftest$ac_exeext $CFLAGS $CPPFLAGS $LDFLAGS conftest.$ac_ext $LIBS >&5'
+ac_compiler_gnu=$ac_cv_c_compiler_gnu
+
+  fi
+
+
+
+
+  if test "x$CC" != x ; then
+    ac_ext=c
+ac_cpp='$CPP $CPPFLAGS'
+ac_compile='$CC -c $CFLAGS $CPPFLAGS conftest.$ac_ext >&5'
+ac_link='$CC -o conftest$ac_exeext $CFLAGS $CPPFLAGS $LDFLAGS conftest.$ac_ext $LIBS >&5'
+ac_compiler_gnu=$ac_cv_c_compiler_gnu
+
+    { $as_echo "$as_me:${as_lineno-$LINENO}: checking if $CC accepts -Werror=unknown-warning-option" >&5
+$as_echo_n "checking if $CC accepts -Werror=unknown-warning-option... " >&6; }
+    CFLAGS_save=$CFLAGS
+
+  CFLAGS_addsave=$CFLAGS
+  if test "x$CFLAGS_addsave" != "x" ; then
+    flag=`echo "-Werror=unknown-warning-option" | sed 's/-/\\\-/g'`
+    if test -z "`echo \"${CFLAGS}\" | grep \"${flag}\"`" ; then
+      CFLAGS="$CFLAGS_addsave -Werror=unknown-warning-option"
+    fi
+  else
+    CFLAGS="-Werror=unknown-warning-option"
+  fi
+
+    cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+int
+main ()
+{
+
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+  flag=yes
+else
+  flag=no
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+    if test x$flag = xno ; then
+      CFLAGS="$CFLAGS_save"
+    fi
+    { $as_echo "$as_me:${as_lineno-$LINENO}: result: $flag" >&5
+$as_echo "$flag" >&6; }
+    ac_ext=c
+ac_cpp='$CPP $CPPFLAGS'
+ac_compile='$CC -c $CFLAGS $CPPFLAGS conftest.$ac_ext >&5'
+ac_link='$CC -o conftest$ac_exeext $CFLAGS $CPPFLAGS $LDFLAGS conftest.$ac_ext $LIBS >&5'
+ac_compiler_gnu=$ac_cv_c_compiler_gnu
+
+  fi
+
+
+  if test "x$CXX" != x ; then
+    ac_ext=cpp
+ac_cpp='$CXXCPP $CPPFLAGS'
+ac_compile='$CXX -c $CXXFLAGS $CPPFLAGS conftest.$ac_ext >&5'
+ac_link='$CXX -o conftest$ac_exeext $CXXFLAGS $CPPFLAGS $LDFLAGS conftest.$ac_ext $LIBS >&5'
+ac_compiler_gnu=$ac_cv_cxx_compiler_gnu
+
+    { $as_echo "$as_me:${as_lineno-$LINENO}: checking if $CXX accepts -Werror=unknown-warning-option" >&5
+$as_echo_n "checking if $CXX accepts -Werror=unknown-warning-option... " >&6; }
+    CXXFLAGS_save=$CXXFLAGS
+
+  CXXFLAGS_addsave=$CXXFLAGS
+  if test "x$CXXFLAGS_addsave" != "x" ; then
+    flag=`echo "-Werror=unknown-warning-option" | sed 's/-/\\\-/g'`
+    if test -z "`echo \"${CXXFLAGS}\" | grep \"${flag}\"`" ; then
+      CXXFLAGS="$CXXFLAGS_addsave -Werror=unknown-warning-option"
+    fi
+  else
+    CXXFLAGS="-Werror=unknown-warning-option"
+  fi
+
+    cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+int
+main ()
+{
+
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_cxx_try_compile "$LINENO"; then :
+  flag=yes
+else
+  flag=no
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+    if test x$flag = xno ; then
+      CXXFLAGS="$CXXFLAGS_save"
+    fi
+    { $as_echo "$as_me:${as_lineno-$LINENO}: result: $flag" >&5
+$as_echo "$flag" >&6; }
+    ac_ext=c
+ac_cpp='$CPP $CPPFLAGS'
+ac_compile='$CC -c $CFLAGS $CPPFLAGS conftest.$ac_ext >&5'
+ac_link='$CC -o conftest$ac_exeext $CFLAGS $CPPFLAGS $LDFLAGS conftest.$ac_ext $LIBS >&5'
+ac_compiler_gnu=$ac_cv_c_compiler_gnu
+
+  fi
+
+
+
   if test x$debug != xno ; then
     { $as_echo "$as_me:${as_lineno-$LINENO}: result: debug" >&5
 $as_echo "debug" >&6; }
@@ -5727,18 +5940,18 @@ ac_compile='$CC -c $CFLAGS $CPPFLAGS conftest.$ac_ext >&5'
 ac_link='$CC -o conftest$ac_exeext $CFLAGS $CPPFLAGS $LDFLAGS conftest.$ac_ext $LIBS >&5'
 ac_compiler_gnu=$ac_cv_c_compiler_gnu
 
-    { $as_echo "$as_me:${as_lineno-$LINENO}: checking if $CC accepts -fcx-limited-range" >&5
-$as_echo_n "checking if $CC accepts -fcx-limited-range... " >&6; }
+    { $as_echo "$as_me:${as_lineno-$LINENO}: checking if $CC accepts -ffast-math" >&5
+$as_echo_n "checking if $CC accepts -ffast-math... " >&6; }
     CFLAGS_save=$CFLAGS
 
   CFLAGS_addsave=$CFLAGS
   if test "x$CFLAGS_addsave" != "x" ; then
-    flag=`echo "-fcx-limited-range" | sed 's/-/\\\-/g'`
+    flag=`echo "-ffast-math" | sed 's/-/\\\-/g'`
     if test -z "`echo \"${CFLAGS}\" | grep \"${flag}\"`" ; then
-      CFLAGS="$CFLAGS_addsave -fcx-limited-range"
+      CFLAGS="$CFLAGS_addsave -ffast-math"
     fi
   else
-    CFLAGS="-fcx-limited-range"
+    CFLAGS="-ffast-math"
   fi
 
     cat confdefs.h - <<_ACEOF >conftest.$ac_ext
@@ -5779,18 +5992,18 @@ ac_compile='$CXX -c $CXXFLAGS $CPPFLAGS conftest.$ac_ext >&5'
 ac_link='$CXX -o conftest$ac_exeext $CXXFLAGS $CPPFLAGS $LDFLAGS conftest.$ac_ext $LIBS >&5'
 ac_compiler_gnu=$ac_cv_cxx_compiler_gnu
 
-    { $as_echo "$as_me:${as_lineno-$LINENO}: checking if $CXX accepts -fcx-limited-range" >&5
-$as_echo_n "checking if $CXX accepts -fcx-limited-range... " >&6; }
+    { $as_echo "$as_me:${as_lineno-$LINENO}: checking if $CXX accepts -ffast-math" >&5
+$as_echo_n "checking if $CXX accepts -ffast-math... " >&6; }
     CXXFLAGS_save=$CXXFLAGS
 
   CXXFLAGS_addsave=$CXXFLAGS
   if test "x$CXXFLAGS_addsave" != "x" ; then
-    flag=`echo "-fcx-limited-range" | sed 's/-/\\\-/g'`
+    flag=`echo "-ffast-math" | sed 's/-/\\\-/g'`
     if test -z "`echo \"${CXXFLAGS}\" | grep \"${flag}\"`" ; then
-      CXXFLAGS="$CXXFLAGS_addsave -fcx-limited-range"
+      CXXFLAGS="$CXXFLAGS_addsave -ffast-math"
     fi
   else
-    CXXFLAGS="-fcx-limited-range"
+    CXXFLAGS="-ffast-math"
   fi
 
     cat confdefs.h - <<_ACEOF >conftest.$ac_ext
@@ -5823,534 +6036,6 @@ ac_compiler_gnu=$ac_cv_c_compiler_gnu
 
   fi
 
-
-
-  if test "x$CC" != x ; then
-    ac_ext=c
-ac_cpp='$CPP $CPPFLAGS'
-ac_compile='$CC -c $CFLAGS $CPPFLAGS conftest.$ac_ext >&5'
-ac_link='$CC -o conftest$ac_exeext $CFLAGS $CPPFLAGS $LDFLAGS conftest.$ac_ext $LIBS >&5'
-ac_compiler_gnu=$ac_cv_c_compiler_gnu
-
-    { $as_echo "$as_me:${as_lineno-$LINENO}: checking if $CC accepts -ffinite-math-only" >&5
-$as_echo_n "checking if $CC accepts -ffinite-math-only... " >&6; }
-    CFLAGS_save=$CFLAGS
-
-  CFLAGS_addsave=$CFLAGS
-  if test "x$CFLAGS_addsave" != "x" ; then
-    flag=`echo "-ffinite-math-only" | sed 's/-/\\\-/g'`
-    if test -z "`echo \"${CFLAGS}\" | grep \"${flag}\"`" ; then
-      CFLAGS="$CFLAGS_addsave -ffinite-math-only"
-    fi
-  else
-    CFLAGS="-ffinite-math-only"
-  fi
-
-    cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-
-int
-main ()
-{
-
-  ;
-  return 0;
-}
-_ACEOF
-if ac_fn_c_try_compile "$LINENO"; then :
-  flag=yes
-else
-  flag=no
-fi
-rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
-    if test x$flag = xno ; then
-      CFLAGS="$CFLAGS_save"
-    fi
-    { $as_echo "$as_me:${as_lineno-$LINENO}: result: $flag" >&5
-$as_echo "$flag" >&6; }
-    ac_ext=c
-ac_cpp='$CPP $CPPFLAGS'
-ac_compile='$CC -c $CFLAGS $CPPFLAGS conftest.$ac_ext >&5'
-ac_link='$CC -o conftest$ac_exeext $CFLAGS $CPPFLAGS $LDFLAGS conftest.$ac_ext $LIBS >&5'
-ac_compiler_gnu=$ac_cv_c_compiler_gnu
-
-  fi
-
-
-  if test "x$CXX" != x ; then
-    ac_ext=cpp
-ac_cpp='$CXXCPP $CPPFLAGS'
-ac_compile='$CXX -c $CXXFLAGS $CPPFLAGS conftest.$ac_ext >&5'
-ac_link='$CXX -o conftest$ac_exeext $CXXFLAGS $CPPFLAGS $LDFLAGS conftest.$ac_ext $LIBS >&5'
-ac_compiler_gnu=$ac_cv_cxx_compiler_gnu
-
-    { $as_echo "$as_me:${as_lineno-$LINENO}: checking if $CXX accepts -ffinite-math-only" >&5
-$as_echo_n "checking if $CXX accepts -ffinite-math-only... " >&6; }
-    CXXFLAGS_save=$CXXFLAGS
-
-  CXXFLAGS_addsave=$CXXFLAGS
-  if test "x$CXXFLAGS_addsave" != "x" ; then
-    flag=`echo "-ffinite-math-only" | sed 's/-/\\\-/g'`
-    if test -z "`echo \"${CXXFLAGS}\" | grep \"${flag}\"`" ; then
-      CXXFLAGS="$CXXFLAGS_addsave -ffinite-math-only"
-    fi
-  else
-    CXXFLAGS="-ffinite-math-only"
-  fi
-
-    cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-
-int
-main ()
-{
-
-  ;
-  return 0;
-}
-_ACEOF
-if ac_fn_cxx_try_compile "$LINENO"; then :
-  flag=yes
-else
-  flag=no
-fi
-rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
-    if test x$flag = xno ; then
-      CXXFLAGS="$CXXFLAGS_save"
-    fi
-    { $as_echo "$as_me:${as_lineno-$LINENO}: result: $flag" >&5
-$as_echo "$flag" >&6; }
-    ac_ext=c
-ac_cpp='$CPP $CPPFLAGS'
-ac_compile='$CC -c $CFLAGS $CPPFLAGS conftest.$ac_ext >&5'
-ac_link='$CC -o conftest$ac_exeext $CFLAGS $CPPFLAGS $LDFLAGS conftest.$ac_ext $LIBS >&5'
-ac_compiler_gnu=$ac_cv_c_compiler_gnu
-
-  fi
-
-
-
-
-  if test "x$CC" != x ; then
-    ac_ext=c
-ac_cpp='$CPP $CPPFLAGS'
-ac_compile='$CC -c $CFLAGS $CPPFLAGS conftest.$ac_ext >&5'
-ac_link='$CC -o conftest$ac_exeext $CFLAGS $CPPFLAGS $LDFLAGS conftest.$ac_ext $LIBS >&5'
-ac_compiler_gnu=$ac_cv_c_compiler_gnu
-
-    { $as_echo "$as_me:${as_lineno-$LINENO}: checking if $CC accepts -fno-math-errno" >&5
-$as_echo_n "checking if $CC accepts -fno-math-errno... " >&6; }
-    CFLAGS_save=$CFLAGS
-
-  CFLAGS_addsave=$CFLAGS
-  if test "x$CFLAGS_addsave" != "x" ; then
-    flag=`echo "-fno-math-errno" | sed 's/-/\\\-/g'`
-    if test -z "`echo \"${CFLAGS}\" | grep \"${flag}\"`" ; then
-      CFLAGS="$CFLAGS_addsave -fno-math-errno"
-    fi
-  else
-    CFLAGS="-fno-math-errno"
-  fi
-
-    cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-
-int
-main ()
-{
-
-  ;
-  return 0;
-}
-_ACEOF
-if ac_fn_c_try_compile "$LINENO"; then :
-  flag=yes
-else
-  flag=no
-fi
-rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
-    if test x$flag = xno ; then
-      CFLAGS="$CFLAGS_save"
-    fi
-    { $as_echo "$as_me:${as_lineno-$LINENO}: result: $flag" >&5
-$as_echo "$flag" >&6; }
-    ac_ext=c
-ac_cpp='$CPP $CPPFLAGS'
-ac_compile='$CC -c $CFLAGS $CPPFLAGS conftest.$ac_ext >&5'
-ac_link='$CC -o conftest$ac_exeext $CFLAGS $CPPFLAGS $LDFLAGS conftest.$ac_ext $LIBS >&5'
-ac_compiler_gnu=$ac_cv_c_compiler_gnu
-
-  fi
-
-
-  if test "x$CXX" != x ; then
-    ac_ext=cpp
-ac_cpp='$CXXCPP $CPPFLAGS'
-ac_compile='$CXX -c $CXXFLAGS $CPPFLAGS conftest.$ac_ext >&5'
-ac_link='$CXX -o conftest$ac_exeext $CXXFLAGS $CPPFLAGS $LDFLAGS conftest.$ac_ext $LIBS >&5'
-ac_compiler_gnu=$ac_cv_cxx_compiler_gnu
-
-    { $as_echo "$as_me:${as_lineno-$LINENO}: checking if $CXX accepts -fno-math-errno" >&5
-$as_echo_n "checking if $CXX accepts -fno-math-errno... " >&6; }
-    CXXFLAGS_save=$CXXFLAGS
-
-  CXXFLAGS_addsave=$CXXFLAGS
-  if test "x$CXXFLAGS_addsave" != "x" ; then
-    flag=`echo "-fno-math-errno" | sed 's/-/\\\-/g'`
-    if test -z "`echo \"${CXXFLAGS}\" | grep \"${flag}\"`" ; then
-      CXXFLAGS="$CXXFLAGS_addsave -fno-math-errno"
-    fi
-  else
-    CXXFLAGS="-fno-math-errno"
-  fi
-
-    cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-
-int
-main ()
-{
-
-  ;
-  return 0;
-}
-_ACEOF
-if ac_fn_cxx_try_compile "$LINENO"; then :
-  flag=yes
-else
-  flag=no
-fi
-rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
-    if test x$flag = xno ; then
-      CXXFLAGS="$CXXFLAGS_save"
-    fi
-    { $as_echo "$as_me:${as_lineno-$LINENO}: result: $flag" >&5
-$as_echo "$flag" >&6; }
-    ac_ext=c
-ac_cpp='$CPP $CPPFLAGS'
-ac_compile='$CC -c $CFLAGS $CPPFLAGS conftest.$ac_ext >&5'
-ac_link='$CC -o conftest$ac_exeext $CFLAGS $CPPFLAGS $LDFLAGS conftest.$ac_ext $LIBS >&5'
-ac_compiler_gnu=$ac_cv_c_compiler_gnu
-
-  fi
-
-
-
-
-  if test "x$CC" != x ; then
-    ac_ext=c
-ac_cpp='$CPP $CPPFLAGS'
-ac_compile='$CC -c $CFLAGS $CPPFLAGS conftest.$ac_ext >&5'
-ac_link='$CC -o conftest$ac_exeext $CFLAGS $CPPFLAGS $LDFLAGS conftest.$ac_ext $LIBS >&5'
-ac_compiler_gnu=$ac_cv_c_compiler_gnu
-
-    { $as_echo "$as_me:${as_lineno-$LINENO}: checking if $CC accepts -fno-rounding-math" >&5
-$as_echo_n "checking if $CC accepts -fno-rounding-math... " >&6; }
-    CFLAGS_save=$CFLAGS
-
-  CFLAGS_addsave=$CFLAGS
-  if test "x$CFLAGS_addsave" != "x" ; then
-    flag=`echo "-fno-rounding-math" | sed 's/-/\\\-/g'`
-    if test -z "`echo \"${CFLAGS}\" | grep \"${flag}\"`" ; then
-      CFLAGS="$CFLAGS_addsave -fno-rounding-math"
-    fi
-  else
-    CFLAGS="-fno-rounding-math"
-  fi
-
-    cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-
-int
-main ()
-{
-
-  ;
-  return 0;
-}
-_ACEOF
-if ac_fn_c_try_compile "$LINENO"; then :
-  flag=yes
-else
-  flag=no
-fi
-rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
-    if test x$flag = xno ; then
-      CFLAGS="$CFLAGS_save"
-    fi
-    { $as_echo "$as_me:${as_lineno-$LINENO}: result: $flag" >&5
-$as_echo "$flag" >&6; }
-    ac_ext=c
-ac_cpp='$CPP $CPPFLAGS'
-ac_compile='$CC -c $CFLAGS $CPPFLAGS conftest.$ac_ext >&5'
-ac_link='$CC -o conftest$ac_exeext $CFLAGS $CPPFLAGS $LDFLAGS conftest.$ac_ext $LIBS >&5'
-ac_compiler_gnu=$ac_cv_c_compiler_gnu
-
-  fi
-
-
-  if test "x$CXX" != x ; then
-    ac_ext=cpp
-ac_cpp='$CXXCPP $CPPFLAGS'
-ac_compile='$CXX -c $CXXFLAGS $CPPFLAGS conftest.$ac_ext >&5'
-ac_link='$CXX -o conftest$ac_exeext $CXXFLAGS $CPPFLAGS $LDFLAGS conftest.$ac_ext $LIBS >&5'
-ac_compiler_gnu=$ac_cv_cxx_compiler_gnu
-
-    { $as_echo "$as_me:${as_lineno-$LINENO}: checking if $CXX accepts -fno-rounding-math" >&5
-$as_echo_n "checking if $CXX accepts -fno-rounding-math... " >&6; }
-    CXXFLAGS_save=$CXXFLAGS
-
-  CXXFLAGS_addsave=$CXXFLAGS
-  if test "x$CXXFLAGS_addsave" != "x" ; then
-    flag=`echo "-fno-rounding-math" | sed 's/-/\\\-/g'`
-    if test -z "`echo \"${CXXFLAGS}\" | grep \"${flag}\"`" ; then
-      CXXFLAGS="$CXXFLAGS_addsave -fno-rounding-math"
-    fi
-  else
-    CXXFLAGS="-fno-rounding-math"
-  fi
-
-    cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-
-int
-main ()
-{
-
-  ;
-  return 0;
-}
-_ACEOF
-if ac_fn_cxx_try_compile "$LINENO"; then :
-  flag=yes
-else
-  flag=no
-fi
-rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
-    if test x$flag = xno ; then
-      CXXFLAGS="$CXXFLAGS_save"
-    fi
-    { $as_echo "$as_me:${as_lineno-$LINENO}: result: $flag" >&5
-$as_echo "$flag" >&6; }
-    ac_ext=c
-ac_cpp='$CPP $CPPFLAGS'
-ac_compile='$CC -c $CFLAGS $CPPFLAGS conftest.$ac_ext >&5'
-ac_link='$CC -o conftest$ac_exeext $CFLAGS $CPPFLAGS $LDFLAGS conftest.$ac_ext $LIBS >&5'
-ac_compiler_gnu=$ac_cv_c_compiler_gnu
-
-  fi
-
-
-
-
-  if test "x$CC" != x ; then
-    ac_ext=c
-ac_cpp='$CPP $CPPFLAGS'
-ac_compile='$CC -c $CFLAGS $CPPFLAGS conftest.$ac_ext >&5'
-ac_link='$CC -o conftest$ac_exeext $CFLAGS $CPPFLAGS $LDFLAGS conftest.$ac_ext $LIBS >&5'
-ac_compiler_gnu=$ac_cv_c_compiler_gnu
-
-    { $as_echo "$as_me:${as_lineno-$LINENO}: checking if $CC accepts -fno-signaling-nans" >&5
-$as_echo_n "checking if $CC accepts -fno-signaling-nans... " >&6; }
-    CFLAGS_save=$CFLAGS
-
-  CFLAGS_addsave=$CFLAGS
-  if test "x$CFLAGS_addsave" != "x" ; then
-    flag=`echo "-fno-signaling-nans" | sed 's/-/\\\-/g'`
-    if test -z "`echo \"${CFLAGS}\" | grep \"${flag}\"`" ; then
-      CFLAGS="$CFLAGS_addsave -fno-signaling-nans"
-    fi
-  else
-    CFLAGS="-fno-signaling-nans"
-  fi
-
-    cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-
-int
-main ()
-{
-
-  ;
-  return 0;
-}
-_ACEOF
-if ac_fn_c_try_compile "$LINENO"; then :
-  flag=yes
-else
-  flag=no
-fi
-rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
-    if test x$flag = xno ; then
-      CFLAGS="$CFLAGS_save"
-    fi
-    { $as_echo "$as_me:${as_lineno-$LINENO}: result: $flag" >&5
-$as_echo "$flag" >&6; }
-    ac_ext=c
-ac_cpp='$CPP $CPPFLAGS'
-ac_compile='$CC -c $CFLAGS $CPPFLAGS conftest.$ac_ext >&5'
-ac_link='$CC -o conftest$ac_exeext $CFLAGS $CPPFLAGS $LDFLAGS conftest.$ac_ext $LIBS >&5'
-ac_compiler_gnu=$ac_cv_c_compiler_gnu
-
-  fi
-
-
-  if test "x$CXX" != x ; then
-    ac_ext=cpp
-ac_cpp='$CXXCPP $CPPFLAGS'
-ac_compile='$CXX -c $CXXFLAGS $CPPFLAGS conftest.$ac_ext >&5'
-ac_link='$CXX -o conftest$ac_exeext $CXXFLAGS $CPPFLAGS $LDFLAGS conftest.$ac_ext $LIBS >&5'
-ac_compiler_gnu=$ac_cv_cxx_compiler_gnu
-
-    { $as_echo "$as_me:${as_lineno-$LINENO}: checking if $CXX accepts -fno-signaling-nans" >&5
-$as_echo_n "checking if $CXX accepts -fno-signaling-nans... " >&6; }
-    CXXFLAGS_save=$CXXFLAGS
-
-  CXXFLAGS_addsave=$CXXFLAGS
-  if test "x$CXXFLAGS_addsave" != "x" ; then
-    flag=`echo "-fno-signaling-nans" | sed 's/-/\\\-/g'`
-    if test -z "`echo \"${CXXFLAGS}\" | grep \"${flag}\"`" ; then
-      CXXFLAGS="$CXXFLAGS_addsave -fno-signaling-nans"
-    fi
-  else
-    CXXFLAGS="-fno-signaling-nans"
-  fi
-
-    cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-
-int
-main ()
-{
-
-  ;
-  return 0;
-}
-_ACEOF
-if ac_fn_cxx_try_compile "$LINENO"; then :
-  flag=yes
-else
-  flag=no
-fi
-rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
-    if test x$flag = xno ; then
-      CXXFLAGS="$CXXFLAGS_save"
-    fi
-    { $as_echo "$as_me:${as_lineno-$LINENO}: result: $flag" >&5
-$as_echo "$flag" >&6; }
-    ac_ext=c
-ac_cpp='$CPP $CPPFLAGS'
-ac_compile='$CC -c $CFLAGS $CPPFLAGS conftest.$ac_ext >&5'
-ac_link='$CC -o conftest$ac_exeext $CFLAGS $CPPFLAGS $LDFLAGS conftest.$ac_ext $LIBS >&5'
-ac_compiler_gnu=$ac_cv_c_compiler_gnu
-
-  fi
-
-
-
-
-  if test "x$CC" != x ; then
-    ac_ext=c
-ac_cpp='$CPP $CPPFLAGS'
-ac_compile='$CC -c $CFLAGS $CPPFLAGS conftest.$ac_ext >&5'
-ac_link='$CC -o conftest$ac_exeext $CFLAGS $CPPFLAGS $LDFLAGS conftest.$ac_ext $LIBS >&5'
-ac_compiler_gnu=$ac_cv_c_compiler_gnu
-
-    { $as_echo "$as_me:${as_lineno-$LINENO}: checking if $CC accepts -fno-trapping-math" >&5
-$as_echo_n "checking if $CC accepts -fno-trapping-math... " >&6; }
-    CFLAGS_save=$CFLAGS
-
-  CFLAGS_addsave=$CFLAGS
-  if test "x$CFLAGS_addsave" != "x" ; then
-    flag=`echo "-fno-trapping-math" | sed 's/-/\\\-/g'`
-    if test -z "`echo \"${CFLAGS}\" | grep \"${flag}\"`" ; then
-      CFLAGS="$CFLAGS_addsave -fno-trapping-math"
-    fi
-  else
-    CFLAGS="-fno-trapping-math"
-  fi
-
-    cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-
-int
-main ()
-{
-
-  ;
-  return 0;
-}
-_ACEOF
-if ac_fn_c_try_compile "$LINENO"; then :
-  flag=yes
-else
-  flag=no
-fi
-rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
-    if test x$flag = xno ; then
-      CFLAGS="$CFLAGS_save"
-    fi
-    { $as_echo "$as_me:${as_lineno-$LINENO}: result: $flag" >&5
-$as_echo "$flag" >&6; }
-    ac_ext=c
-ac_cpp='$CPP $CPPFLAGS'
-ac_compile='$CC -c $CFLAGS $CPPFLAGS conftest.$ac_ext >&5'
-ac_link='$CC -o conftest$ac_exeext $CFLAGS $CPPFLAGS $LDFLAGS conftest.$ac_ext $LIBS >&5'
-ac_compiler_gnu=$ac_cv_c_compiler_gnu
-
-  fi
-
-
-  if test "x$CXX" != x ; then
-    ac_ext=cpp
-ac_cpp='$CXXCPP $CPPFLAGS'
-ac_compile='$CXX -c $CXXFLAGS $CPPFLAGS conftest.$ac_ext >&5'
-ac_link='$CXX -o conftest$ac_exeext $CXXFLAGS $CPPFLAGS $LDFLAGS conftest.$ac_ext $LIBS >&5'
-ac_compiler_gnu=$ac_cv_cxx_compiler_gnu
-
-    { $as_echo "$as_me:${as_lineno-$LINENO}: checking if $CXX accepts -fno-trapping-math" >&5
-$as_echo_n "checking if $CXX accepts -fno-trapping-math... " >&6; }
-    CXXFLAGS_save=$CXXFLAGS
-
-  CXXFLAGS_addsave=$CXXFLAGS
-  if test "x$CXXFLAGS_addsave" != "x" ; then
-    flag=`echo "-fno-trapping-math" | sed 's/-/\\\-/g'`
-    if test -z "`echo \"${CXXFLAGS}\" | grep \"${flag}\"`" ; then
-      CXXFLAGS="$CXXFLAGS_addsave -fno-trapping-math"
-    fi
-  else
-    CXXFLAGS="-fno-trapping-math"
-  fi
-
-    cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-
-int
-main ()
-{
-
-  ;
-  return 0;
-}
-_ACEOF
-if ac_fn_cxx_try_compile "$LINENO"; then :
-  flag=yes
-else
-  flag=no
-fi
-rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
-    if test x$flag = xno ; then
-      CXXFLAGS="$CXXFLAGS_save"
-    fi
-    { $as_echo "$as_me:${as_lineno-$LINENO}: result: $flag" >&5
-$as_echo "$flag" >&6; }
-    ac_ext=c
-ac_cpp='$CPP $CPPFLAGS'
-ac_compile='$CC -c $CFLAGS $CPPFLAGS conftest.$ac_ext >&5'
-ac_link='$CC -o conftest$ac_exeext $CFLAGS $CPPFLAGS $LDFLAGS conftest.$ac_ext $LIBS >&5'
-ac_compiler_gnu=$ac_cv_c_compiler_gnu
-
-  fi
 
 
 
@@ -6531,112 +6216,6 @@ $as_echo_n "checking if $CXX accepts -fgcse-sm... " >&6; }
     fi
   else
     CXXFLAGS="-fgcse-sm"
-  fi
-
-    cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-
-int
-main ()
-{
-
-  ;
-  return 0;
-}
-_ACEOF
-if ac_fn_cxx_try_compile "$LINENO"; then :
-  flag=yes
-else
-  flag=no
-fi
-rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
-    if test x$flag = xno ; then
-      CXXFLAGS="$CXXFLAGS_save"
-    fi
-    { $as_echo "$as_me:${as_lineno-$LINENO}: result: $flag" >&5
-$as_echo "$flag" >&6; }
-    ac_ext=c
-ac_cpp='$CPP $CPPFLAGS'
-ac_compile='$CC -c $CFLAGS $CPPFLAGS conftest.$ac_ext >&5'
-ac_link='$CC -o conftest$ac_exeext $CFLAGS $CPPFLAGS $LDFLAGS conftest.$ac_ext $LIBS >&5'
-ac_compiler_gnu=$ac_cv_c_compiler_gnu
-
-  fi
-
-
-
-
-  if test "x$CC" != x ; then
-    ac_ext=c
-ac_cpp='$CPP $CPPFLAGS'
-ac_compile='$CC -c $CFLAGS $CPPFLAGS conftest.$ac_ext >&5'
-ac_link='$CC -o conftest$ac_exeext $CFLAGS $CPPFLAGS $LDFLAGS conftest.$ac_ext $LIBS >&5'
-ac_compiler_gnu=$ac_cv_c_compiler_gnu
-
-    { $as_echo "$as_me:${as_lineno-$LINENO}: checking if $CC accepts -flto" >&5
-$as_echo_n "checking if $CC accepts -flto... " >&6; }
-    CFLAGS_save=$CFLAGS
-
-  CFLAGS_addsave=$CFLAGS
-  if test "x$CFLAGS_addsave" != "x" ; then
-    flag=`echo "-flto" | sed 's/-/\\\-/g'`
-    if test -z "`echo \"${CFLAGS}\" | grep \"${flag}\"`" ; then
-      CFLAGS="$CFLAGS_addsave -flto"
-    fi
-  else
-    CFLAGS="-flto"
-  fi
-
-    cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-
-int
-main ()
-{
-
-  ;
-  return 0;
-}
-_ACEOF
-if ac_fn_c_try_compile "$LINENO"; then :
-  flag=yes
-else
-  flag=no
-fi
-rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
-    if test x$flag = xno ; then
-      CFLAGS="$CFLAGS_save"
-    fi
-    { $as_echo "$as_me:${as_lineno-$LINENO}: result: $flag" >&5
-$as_echo "$flag" >&6; }
-    ac_ext=c
-ac_cpp='$CPP $CPPFLAGS'
-ac_compile='$CC -c $CFLAGS $CPPFLAGS conftest.$ac_ext >&5'
-ac_link='$CC -o conftest$ac_exeext $CFLAGS $CPPFLAGS $LDFLAGS conftest.$ac_ext $LIBS >&5'
-ac_compiler_gnu=$ac_cv_c_compiler_gnu
-
-  fi
-
-
-  if test "x$CXX" != x ; then
-    ac_ext=cpp
-ac_cpp='$CXXCPP $CPPFLAGS'
-ac_compile='$CXX -c $CXXFLAGS $CPPFLAGS conftest.$ac_ext >&5'
-ac_link='$CXX -o conftest$ac_exeext $CXXFLAGS $CPPFLAGS $LDFLAGS conftest.$ac_ext $LIBS >&5'
-ac_compiler_gnu=$ac_cv_cxx_compiler_gnu
-
-    { $as_echo "$as_me:${as_lineno-$LINENO}: checking if $CXX accepts -flto" >&5
-$as_echo_n "checking if $CXX accepts -flto... " >&6; }
-    CXXFLAGS_save=$CXXFLAGS
-
-  CXXFLAGS_addsave=$CXXFLAGS
-  if test "x$CXXFLAGS_addsave" != "x" ; then
-    flag=`echo "-flto" | sed 's/-/\\\-/g'`
-    if test -z "`echo \"${CXXFLAGS}\" | grep \"${flag}\"`" ; then
-      CXXFLAGS="$CXXFLAGS_addsave -flto"
-    fi
-  else
-    CXXFLAGS="-flto"
   fi
 
     cat confdefs.h - <<_ACEOF >conftest.$ac_ext
@@ -6882,46 +6461,7 @@ ac_compiler_gnu=$ac_cv_c_compiler_gnu
   fi
 
 
-
-  { $as_echo "$as_me:${as_lineno-$LINENO}: checking if linker accepts -flto" >&5
-$as_echo_n "checking if linker accepts -flto... " >&6; }
-  LDFLAGS_save=$LDFLAGS
-
-  LDFLAGS_addsave=$LDFLAGS
-  if test "x$LDFLAGS_addsave" != "x" ; then
-    flag=`echo "-flto" | sed 's/-/\\\-/g'`
-    if test -z "`echo \"${LDFLAGS}\" | grep \"${flag}\"`" ; then
-      LDFLAGS="$LDFLAGS_addsave -flto"
-    fi
-  else
-    LDFLAGS="-flto"
-  fi
-
-  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-
-int
-main ()
-{
-
-  ;
-  return 0;
-}
-_ACEOF
-if ac_fn_c_try_link "$LINENO"; then :
-  flag=yes
-else
-  flag=no
-fi
-rm -f core conftest.err conftest.$ac_objext \
-    conftest$ac_exeext conftest.$ac_ext
-  if test x$flag = xno ; then
-    LDFLAGS=$LDFLAGS_save
-  fi
-  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $flag" >&5
-$as_echo "$flag" >&6; }
-
-  else
+      else
     { $as_echo "$as_me:${as_lineno-$LINENO}: result: normal" >&5
 $as_echo "normal" >&6; }
 
