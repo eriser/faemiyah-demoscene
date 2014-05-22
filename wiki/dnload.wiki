@@ -26,11 +26,11 @@ The list might be missing some parties, that are thus not getting the credit the
 
 = Legalese =
 
-All contained code is licenced under the [http://opensource.org/licenses/BSD-3-Clause new BSD licence].
+All contained code is licenced under the [https://code.google.com/p/faemiyah-demoscene/source/browse/trunk/dnload/COPYING new BSD licence] [#References [9]].
 
-Note that this licence only pertains to the code of the script(s) themselves. Just like building a binary with a compiler imposes no restriction to the binary itself, whatever the user decides to do with the script(s) is completely up to the user.
+Note that this licence only pertains to the code of the script(s) themselves. There are no restrictions imposed on the end products of the script(s) just like there are no restrictions imposed on a binary built with a compiler.
 
-And to be honest, whatever anyone decides to do with the anything here is pretty much free game. You can't honestly except us to care. If you improve on the mechanisms, I'd probably prefer to incorporate the improvements. But if not, hey, then not.
+And to be honest, even that doesn't really mean anything. Just do whatever you want. If you improve on the mechanisms, I'd probably prefer to incorporate the improvements. But if not, hey, then not.
 
 = System requirements =
 
@@ -66,7 +66,7 @@ For example:
 python dnload.py -v src/intro.cpp
 }}}
 
-This will produce output somewhat akin to this (using the [https://code.google.com/p/faemiyah-demoscene/source/browse/trunk/dnload/src/intro.cpp example file] provided:
+This will produce output somewhat akin to this (using the [https://code.google.com/p/faemiyah-demoscene/source/browse/trunk/dnload/src/intro.cpp example file] provided):
 
 {{{
 Header file 'dnload.h' found in path 'src/'.
@@ -77,7 +77,7 @@ Symbols found: ['glCreateProgram', 'rand', 'glUseProgram', 'glDisable', 'glLinkP
 Wrote header file 'src/dnload.h'.
 }}}
 
-As is shown a header file somewhat akin to [https://code.google.com/p/faemiyah-demoscene/source/browse/trunk/dnload/src/dnload.h this] was written.
+As is shown, a header file somewhat akin to [https://code.google.com/p/faemiyah-demoscene/source/browse/trunk/dnload/src/dnload.h this] was written.
 
 And that's it. What this will achieve is that you now have a file `dnload.h` that you can `#include` into your intro code that will do absolutely _nothing_ save for saving you the trouble of `#including` OpenGL and SDL header.
 
@@ -106,7 +106,7 @@ python dnload.py -v src/quad.cpp -o stub -lGL -lSDL
 
 *NOTE:* Cross-compilation is not (yet?) supported. The former must be ran on an actual 32-bit system. If you want to develop 32-bit software on a 64-bit system, you'll probably want a chroot/jail environment.
 
-You might notice some of the command line parameters to some commonly used programming tools. This is not coincidental. The former should produce something like this:
+You might notice some of the command line parameters bear similarities to some commonly used programming tools. This is not coincidental. The former should produce output resembling something like this:
 
 {{{
 Header file 'dnload.h' found in path 'src/'.
@@ -225,7 +225,7 @@ You might be wondering about the term `#if defined(USE``_``LD)`. In here, *USE`_
 
 *NOTE:* The specific name of `USE``_``LD` makes absolutely no sense at this point in time, but it's legacy from earlier Faemiyah intros using earlier, more primitive mechanisms. If you don't like it, you may change it with the `dnload.py` command line flag `-d` or `--definition` and write your code accordingly.
 
-The `__attribute__((externally_visible))` that might also seem weird is just there due to `gcc` semantics. To make GNU C Compiler discard all irrelevant code, we pass `-fwhole-program` to the `g++` command line. Unfortunately, this will cause the discard of all code that is not determined required by at least something. In this case, the dependency graph should be built from ``_`start`, which we declare necessary.
+The `__attribute__((externally_visible))` that might also seem weird is just there due to `gcc` semantics. To make GNU C Compiler discard all irrelevant code, we pass `-fwhole-program` to the `g++` command line. Unfortunately, this will cause the compiler to discard of all code that is not determined required by at least something. In this case, the dependency graph should be built from ``_`start`, which we declare necessary.
 
 After that it's all smooth sailing. Call function declared in `dnload.h` to perform loading, then initialize window as usual, call glewInit() to do portable init if we don't care about size, etc. Until this part:
 
@@ -246,7 +246,7 @@ What is relevant here is, that since we already discarded the premise of using t
 
 This might seem silly at first glance, but it actually works. Why? Because we simply do not care what we are returning from the program. In Linux, we would be putting the return value into `%bl`, on FreeBSD, we would be pushing it into the stack. But here, whatever already is in the register or in the stack is good enough.
 
-That's it. It actually, honestly is this easy!
+That's it. It actually, honestly is that easy!
 
 = The quest for minimal ELF32 binaries =
 
@@ -278,3 +278,4 @@ TODO: fill
 `[`6`]` [http://www.pouet.net/groups.php?which=11436 Ye Olde Laptops Posse in Pouet]<br>
 `[`7`]` [http://www.pouet.net/user.php?who=2547 viznut/PWP in Pouet]<br>
 `[`8`]` [https://www.youtube.com/watch?v=tCRPUv8V22o Music from very short programs - the 3rd iteration in Youtube]<br>
+`[`9`]` [http://opensource.org/licenses/BSD-3-Clause New BSD licence]<br>
