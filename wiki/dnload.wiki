@@ -7,30 +7,6 @@
 
 <wiki:toc max_depth="3" />
 
-== Acknowledgements ==
-
-This script would not have been possible without the prior work done by various other parties. Especially the following parties deserve kudos for their efforts:
-  * *Marq/Fit* [#References [1]] for the original unpack header and dlopen/dlsym implementation.
-  * *Brian Raiter* for _A Whirlwind Tutorial on Creating Really Teensy ELF Executables for Linux_ [#References [2]] and the insight of interleaving headers.
-  * *parcelshit* [#References [3]] and *las/Mercury* [#References [4]] for the original ELF32 import-by hash algorithm.
-  * *Hymy* [#References [5]] and *Ye Olde Laptops Posse* [#References [6]] for earlier forays into manual ELF32 header construction.
-  * *viznut/PWP* [#References [7]] for the series _Experimental music from very short C programs_ [#References [8]], a snipped of which is used in one of the examples.
-
-The list might be missing some parties, that are thus not getting the credit they deserve. If you notice this, please help correct the error(s).
-
-== TODO ==
-  * Should probably create the header file in a smart(er) manner if it's not found.
-  * Add cross-compilation support, at the very least between `*`nix systems and the "maximum" operation mode.
-  * Only SDL/OpenGL supported right now. Should probably also support GLFW.
-
-== Legalese ==
-
-All contained code is licenced under the [https://code.google.com/p/faemiyah-demoscene/source/browse/trunk/dnload/COPYING new BSD licence] [#References [9]].
-
-Note that this licence only pertains to the code of the script(s) themselves. There are no restrictions imposed on the end products of the script(s) just like there are no restrictions imposed on a binary built with a compiler.
-
-And to be honest, even that doesn't really mean anything. Just do whatever you want. If you improve on the mechanisms, I'd probably prefer to incorporate the improvements. But if not, hey, then not.
-
 == System requirements ==
 
 The bridging header file should be generatable on FreeBSD, Linux, Windows, and possibly various unmentioned `*`nix platforms with a up-to-date Python installation.
@@ -258,8 +234,8 @@ Since we already discarded the premise of using the default `main` procedure, no
 We could make it "return" but that would normally only pass control to the shell provided by the system, we now have nowhere to return to. Thus, we must make a system call[#References [11]] to terminate the program ourselves. The file [https://code.google.com/p/faemiyah-demoscene/source/browse/trunk/dnload/src/asm_exit.h `src/asm_exit.h`] (automatically included in `dnload.h`) provides a macro called `asm``_``exit()` that will do exactly this. Essentially on i386 architecture, it will evaluate into the following :
 
 {{{
-  movl $1, %eax
-  int $128
+movl $1, %eax
+int $128
 }}}
 
 Note that this puts nothing into `%bl` (as would be expected on Linux) or pushes nothing onto stack (as would be expected on FreeBSD). This is because we simply do not care what is the return value of the program.
@@ -328,6 +304,29 @@ TODO: fill
 
 ----
 
+= Acknowledgements =
+
+This script would not have been possible without the prior work done by various other parties. Especially the following parties deserve kudos for their efforts:
+  * *Marq/Fit* [#References [1]] for the original unpack header and dlopen/dlsym implementation.
+  * *Brian Raiter* for _A Whirlwind Tutorial on Creating Really Teensy ELF Executables for Linux_ [#References [2]] and the insight of interleaving headers.
+  * *parcelshit* [#References [3]] and *las/Mercury* [#References [4]] for the original ELF32 import-by hash algorithm.
+  * *Hymy* [#References [5]] and *Ye Olde Laptops Posse* [#References [6]] for earlier forays into manual ELF32 header construction.
+  * *viznut/PWP* [#References [7]] for the series _Experimental music from very short C programs_ [#References [8]], a snipped of which is used in one of the examples.
+
+The list might be missing some parties, that are thus not getting the credit they deserve. If you notice this, please help correct the error(s).
+
+----
+
+= Legalese =
+
+All contained code is licenced under the [https://code.google.com/p/faemiyah-demoscene/source/browse/trunk/dnload/COPYING new BSD licence] [#References [9]].
+
+Note that this licence only pertains to the code of the script(s) themselves. There are no restrictions imposed on the end products of the script(s) just like there are no restrictions imposed on a binary built with a compiler.
+
+And to be honest, even that doesn't really mean anything. Just do whatever you want, but if you improve on the mechanisms, I'd probably prefer to incorporate the improvements.
+
+----
+
 = FAQ =
 
 ==== No-one runs 32-bit FreeBSD anymore, especially if it's only for curiosities like this. Why bother? ====
@@ -335,6 +334,13 @@ TODO: fill
 Even on a 64-bit system, you should be able to execute the result file if the compatibility layer is set up correctly. The easiest way to do it is to just install a 32-bit jail [#References [10]] and point `LD_32_LIBRARY_PATH` environment variable to the `/usr/local/lib` of that jail. This has the added benefit of enabling full 32-bit compatibility and easy cross-compiling.
 
 There are probably easy ways to do the same on Linux, but they are out of the scope of this document.
+
+----
+
+= TODO =
+  * Should probably create the header file in a smart(er) manner if it's not found.
+  * Add cross-compilation support, at the very least between `*`nix systems and the "maximum" operation mode.
+  * Only SDL/OpenGL supported right now. Should probably also support GLFW.
 
 ----
 
