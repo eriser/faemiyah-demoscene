@@ -25,7 +25,7 @@ If compiling without size optimizations, you will need GLEW and SDL development 
 
 Mainly, the script will be used for two purposes:
   * Building size-limited binaries directly from C/C++ source on systems where compilation is supported.
-  * Generating a header file to hide the complexities of size-limited linking both on systems where compilation is supported and where it is not. This will allow developers on multiple platforms to more easily work on the same projects.
+  * Generating a header file to hide the complexities of size-limited linking. This can be done both on systems where compilation is supported and where it is not, since some developers might be working on other platforms.
 
 == Getting started ==
 
@@ -105,7 +105,7 @@ Hello World!
 
 *NOTE:* The include directory and invoking sdl-config are currently necessary since SDL backend is what will be included by the generated headers.
 
-The relevant part here is the `USE``_``LD` definition. When it is turned on all 'tricks' will essentially evaluate to NOP and all calls made with the reserved `dnload``_` prefix will just call the functions as normal.
+The relevant part here is the `USE``_``LD` definition. When it is turned on all 'tricks' will essentially evaluate to NOP, and all calls made with the reserved `dnload``_` prefix will just call the functions as normal.
 
 The name `USE``_``LD` does not make sense per se, but is preserved as such due to historical reasons in earlier Faemiyah prods. You may change the definition with the `-d` or `--definition` command line argument when invoking the script.
 
