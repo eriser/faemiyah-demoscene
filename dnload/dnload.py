@@ -309,6 +309,8 @@ class AssemblerFile:
       for ii in self.sections:
         ii.write(fd)
       fd.close()
+      if verbose:
+        print("Wrote assembler source file '%s'." % (op))
     else:
       prefix = assembler.format_block_comment("Program")
       op.write(prefix)
@@ -1743,7 +1745,7 @@ if __name__ == "__main__":
         result = "yes"
         replace_platform_variable("interp", 0)
       if verbose:
-        print("Checking if entry .interp is possible... %s" % (result))
+        print("Checking if empty .interp is possible... %s" % (result))
     if 1 < len(source_files):
       raise RuntimeError("only one source file supported when generating output file")
     source_file = source_files[0]
@@ -1784,6 +1786,8 @@ if __name__ == "__main__":
         ii.write(fd, assembler)
       asm.write(fd, assembler)
       fd.close()
+      if verbose:
+        print("Wrote assembler source '%s'." % (output_file + ".final.S"))
       assembler.assemble(output_file + ".final.S", output_file + ".o")
       linker.link_binary(output_file + ".o", output_file + ".stripped")
     elif "hash" == compilation_mode:
