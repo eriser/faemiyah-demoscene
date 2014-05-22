@@ -3,14 +3,15 @@
 
 = dnload.py =
 
-`dnload.py` is a script for generating minimal ELF binaries. It serves no practical real-world use case, but can be utilized to create 
+`dnload.py` is a script for generating minimal ELF binaries from C code. It serves no practical real-world use case, but can be utilized to create those nifty size-limited demoscene productions some people seem to be interested in.
 
 <wiki:toc max_depth="3" />
 
 = Acknowledgements =
 
 This script would not have been possible without the prior work done by various other parties. Especially the following parties deserve kudos for their efforts:
-  * *Marq/Fit* for the original unpack header and dlopen/dlsym implementation.
+  * *Marq/Fit* for the original unpack header and dlopen/dlsym implementation. [#References [1]]
+  * *Brian Raiter* for _A Whirlwind Tutorial on Creating Really Teensy ELF Executables for Linux_ and the insight of interleaving headers.
   * *parcelshit* and *las/Mercury* for the original ELF32 import-by hash algorithm.
   * *hymy* and *Ye Olde Laptops Posse* for earlier forays into manual ELF32 header construction.
   * *viznut/PWP* for the series _Experimental music from very short C programs_, a snipped of which is used in one of the examples.
@@ -25,6 +26,18 @@ Note that this licence only pertains to the code of the script(s) themselves. Ju
 
 And to be honest, whatever anyone decides to do with the anything here is pretty much free game. You can't honestly except us to care. If you improve on the mechanisms, I'd probably prefer to incorporate the improvements. But if not, hey, then not.
 
+= TODO =
+  * Should probably create the header file in a smart(er) manner if it's not found.
+  * Add cross-compilation support, at the very least between `*`nix systems and the "maximum" operation mode.
+  * Only SDL/OpenGL supported right now. Should probably also support GLFW.
+  * Get rid of `ld` warning `cannot find entry symbol start; defaulting to 08048000`
+
+== Requirements ==
+
+The bridging header file should be generatable on FreeBSD, Linux, Windows, and possibly various unmentioned `*`nix platforms with a up-to-date Python installation.
+
+Generating a final binary is supported on FreeBSD and Linux. Due to practical purposes (i.e. the OS of choice of the author), the primary target operating system is FreeBSD.
+
 = Usage =
 
 'dnload.py' is a self-contained Python script that requires no specific external packages to be installed into the system. It should work both on Python 2.7.x and 3.x branches.
@@ -33,12 +46,6 @@ The script has two purposes.
   * First and foremost, it is intended to bridge the efforts of a team working on multiple platforms and operating systems, possibly creating intro code in environments unrelated to the final target platform.
   * Second, it is intended to be used for creating an "as-small-as-possible" final binary to be released on supported operating systems.
 
-== Requirements ==
-
-The bridging header file should be generatable on FreeBSD, Linux, Windows, and possibly various unmentioned `*`nix platforms with a up-to-date Python installation.
-
-Generating a final binary is supported on FreeBSD and Linux. Due to practical purposes (i.e. the OS of choice of the author), the primary target operating system is FreeBSD.
-
 == Getting started ==
 
 To get the list of all possible command line arguments, just run the script with `--help`.
@@ -46,3 +53,199 @@ To get the list of all possible command line arguments, just run the script with
 {{{
 python dnload.py --help
 }}}
+
+However, most of the time, what you will want to do is just to regenerate the dnload header file and continue working and testing. To do this, run:
+
+{{{
+python dnload.py -v <source file>
+}}}
+
+For example:
+
+{{{
+python dnload.py -v src/intro.cpp
+}}}
+
+This will produce output somewhat akin to this (using the [https://code.google.com/p/faemiyah-demoscene/source/browse/trunk/dnload/src/intro.cpp example file] provided:
+
+{{{
+Header file 'dnload.h' found in path 'src/'.
+Trying binary 'g++49'... found
+Analyzing source file 'src/intro.cpp'.
+Executing command: g++49 src/intro.cpp -DDNLOAD_H -E
+Symbols found: ['glCreateProgram', 'rand', 'glUseProgram', 'glDisable', 'glLinkProgram', 'glShaderSource', 'glGetUniformLocation', 'glRects', 'SDL_SetVideoMode', 'SDL_ShowCursor', 'SDL_GL_SwapBuffers', 'SDL_PollEvent', 'SDL_Init', 'glCompileShader', 'glClear', 'SDL_PauseAudio', 'glUniform2fv', 'SDL_Quit', 'glEnableVertexAttribArray', 'glGetAttribLocation', 'glUniform3fv', 'SDL_OpenAudio', 'glAttachShader', 'glCreateShader']
+Wrote header file 'src/dnload.h'.
+}}}
+
+As is shown a header file somewhat akin to [https://code.google.com/p/faemiyah-demoscene/source/browse/trunk/dnload/src/dnload.h this] was written.
+
+And that's it. What this will achieve is that you now have a file `dnload.h` that you can `#include` into your intro code that will do absolutely _nothing_ save for saving you the trouble of `#including` OpenGL and SDL header.
+
+In practice, it will `#define` wrappers that will just point to the normal symbols you would use anyway, and declare a macro dnload() that evaluates to NOP. But when you (or _that guy_ from your group that uses those hippie operating systems) decide to build a size-limited binary, this header file will contain information related to reducing all possible precious bytes therein.
+
+=== What excatly did the script just do? ===
+
+In this order:
+  * Probe for suitable compiler, usually `gcc` or `clang`, `cl.exe` on Windows.
+  * Search for header file it was supposed to generate. By default this is called "`dnload.h`".
+  * Examine the location the header file was found in. If a source file was given on command line, only operate on it. Otherwise take all source files from this location.
+  * Preprocess the source files with the compiler found earlier.
+  * Examine preprocessor output and locate all function calls made with a specific prefix. By default this prefix is "`dnload_`".
+  * Generate a loader code block that locates pointers to given functions.
+  * Write the header file.
+
+== Building output binaries ==
+
+So, that was generating a header. Not at all that interesting, really. What if we want to actually build a small(ish) binary?
+
+The [https://code.google.com/p/faemiyah-demoscene/source/browse/#svn%2Ftrunk%2Fdnload%2Fsrc source folder] contains an example called `quad.cpp`. We will use this, because it will actually do something concrete, even if nothing that interesting. Run:
+
+{{{
+python dnload.py -v src/quad.cpp -o stub -lGL -lSDL
+}}}
+
+*NOTE:* Cross-compilation is not (yet?) supported. The former must be ran on an actual 32-bit system. If you want to develop 32-bit software on a 64-bit system, you'll probably want a chroot/jail environment.
+
+You might notice some of the command line parameters to some commonly used programming tools. This is not coincidental. The former should produce something like this:
+
+{{{
+Header file 'dnload.h' found in path 'src/'.
+Trying binary 'g++49'... found
+Trying binary '/usr/local/bin/as'... found
+Trying binary '/usr/local/bin/ld'... found
+Trying binary '/usr/local/bin/strip'... found
+Analyzing source file 'src/quad.cpp'.
+Executing command: g++49 src/quad.cpp -DDNLOAD_H -E
+Symbols found: ['glCreateProgram', 'glUseProgram', 'glDisable', 'glRectf', 'glLinkProgram', 'glShaderSource', 'glGetUniformLocation', 'SDL_SetVideoMode', 'SDL_ShowCursor', 'SDL_GL_SwapBuffers', 'SDL_PollEvent', 'SDL_Init', 'glCreateShader', 'SDL_PauseAudio', 'glUniform1f', 'SDL_Quit', 'glEnableVertexAttribArray', 'glGetAttribLocation', 'SDL_OpenAudio', 'glAttachShader', 'glCompileShader']
+Wrote header file 'src/dnload.h'.
+Checking if empty .interp is possible... yes
+Executing command: sdl-config --cflags
+Executing command: g++49 -S src/quad.cpp -o src/stub.S -I/usr/local/include/SDL -I/usr/local/include -D_GNU_SOURCE=1 -D_REENTRANT -D_THREAD_SAFE -Os -ffast-math -fno-asynchronous-unwind-tables -fno-exceptions -fno-rtti -fno-threadsafe-statics -fomit-frame-pointer -fsingle-precision-constant -fwhole-program -march=pentium4 -mpreferred-stack-boundary=2
+Merging headers phdr_interp and hash at point 1.
+Merging headers hash and dynamic at point 1.
+Merging headers dynamic and symtab at point 2.
+Merging headers interp and strtab at point 1.
+Read 12 sections in 'src/stub.S': text, text, text, text, text, text, text, rodata, text, text, rodata, note
+Erasing function header from '_start': 4 lines.
+Erasing function footer after interrupt '128': 8 lines.
+Wrote assembler source 'src/stub.final.S'.
+Executing command: /usr/local/bin/as src/stub.final.S -o src/stub.o
+Executing command: /usr/local/bin/ld --oformat binary src/stub.o -o src/stub.stripped
+Executing command: xz --format=lzma --lzma1=preset=9e,lc=1,lp=0,pb=0 --stdout src/stub.stripped
+Wrote 'src/stub': 977 bytes
+}}}
+
+You can now run the produced binary by executing `src/stub`. This should open a window displaying ugly coder colors and playing simplistic "music" of a sort.
+
+*NOTE:* Even on a 64-bit system, you should be able to execute the result file if the compatibility layer is set up correctly. On FreeBSD, just point, `LD_32_LIBRARY_PATH` environment variable to the `/usr/local/lib` of the 32-bit dev jail. On Linux, do whatever the distro wants you to do, etc.
+
+=== Example source ===
+
+The former example binary used the [https://code.google.com/p/faemiyah-demoscene/source/browse/trunk/dnload/src/quad.cpp quad.cpp] example. Even if familiarity with SDL and OpenGL are needed to read it, most of the contents of the file are more or less straightforward. We'll be taking a look at several blocks that might need explanation:
+
+{{{
+...
+#include "dnload.h"
+...
+}}}
+
+This includes the loader and selected other stuff the user is going to need. In practice, this means OpenGL, SDL and math headers.
+
+{{{
+...
+static GLuint shader_create(const char *source, GLenum st)
+{
+  GLuint ret = dnload_glCreateShader(st);
+
+  dnload_glShaderSource(ret, 1, static_cast<const GLchar**>(&source), NULL);
+  dnload_glCompileShader(ret);
+
+  return ret;
+}
+...
+}}}
+
+Nothing of interest here, except that the GL functions we want to use are called through the wrapper provided by earlier `dnload.h`.
+
+{{{
+...
+//######################################
+// Main ################################
+//######################################
+
+#if !defined(USE_LD)
+#if defined(__clang__)
+void *environ;
+void *__progname;
+extern "C" void _start();
+#else
+void *environ __attribute__((externally_visible));
+void *__progname __attribute__((externally_visible));
+extern "C" void _start() __attribute__((externally_visible));
+#endif
+#endif
+
+/** \brief Object file starting point. */
+#if defined(USE_LD)
+int main()
+#else
+void _start()
+#endif
+{
+  dnload();
+  dnload_SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO);
+  dnload_SDL_SetVideoMode(SCREEN_W, SCREEN_H, 0, SDL_OPENGL | (FLAG_FULLSCREEN ? SDL_FULLSCREEN : 0));
+  dnload_SDL_ShowCursor(0);
+#if defined(USE_LD)
+  glewInit();
+#endif
+...
+}}}
+
+This is the beef of the operation. The first thing we have to note are these mysterious external symbols `environ`, `__progname` and `_start`. What are they?
+
+*`_`start* is the program entry point. Normally, you would have your program begin from `main`. However, in reality, `main` is what system calls after doing some elementary initialization for your program. When you normally execute the C compiler, it will link common object files (`crt0.o`, etc.) within your program. These files will perform the initialization before passing onto your code. We want a small binary now, so we don't care about any of that - ``_`start` will be the immediate first point of execution.
+
+*environ* and *__progname* might seem nonsensical, but taking a look into `/lib/libc.so.7` will clarify.
+
+{{{
+...
+Symbol table '.dynsym' contains 3079 entries:
+   Num:    Value  Size Type    Bind   Vis      Ndx Name
+     0: 00000000     0 NOTYPE  LOCAL  DEFAULT  UND 
+     1: 00000000     0 NOTYPE  WEAK   DEFAULT  UND _Jv_RegisterClasses
+     2: 00000000     0 NOTYPE  GLOBAL DEFAULT  UND __progname
+     3: 00000000     0 NOTYPE  GLOBAL DEFAULT  UND environ
+...
+}}}
+
+These are not symbols we need, these are symbols that are expected from us. In practice, the dynamic linking procedure will fail if the program symbol table does not contain them. Thus, we need to declare them.
+
+You might be wondering about the term `#if defined(USE``_``LD)`. In here, *USE`_`LD* is simply a flag that can be used to turn on or off the specific functionality required for the size-minimal linking. The logic is, if you're linking a normal binary, you define this preprocessor variable. If you're doing a size-limited binary (as is the case here), this variable will be undefined, and the specialized code path will be taken.
+
+*NOTE:* The specific name of `USE``_``LD` makes absolutely no sense at this point in time, but it's legacy from earlier Faemiyah intros using earlier, more primitive mechanisms. If you don't like it, you may change it with the `dnload.py` command line flag `-d` or `--definition` and write your code accordingly.
+
+The `__attribute__((externally_visible))` that might also seem weird is just there due to `gcc` semantics. To make GNU C Compiler discard all irrelevant code, we pass `-fwhole-program` to the `g++` command line. Unfortunately, this will cause the discard of all code that is not determined required by at least something. In this case, the dependency graph should be built from ``_`start`, which we declare necessary.
+
+After that it's all smooth sailing. Call function declared in `dnload.h` to perform loading, then initialize window as usual, call glewInit() to do portable init if we don't care about size, etc. Until this part:
+
+{{{
+#if defined(USE_LD)
+  return 0;
+#elif defined(asm_exit)
+  asm_exit();
+#endif
+}}}
+
+What is relevant here is, that since we already discarded the premise of using the default `main` procedure, no-one is going to terminate our program. We could make it "return" but where would it do that? No shell code called our fake main. Thus, we must make a system call to terminate the program ourselves. The macro `asm``_``exit()` is defined in [https://code.google.com/p/faemiyah-demoscene/source/browse/trunk/dnload/src/asm_exit.h asm_exit.h], but essentially on i386 architecture, it will evaluate into this:
+
+{{{
+  movl $1, %eax
+  int $128
+}}}
+
+This might seem silly at first glance, but it actually works. Why? Because we simply do not care what we are returning from the program. In Linux, we would be putting the return value into `%bl`, on FreeBSD, we would be pushing it into the stack. But here, whatever already is in the register or in the stack is good enough.
+
+= References =
+
+<a name="marqfit">`[`1`]`[http://www.pouet.net/user.php?who=4078 Marq/Fit in Pouet]
