@@ -129,9 +129,9 @@ Hello World!
 
 *NOTE:* The include directory and invoking sdl-config are currently necessary since SDL backend is what will be included by the generated headers.
 
-The relevant part here is the *USE`_`LD* definition. when it is turned on all 'tricks' will essentially evaluate to NOP and all calls made with the reserved *dnload`_`* prefix will just call the functions as normal.
+The relevant part here is the `USE``_``LD` definition. When it is turned on all 'tricks' will essentially evaluate to NOP and all calls made with the reserved `dnload``_` prefix will just call the functions as normal.
 
-The name `USE`_`LD` does not make sense per se, but is preserved as such due to historical reasons in earlier Faemiyah prods. You may change the definition with the `-d` or `--definition` command line argument when invoking the script.
+The name `USE``_``LD` does not make sense per se, but is preserved as such due to historical reasons in earlier Faemiyah prods. You may change the definition with the `-d` or `--definition` command line argument when invoking the script.
 
 == Compiling a size-optimized binary ==
 
@@ -178,23 +178,50 @@ When ran, it will do just the same:
 Hello World!
 }}}
 
-== Examining source ==
+== Examining the source ==
 
-Earlier
+First of all, all programs wanting to use the loader will have to include the generated header file.
 
 {{{
-...
 #include "dnload.h"
-...
 }}}
 
-This is the beef of the operation. The first thing we have to note are these mysterious external symbols `environ`, `__progname` and `_start`. What are they?
+This will internally include the relevant loader and some other header present in the `src/` subdirectory in the repo. The user may of course include any other source files necessary, but all function calls should be done through the interface wrapped herein.
 
-*`_`start* is the program entry point. Normally, you would have your program begin from `main`. However, in reality, `main` is what system calls after doing some elementary initialization for your program. When you normally execute the C compiler, it will link common object files (`crt0.o`, etc.) within your program. These files will perform the initialization before passing onto your code. We want a small binary now, so we don't care about any of that - ``_`start` will be the immediate first point of execution.
-
-*environ* and *__progname* might seem nonsensical, but taking a look into `/lib/libc.so.7` will clarify.
+More interesting is the declaration of the main function:
 
 {{{
+#if !defined(USE_LD)
+#if defined(__clang__)
+void *environ;
+void *__progname;
+extern "C" void _start();
+#else
+void *environ __attribute__((externally_visible));
+void *__progname __attribute__((externally_visible));
+extern "C" void _start() __attribute__((externally_visible));
+#endif
+#endif
+
+/** \brief Object file starting point. */
+#if defined(USE_LD)
+int main()
+#else
+void _start()
+#endif
+{
+}}}
+
+If the macro `USE``_``LD` would be defined, all this would simply evaluate to `int main() {`, which is the entry point the compiler would except to find.
+
+However, main() is not the entry point actually used by the system. In actuality, the linker will generate code that will perform initialization of global variables, environment, etc., and only afterwards pass the control to the main function provided by the user. Since we're aiming for a small binary, any initialization that needs doing, we'll be doing ourselves. The actual program execution will begin at a symbol traditionally called *`_`start*, which is exactly what we will be using.
+
+*NOTE:* When manually creating the program headers, the symbol would not necessarily need to be named ``_`start` - it could be anything, the name will be stripped out anyway. However, why break a known convention?
+
+Besides the entry point, we see two other symbols named *environ* and *__progname*, that might seem nonsensical, as they are not used anywhere in the program (they will also not be used inside the generated headers). Taking a look into the standard C library (`/lib/libc.so.7` on FreeBSD) will clarify.
+
+{{{
+> readelf -a /lib/libc.so.7
 ...
 Symbol table '.dynsym' contains 3079 entries:
    Num:    Value  Size Type    Bind   Vis      Ndx Name
@@ -205,16 +232,39 @@ Symbol table '.dynsym' contains 3079 entries:
 ...
 }}}
 
-These are not symbols we need, these are symbols that are expected from us. In practice, the dynamic linking procedure will fail if the program symbol table does not contain them. Thus, we need to declare them.
+These are not symbols we need, instead, they are symbols that are expected from us. In practice, the dynamic linking procedure will fail if the program symbol table does not contain them. Thus, we need to declare them, even if they do nothing.
 
-The `__attribute__((externally_visible))` that might also seem weird is just there due to `gcc` semantics. To make GNU C Compiler discard all irrelevant code, we pass `-fwhole-program` to the `g++` command line. Unfortunately, this will cause the compiler to discard of all code that is not determined required by at least something. In this case, the dependency graph should be built from ``_`start`, which we declare necessary.
+The `__attribute__((externally_visible))` that might also seem weird is just there due to Gnu C Compiler semantics. To make g++ discard all irrelevant code, we pass `-fwhole-program` to its command line. Unfortunately, unless the compiler finds something it thinks it could use, this will actually cause the discard of _everything_ within the source file. We simply explicitly mark the places the dependency graph build should start from. Clang does not seem to require or support this attribute.
 
-What is relevant here is, that since we already discarded the premise of using the default `main` procedure, no-one is going to terminate our program. We could make it "return" but where would it do that? No shell code called our fake main. Thus, we must make a system call to terminate the program ourselves. The macro `asm``_``exit()` is defined in [https://code.google.com/p/faemiyah-demoscene/source/browse/trunk/dnload/src/asm_exit.h asm_exit.h], but essentially on i386 architecture, it will evaluate into this:
+The two first lines of main conpose the actual program:
+
+{{{
+dnload();
+dnload_puts("Hello World!");
+}}}
+
+This will perform of dynamic loading of all required symbols (here: only `puts`) and call the located function pointer. After saying our hellos, the only thing left to do is to exit the program:
+
+{{{
+#if defined(USE_LD)
+  return 0;
+#elif defined(asm_exit)
+  asm_exit();
+#endif
+}}}
+
+Since we already discarded the premise of using the default `main` procedure, no-one is going to terminate our program.
+
+We could make it "return" but that would normally only pass control to the shell provided by the system, we now have nowhere to return to. Thus, we must make a system call to terminate the program ourselves. The file [https://code.google.com/p/faemiyah-demoscene/source/browse/trunk/dnload/src/asm_exit.h `src/asm_exit.h`] (automatically included in `dnload.h`) provides a macro called `asm``_``exit()` that will do exactly this. Essentially on i386 architecture, it will evaluate into the following :
 
 {{{
   movl $1, %eax
   int $128
 }}}
+
+Note that this puts nothing into `%bl` (as would be expected on Linux) or pushes nothing onto stack (as would be expected on FreeBSD). This is because we simply do not care what is the return value of the program.
+
+Besides, the decompressor shell script that actually executes the binary would ignore it anyway.
 
 == Other examples ==
 
@@ -300,3 +350,4 @@ There are probably easy ways to do the same on Linux, but they are out of the sc
 `[`8`]` [https://www.youtube.com/watch?v=tCRPUv8V22o Music from very short programs - the 3rd iteration in Youtube]<br>
 `[`9`]` [http://opensource.org/licenses/BSD-3-Clause New BSD licence]<br>
 `[`10`]` [http://www.freebsd.org/doc/handbook/jails.html Chapter 15. Jails in FreeBSD manual]
+`[`11`]` [http://www.freebsd.org/doc/en/books/developers-handbook/x86-system-calls.html Chapter 11.3. System Calls in FreeBSD manual]
