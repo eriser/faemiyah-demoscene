@@ -21,7 +21,6 @@ default_compiler_list = ["g++49", "g++-4.9", "g++", "clang++"]
 default_linker_list = ["/usr/local/bin/ld", "ld"]
 default_strip_list = ["/usr/local/bin/strip", "strip"]
 definition_ld = "USE_LD"
-empty_interp = True
 header_file = "dnload.h"
 include_directories = ["/usr/include/SDL", "/usr/local/include", "/usr/local/include/SDL"]
 libraries = []
@@ -36,16 +35,14 @@ target_search_path = []
 verbose = False
 
 string_help = """Usage: %s [args] <source file> [-c output]\n
-Preprocess given source file(s) looking for dynamic loader function calls and
-generate a dynamic loader header file into the folder wherein the source(s) were
-contained. If no source files are given, instead searches for the dynamic
-header file that is supposed to be created, then evaluates all source files in
-the same folder it was found from.\n
-Optionally also compile a size-optimized binary after generating the header.\n
+Size-optimized executable generator for *nix platforms.\n
+Preprocesses given source file(s) looking for specifically marked function
+calls, then generates a dynamic loader header file that can be used within
+these same source files to decrease executable size.\n
+Optionally also perform the actual compilation of a size-optimized binary
+after generating the header.\n
 Command line options without arguments:
   -h, --help          Print this help string.
-  --no-empty-interp   Do not use empty .interp section even if it would be
-                      possible.
   -v, --verbose       Print more about what is being done.\n
 Command line options with arguments:
   -A, --assembler           Try to use given assembler executable as opposed to
@@ -89,8 +86,7 @@ Command line options with arguments:
   -t, --target              Target header file to look for.
                             (default: %s)
   -u, --unpack-header       Unpack header to use [lzma, xz].
-                            (default: %s)
-""" % (sys.argv[0], definition_ld, compression, compilation_mode, symbol_prefix, header_file)
+                            (default: %s)""" % (sys.argv[0], definition_ld, compilation_mode, symbol_prefix, header_file, compression)
 
 ########################################
 # PlatformVar ##########################
@@ -112,6 +108,8 @@ class PlatformVar:
     var = platform_variables[self.name]
     platform = (osname, osarch)
     for ii in platform:
+      if ii in platform_mapping:
+        ii = platform_mapping[ii]
       if ii in var:
         ret = var[ii]
         if isinstance(ret, int):
@@ -124,9 +122,12 @@ class PlatformVar:
       return ret
     raise RuntimeError("current platform %s not supported for variable '%s'" % (str(platform), self.name))
 
+platform_mapping = { "i686" : "i386" }
+
 platform_variables = {
-    "e_machine" : { "i386" : 3, "i686" : 3 },
+    "e_machine" : { "i386" : 3 },
     "ei_osabi" : { "FreeBSD" : 9, "Linux" : 3 },
+    "entry" : { "i386" : 0x08048000 },
     "interp" : { "FreeBSD" : "\"/libexec/ld-elf.so.1\"", "Linux" : "\"/lib/ld-linux.so.2\"" },
     }
 
@@ -883,7 +884,8 @@ class Linker:
 
   def link_binary(self, src, dst):
     """Link a binary file with no bells and whistles."""
-    cmd = [self.command, "--oformat", "binary", src, "-o", dst]
+    entry_param = "--entry=" + str(PlatformVar("entry"))
+    cmd = [self.command, "--oformat=binary", entry_param, src, "-o", dst]
     (so, se) = run_command(cmd)
     if 0 < len(se) and verbose:
       print(se)
@@ -913,29 +915,35 @@ class Compiler(Linker):
     """Constructor."""
     Linker.__init__(self, op)
     self.compiler_flags = []
+    self.compiler_flags_extra = []
     self.definitions = []
     self.include_directories = []
 
+  def add_extra_compiler_flags(self, op):
+    """Add extra compiler flags."""
+    if is_listing(op):
+      for ii in op:
+        self.add_extra_compiler_flags(ii)
+    elif not op in self.include_directories and not op in self.definitions:
+      self.compiler_flags_extra += [op]
+
   def compile_asm(self, src, dst):
     """Compile a file into assembler source."""
-    cmd = [self.command, "-S", src, "-o", dst] + self.compiler_flags + self.include_directories
+    cmd = [self.command, "-S", src, "-o", dst] + self.compiler_flags + self.compiler_flags_extra + self.definitions + self.include_directories
     (so, se) = run_command(cmd)
     if 0 < len(se) and verbose:
       print(se)
 
   def compile_and_link(self, src, dst):
     """Compile and link a file directly."""
-    cmd = [self.command, src, "-o", dst] + self.compiler_flags + self.include_directories + self.linker_flags + self.generate_library_directory_list() + self.generate_library_list()
+    cmd = [self.command, src, "-o", dst] + self.compiler_flags + self.compiler_flags_extra + self.definitions + self.include_directories + self.linker_flags + self.generate_library_directory_list() + self.generate_library_list()
     (so, se) = run_command(cmd)
     if 0 < len(se) and verbose:
       print(se)
 
-  def generate_compiler_flags(self, lst):
-    """Generate compiler flags. Add extra cflags needed depending on libraries."""
+  def generate_compiler_flags(self):
+    """Generate compiler flags."""
     self.compiler_flags = []
-    # TODO: should not be always necessary
-    (sdl_cflags, sdl_stderr) = run_command(["sdl-config", "--cflags"])
-    self.compiler_flags += sdl_cflags.split()
     if self.command_basename.startswith("g++") or self.command_basename.startswith("gcc"):
       self.compiler_flags += ["-Os", "-ffast-math", "-fno-asynchronous-unwind-tables", "-fno-exceptions", "-fno-rtti", "-fno-threadsafe-statics", "-fomit-frame-pointer", "-fsingle-precision-constant", "-fwhole-program", "-march=pentium4", "-mpreferred-stack-boundary=2"]
     elif self.command_basename.startswith("clang"):
@@ -945,7 +953,7 @@ class Compiler(Linker):
 
   def preprocess(self, op):
     """Preprocess a file, return output."""
-    args = [self.command, op] + self.definitions + self.include_directories
+    args = [self.command, op] + self.compiler_flags_extra + self.definitions + self.include_directories
     if self.command_basename.startswith("cl."):
       args += ["/E"]
     else:
@@ -976,7 +984,9 @@ class Compiler(Linker):
     self.include_directories = []
     for ii in lst:
       if os.path.isdir(ii):
-        self.include_directories += [prefix + ii]
+        new_include_directory = prefix + ii
+        self.include_directories += [new_include_directory]
+        self.compiler_flags_extra.remove(new_include_directory)
 
 ########################################
 # Symbol ###############################
@@ -1579,6 +1589,16 @@ def search_executable(op):
       checked += [ii]
   return None
 
+def touch(op):
+  """Emulate *nix 'touch' command."""
+  if not os.path.exists(op):
+    if verbose:
+      print("Creating nonexistent file '%s'." % (op))
+    fd = open(op, "w")
+    fd.close()
+  elif not os.path.isfile(op):
+    raise RuntimeError("'%s' exists but is not a normal file" % (op))
+
 ########################################
 # Main #################################
 ########################################
@@ -1622,8 +1642,6 @@ if __name__ == "__main__":
     elif arg in ("-m", "--method"):
       ii += 1
       compilation_mode = sys.argv[ii]
-    elif arg in ("--no-empty-interp"):
-      empty_interp = False
     elif arg in ("-o", "--output-file"):
       ii += 1
       output_file = sys.argv[ii]
@@ -1653,17 +1671,20 @@ if __name__ == "__main__":
 
   if target == None:
     target = header_file
-
-  target_file = find_file(target, target_search_path)
-  if target_file:
-    target_path = os.path.dirname(target_file)
-    target_file = os.path.basename(target_file)
-    target = target_path + "/" + target_file
+  target_path, target_file = os.path.split(os.path.normpath(target))
+  if target_path:
+    if verbose:
+      print("Using explicit target header file '%s'." % (target))
+    touch(target)
   else:
-    raise RuntimeError("could not locate file '%s' from path(s): %s" % (target, str(target_search_path)))
-
-  if verbose:
-    print("Header file '%s' found in path '%s/'." % (target_file, target_path))
+    target_file = find_file(target, target_search_path)
+    if target_file:
+      target = os.path.normpath(target_file)
+      target_path, target_file = os.path.split(target)
+      if verbose:
+        print("Header file '%s' found in path '%s/'." % (target_file, target_path))
+    else:
+      raise RuntimeError("no information where to put header file '%s' - not found in path(s) %s" % (target, str(target_search_path)))
 
   if 0 >= len(source_files):
     potential_source_files = os.listdir(target_path)
@@ -1685,6 +1706,12 @@ if __name__ == "__main__":
   if not compiler:
     raise RuntimeError("suitable compiler not found")
   compiler = Compiler(compiler)
+
+  sdl_config = search_executable(["sdl-config"])
+  if sdl_config:
+    (sdl_stdout, sdl_stderr) = run_command([sdl_config, "--cflags"])
+    compiler.add_extra_compiler_flags(sdl_stdout.split())
+  compiler.set_include_dirs(include_directories)
 
   if output_file:
     if assembler:
@@ -1739,13 +1766,6 @@ if __name__ == "__main__":
     print("Wrote header file '%s'." % (target))
 
   if output_file:
-    if empty_interp:
-      result = "no"
-      if "FreeBSD" == osname:
-        result = "yes"
-        replace_platform_variable("interp", 0)
-      if verbose:
-        print("Checking if empty .interp is possible... %s" % (result))
     if 1 < len(source_files):
       raise RuntimeError("only one source file supported when generating output file")
     source_file = source_files[0]
@@ -1754,7 +1774,7 @@ if __name__ == "__main__":
     if output_basename == output_file:
       output_path = target_path
     output_file = os.path.normpath(os.path.join(output_path, output_basename))
-    compiler.generate_compiler_flags(libraries)
+    compiler.generate_compiler_flags()
     compiler.generate_linker_flags()
     compiler.set_definitions([])
     compiler.set_libraries(libraries)
