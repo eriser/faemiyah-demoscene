@@ -255,7 +255,7 @@ This will perform of dynamic loading of all required symbols (here: only `puts`)
 
 Since we already discarded the premise of using the default `main` procedure, no-one is going to terminate our program.
 
-We could make it "return" but that would normally only pass control to the shell provided by the system, we now have nowhere to return to. Thus, we must make a system call to terminate the program ourselves. The file [https://code.google.com/p/faemiyah-demoscene/source/browse/trunk/dnload/src/asm_exit.h `src/asm_exit.h`] (automatically included in `dnload.h`) provides a macro called `asm``_``exit()` that will do exactly this. Essentially on i386 architecture, it will evaluate into the following :
+We could make it "return" but that would normally only pass control to the shell provided by the system, we now have nowhere to return to. Thus, we must make a system call[#References [11]] to terminate the program ourselves. The file [https://code.google.com/p/faemiyah-demoscene/source/browse/trunk/dnload/src/asm_exit.h `src/asm_exit.h`] (automatically included in `dnload.h`) provides a macro called `asm``_``exit()` that will do exactly this. Essentially on i386 architecture, it will evaluate into the following :
 
 {{{
   movl $1, %eax
@@ -349,5 +349,5 @@ There are probably easy ways to do the same on Linux, but they are out of the sc
 `[`7`]` [http://www.pouet.net/user.php?who=2547 viznut/PWP in Pouet]<br>
 `[`8`]` [https://www.youtube.com/watch?v=tCRPUv8V22o Music from very short programs - the 3rd iteration in Youtube]<br>
 `[`9`]` [http://opensource.org/licenses/BSD-3-Clause New BSD licence]<br>
-`[`10`]` [http://www.freebsd.org/doc/handbook/jails.html Chapter 15. Jails in FreeBSD manual]
+`[`10`]` [http://www.freebsd.org/doc/handbook/jails.html Chapter 15. Jails in FreeBSD manual]<br>
 `[`11`]` [http://www.freebsd.org/doc/en/books/developers-handbook/x86-system-calls.html Chapter 11.3. System Calls in FreeBSD manual]
