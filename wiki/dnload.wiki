@@ -250,21 +250,21 @@ That's it. It actually, honestly is this easy!
 
 = The quest for minimal ELF32 binaries =
 
-This section of the documentation explores both the current and historical methods of reducing executable file size on `*`nix systems. If you are only interested in the current "best practice" operation of the script, skip directly to [#Current_operation] chapter.
+This section of the documentation explores both the current and historical methods of reducing executable file size on `*`nix systems. If you are only interested in the current "best practice" operation of the script, you can [#Crafting_headers_manually skip directly therein].
 
-== The unpack header ==
-
-TODO: fill
-
-== dlopen/dlsym ==
+== The shell unpack header ==
 
 TODO: fill
 
-== Import by hash and ELF32 headers ==
+== My symbol table is too big - dlopen/dlsym ==
 
 TODO: fill
 
-== Current operation ==
+== Import by hash - scouring ELF32 headers ==
+
+TODO: fill
+
+== Crafting headers manually ==
 
 TODO: fill
 
