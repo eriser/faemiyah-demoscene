@@ -192,7 +192,7 @@ If the macro `USE``_``LD` would be defined, all this would simply evaluate to `i
 
 However, main() is not the entry point actually used by the system. In actuality, the linker will generate code that will perform initialization of global variables, environment, etc., and only afterwards pass the control to the main function provided by the user. Since we're aiming for a small binary, any initialization that needs doing, we'll be doing ourselves. The actual program execution will begin at a symbol traditionally called *`_`start*, which is exactly what we will be using.
 
-*NOTE:* When manually creating the program headers, the symbol would not necessarily need to be named ``_`start` - it could be anything, the name will be stripped out anyway. However, why break a known convention?
+*NOTE:* When manually creating the program headers, the symbol would not necessarily need to be named `_``start` - it could be anything, the name will be stripped out anyway. However, why break a known convention?
 
 Besides the entry point, we see two other symbols named *environ* and *__progname*, that might seem nonsensical, as they are not used anywhere in the program (they will also not be used inside the generated headers). Taking a look into the standard C library (`/lib/libc.so.7` on FreeBSD) will clarify.
 
@@ -212,7 +212,7 @@ These are not symbols we need, instead, they are symbols that are expected from 
 
 The `__attribute__((externally_visible))` that might also seem weird is just there due to Gnu C Compiler semantics. To make g++ discard all irrelevant code, we pass `-fwhole-program` to its command line. Unfortunately, unless the compiler finds something it thinks it could use, this will actually cause the discard of _everything_ within the source file. We simply explicitly mark the places the dependency graph build should start from. Clang does not seem to require or support this attribute.
 
-The two first lines of main conpose the actual program:
+The two first lines of main compose the actual program:
 
 {{{
 dnload();
@@ -260,7 +260,7 @@ This should open a window allowing mouse pan and WASD movement. You can still co
 python dnload.py -v src/intro.cpp -o stub -lGL -lSDL
 }}}
 
-Hve fun!
+Have fun!
 
 == Short summary of operation ==
 
@@ -278,6 +278,7 @@ If the script was invoked to additionally generate the binary:
   * Compile given source file with flags aiming for small code footprint.
   * Perform a series on operations on the compiler output known to further reduce code footprint.
   * Link an output binary.
+  * Possibly strip the generated binary.
   * Compress the produced binary and concatenate it with a shell scrip that will decompress and execute it.
 
 ----
@@ -286,9 +287,81 @@ If the script was invoked to additionally generate the binary:
 
 This section of the documentation explores both the current and historical methods of reducing executable file size on `*`nix systems. If you are only interested in the current "best practice" operation of the script, you can [#Crafting_headers_manually skip directly therein].
 
+== Compiler flags ==
+
+We can alter the compiler output to produce smaller binaries both by making it actually optimize for size and by altering the output to be better compressable. The options would go into three categories:
+  * Options that decrease size of generated code or constants.
+  * Options that just happen to produce a smaller or better compressable binary.
+  * Options that disable language features, making output smaller.
+
+Despite Clang being all the rage nowadays, gcc seems to still produce binaries that size-optimize better. In particular, the script will attempt to use g++49 (latest available in FreeBSD at the time of writing) whenever possible, but any compiler may be specified with the `-C` or `--compiler` command line option.
+
+Using g++, the flags of the first type (just smaller) would be:
+  * `-Os`
+  * `-ffast-math`
+  * `-fomit-frame-pointer`
+  * `-fsingle-precision-constant`
+  * `-fwhole-program`
+
+These are all self-explanatory. In general the mere `-Os -ffast-math -fomit-frame-pointer` seems to do an excellent job.
+
+Also the following options, seem to produce consistently better compressable code:
+  * `-march=pentium4`: After permutating through all available instruction sets with several different intros, Pentium 4 seems to usually yield the best results.
+  * `-mpreferred-stack-boundary=2`: Forces the compiler to attempt keeping the stack aligned at `2`^`2 = 4` bytes. This seems to consistently perform better than the default of `16` bytes.
+
+After these, the compiler needs to be prevented from thinking we would need any fancy language features:
+  * `-fno-threadsafe-statics`: By default some code is generated to ensure thread-safe initialization of local static variables. This code seems to get generated even if no statics actually exist.
+  * `-fno-asynchronous-unwind-tables`: Disables generation of stack unwind information that could be used to debug stack contents at locations other than exactly function call boundary.
+  * `-fno-exceptions`: Self-evident.
+  * `-fno-rtti`: Self-evident.
+
+*NOTE:* One could ask why C++ to begin with if we're not using any of its features? The answer is, why not? After manually disabling all the features that would increase code footprint, we can always write C using a C++ compiler. In some cases C++ will be beneficial, but should never be detrimental.
+
 == The shell unpack header ==
 
-TODO: fill
+Scouring old releases, the first instance of a `*`nix 4k using a self-dumping shell script seems to be _helsinki-spiegelberg by tsygä_ [#References [12]]. However, instead of dumping an executable binary, this entry actually distributes the source and compiles it on the fly.
+
+There are some other variants afterwards, but the first use of the modern one-line filedump can be found in _Yellow Rose of Texas by Fit & Bandwagon_ [#References [13]]. Consequently, also the first 'big' Linux 4k intro.
+
+The concept of self-dumping shell script is to have the first `n` bytes of a file be plain text that will be executed by normal `sh`-compatible shells. The shell code will:
+  * Extract the rest of the file using common `*`nix tools (the compressed data starts immediately after the script).
+  * Write the extracted data as a file into system temporary folder.
+  * Make the file executable.
+  * Run it.
+  * Remove the file after program exits since that's the proper thing to do.
+
+The header in _Yellow Rose_ looks like this:
+
+{{{
+dd bs=1 skip=83<$0|gunzip>/tmp/T;cd /tmp;chmod +x T;__GL_FSAA_MODE=4 ./T;rm T;exit
+}}}
+
+There are multiple programs that crunch gzip files to as small spaces as possible, but modern `*`nix systems come with better compressors and better tricks. We use LZMA compression:
+
+{{{
+i=/tmp/i;tail -n+2 $0|lzcat>$i;chmod +x $i;$i;rm $i;exit
+}}}
+
+This unpack header has gone to 58 bytes (newline for `tail` is needed at the end) from the 66 needed by Marq. It also uses significantly better compression.
+
+One could assume that `xz` format would be more advantageous than the earlier `lzma`, but this seems not to be the case as `lzma` headers are smaller. The modern `xz` toolkit allows free customization of the compression parameters. We do the compression using the following settings:
+
+{{{
+xz --format=lzma --lzma1=preset=9e,lc=1,lp=0,pb=0"
+}}}
+
+This seems to consistently yield the best results for binaries aiming at 4k.
+
+For academic interest, the script can create output binaries using nothing besides the unpack header trick. To do this, use the command line flag *-m vanilla* (as in `--method`). This yields us the baseline whencefrom to begin our quest:
+
+{{{
+'src/hello_world.stripped': 1940 bytes
+'src/hello_world': 637 bytes
+'src/quad.stripped': 3496 bytes
+'src/quad': 1507 bytes
+}}}
+
+The `stripped` binaries listed above are generated by just stripping all non-needed sections from output binaries. These include `.comment`, `.eh_frame`, `.eh_frame_hdr`, `.fini`, `.gnu.hash`, `.gnu.version`, `.jcr`, `.note`, `.note.ABI-tag` and `.note.tag`. Using the compiler/linker `-s` flag seems to leave some of these in, so `strip` is called manually afterwards.
 
 == My symbol table is too big - dlopen/dlsym ==
 
@@ -356,4 +429,6 @@ There are probably easy ways to do the same on Linux, but they are out of the sc
 `[`8`]` [https://www.youtube.com/watch?v=tCRPUv8V22o Music from very short programs - the 3rd iteration in Youtube]<br>
 `[`9`]` [http://opensource.org/licenses/BSD-3-Clause New BSD licence]<br>
 `[`10`]` [http://www.freebsd.org/doc/handbook/jails.html Chapter 15. Jails in FreeBSD manual]<br>
-`[`11`]` [http://www.freebsd.org/doc/en/books/developers-handbook/x86-system-calls.html Chapter 11.3. System Calls in FreeBSD manual]
+`[`11`]` [http://www.freebsd.org/doc/en/books/developers-handbook/x86-system-calls.html Chapter 11.3. System Calls in FreeBSD manual]<br>
+`[`12`]` [http://www.pouet.net/prod.php?which=5021 helsinki-spiegelberg by tsygä in Pouet]<br>
+`[`13`]` [http://www.pouet.net/prod.php?which=10562 Yellow Rose of Texas by Fit & Bandwagon in Pouet]
