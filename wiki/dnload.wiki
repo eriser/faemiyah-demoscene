@@ -500,7 +500,7 @@ There are probably easy ways to do the same on Linux, but they are out of the sc
 
 = References =
 
-<a name="reference_1">`[`1`]` [http://www.pouet.net/user.php?who=4078 Marq/Fit in Pouet]<br>
+<a name="reference_1"></a>`[`1`]` [http://www.pouet.net/user.php?who=4078 Marq/Fit in Pouet]<br>
 `[`2`]` [http://www.muppetlabs.com/~breadbox/software/tiny/teensy.html A Whirlwind Tutorial on Creating Really Teensy ELF Executables for Linux]<br>
 `[`3`]` [http://www.pouet.net/user.php?who=9348 parcelshit in Pouet]<br>
 `[`4`]` [http://www.pouet.net/user.php?who=4548 las/Mercury in Pouet]<br>
