@@ -461,7 +461,7 @@ TODO: fill
 = Acknowledgements =
 
 This script would not have been possible without the prior work done by various other parties. Especially the following parties deserve kudos for their efforts:
-  * *Marq/Fit* [#References [1]] for the original unpack header and dlopen/dlsym implementation.
+  * *Marq/Fit* [#reference_1 [1]] for the original unpack header and dlopen/dlsym implementation.
   * *Brian Raiter* for _A Whirlwind Tutorial on Creating Really Teensy ELF Executables for Linux_ [#References [2]] and the insight of interleaving headers.
   * *parcelshit* [#References [3]] and *las/Mercury* [#References [4]] for the original ELF32 import-by hash algorithm.
   * *Hymy* [#References [5]] and *Ye Olde Laptops Posse* [#References [6]] for earlier forays into manual ELF32 header construction.
@@ -500,7 +500,7 @@ There are probably easy ways to do the same on Linux, but they are out of the sc
 
 = References =
 
-`[`1`]` [http://www.pouet.net/user.php?who=4078 Marq/Fit in Pouet]<br>
+<a name="reference_1">`[`1`]` [http://www.pouet.net/user.php?who=4078 Marq/Fit in Pouet]<br>
 `[`2`]` [http://www.muppetlabs.com/~breadbox/software/tiny/teensy.html A Whirlwind Tutorial on Creating Really Teensy ELF Executables for Linux]<br>
 `[`3`]` [http://www.pouet.net/user.php?who=9348 parcelshit in Pouet]<br>
 `[`4`]` [http://www.pouet.net/user.php?who=4548 las/Mercury in Pouet]<br>
