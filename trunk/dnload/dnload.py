@@ -1260,7 +1260,6 @@ template_header_begin = """#ifndef DNLOAD_H
 #include \"GL/glext.h\"
 #include \"GL/glu.h\"
 #include \"SDL.h\"
-#include \"asm_exit.h\"
 #endif\n
 #if defined(GLEWAPIENTRY)
 /** \cond */
@@ -1280,6 +1279,21 @@ template_header_begin = """#ifndef DNLOAD_H
 #include <cmath>
 #else
 #include <math.h>
+#endif\n
+#if !defined(%s)
+#if defined(__FreeBSD__) || defined(__linux__)
+#if defined(__x86_64)
+/** Assembler exit syscall macro. */
+#define asm_exit() asm volatile("movq $1,%%rax\\nsyscall")
+#elif defined(__i386)
+/** Assembler exit syscall macro. */
+#define asm_exit() asm volatile("movl $1,%%eax\\nint $128")
+#else
+#error "no assembler exit procedure defined for current architecture"
+#endif
+#else
+#error "no assembler exit procerude defined for current operating system"
+#endif
 #endif\n
 #if defined(__cplusplus)
 extern "C" {
@@ -1328,14 +1342,104 @@ static void dnload(void)
   } while(*(++src));
 }"""
 
-template_loader_hash = """#if defined(__FreeBSD__) || defined(__linux__)
+template_loader_hash = """#include <stdint.h>
+/** \\brief SDBM hash function.
+ *
+ * \\param op String to hash.
+ * \\return Full hash.
+ */
+static uint32_t sdbm_hash(const uint8_t *op)
+{
+  uint32_t ret = 0;
+  for(;;)
+  {
+    uint32_t cc = *op++;
+    if(!cc)
+    {
+      return ret;
+    }
+    ret = ret * 65599 + cc;
+  }
+}
 #if defined(__i386)
-#include \"dnload_elf32.h\"
+#if defined(__FreeBSD__)
+#include <sys/link_elf.h>
+#elif defined(__linux__)
+#include <link.h>
+#else
+#error "no elf header location known for current platform"
+#endif
+/** \\brief ELF base address. */
+#define ELF_BASE_ADDRESS %s
+/** \\brief Get the program link map.
+ *
+ * \\return Link map struct.
+ */
+static struct link_map* elf32_get_link_map()
+{
+  // ELF header is in a fixed location in memory.
+  // First program header is located directly afterwards.
+  Elf32_Ehdr *ehdr = (Elf32_Ehdr*)ELF_BASE_ADDRESS;
+  Elf32_Phdr *phdr = (Elf32_Phdr*)((size_t)ehdr + (size_t)ehdr->e_phoff);
+  // Find the dynamic header by traversing the phdr array.
+  for(; (phdr->p_type != PT_DYNAMIC); ++phdr) { }
+  // Find the debug entry in the dynamic header array.
+  {
+    Elf32_Dyn *dynamic = (Elf32_Dyn*)phdr->p_vaddr;
+    for(; (dynamic->d_tag != DT_DEBUG); ++dynamic) { }
+    return ((struct r_debug*)dynamic->d_un.d_ptr)->r_map;
+  }
+}
+/** \\brief Get address of one section.
+ *
+ * Dynamic object sections are identified by tags.
+ *
+ * \param lmap Link map.
+ * \param op Tag to look for.
+ */
+static void* elf32_get_dynamic_section_value(struct link_map* lmap, int op)
+{
+  Elf32_Dyn* dynamic = (Elf32_Dyn*)lmap->l_ld;
+  // Find the desired tag in the dynamic header.
+  for(; (dynamic->d_tag != op); ++dynamic) { }
+  {
+    void* ret = (void*)dynamic->d_un.d_ptr;
+    return (ret < (void*)lmap->l_addr) ? (uint8_t*)ret + (size_t)lmap->l_addr : ret;
+  }
+}
+/** \\brief Find a symbol in any of the link maps.
+ *
+ * Should a symbol with name matching the given hash not be present, this function will happily continue until
+ * we crash. Size-minimal code has no room for error checking.
+ *
+ * \\param hash Hash of the function name string.
+ * \\return Symbol found.
+ */
+static void* dnload_find_symbol(uint32_t hash)
+{
+  struct link_map* lmap = elf32_get_link_map();
+  for(;;)
+  {
+    /* Find symbol from link map. We need the string table and a corresponding symbol table. */
+    char* strtab = (char*)elf32_get_dynamic_section_value(lmap, DT_STRTAB);
+    Elf32_Sym* symtab = (Elf32_Sym*)elf32_get_dynamic_section_value(lmap, DT_SYMTAB);
+    uint32_t* hashtable = (uint32_t*)elf32_get_dynamic_section_value(lmap, DT_HASH);
+    unsigned numchains = hashtable[1]; /* Number of symbols. */
+    unsigned ii;
+    for(ii = 0; (ii < numchains); ++ii)
+    {
+      Elf32_Sym* sym = &symtab[ii];
+      char *name = &strtab[sym->st_name];
+      if(sdbm_hash((uint8_t*)name) == hash)
+      {
+        return (uint8_t*)sym->st_value + (size_t)lmap->l_addr;
+      }
+    }
+    lmap = lmap->l_next;
+  }
+}
 #else
 #error "no import by hash procedure defined for current architecture"
-#endif
-#else
-#error "no import by hash procedure defined for current operating system"
 #endif
 /** \\brief Perform init.
  *
@@ -1419,7 +1523,7 @@ def generate_loader_dlfcn(symbols, linker):
 
 def generate_loader_hash(symbols):
   """Generate import by hash loader code."""
-  return template_loader_hash % (len(symbols))
+  return template_loader_hash % (str(PlatformVar("entry")), len(symbols))
 
 def generate_loader_vanilla():
   """Generate loader that actually leaves the loading to the operating system."""
@@ -1839,7 +1943,7 @@ if __name__ == "__main__":
     symbol_strings = map(lambda x: str(x), symbols)
     print("Symbols found: ['%s']" % ("', '".join(symbol_strings)))
 
-  file_contents = template_header_begin % (os.path.basename(sys.argv[0]), definition_ld)
+  file_contents = template_header_begin % (os.path.basename(sys.argv[0]), definition_ld, definition_ld)
   file_contents += generate_symbol_definitions(symbols)
   file_contents += generate_symbol_struct(symbols)
   file_contents += generate_loader(symbols, linker)
