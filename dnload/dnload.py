@@ -129,6 +129,7 @@ platform_variables = {
     "ei_osabi" : { "FreeBSD" : 9, "Linux" : 3 },
     "entry" : { "i386" : 0x08048000 },
     "interp" : { "FreeBSD" : "\"/libexec/ld-elf.so.1\"", "Linux" : "\"/lib/ld-linux.so.2\"" },
+    "phdr_count" : { "default" : 3 },
     }
 
 def replace_platform_variable(name, op):
@@ -267,6 +268,7 @@ class AssemblerFile:
     bss.add_line(".balign 4\n")
     bss.add_line("aligned_end:\n")
     offset = 0
+    size = 0
     for ii in self.sections:
       while True:
         entry = ii.extract_bss()
@@ -275,10 +277,22 @@ class AssemblerFile:
         name, size = entry
         bss.add_line(assembler.format_equ(name, "aligned_end + %i" % (offset)))
         offset += size
+        size = offset
         if 0 < offset % 4:
           offset += 4 - (offset % 4)
+    if verbose:
+      outstr = "Constructed fake .bss segement: "
+      if 1073741824 < size:
+        print(outstr + "%1.1f Gbytes" % (float(size) / 1073741824.0))
+      elif 1048576 < size:
+        print(outstr + "%1.1f Mbytes" % (float(size) / 1048576.0))
+      elif 1024 < size:
+        print(outstr + "%1.1f kbytes" % (float(size) / 1024.0))
+      else:
+        print(outstr + "%u bytes" % (size))
     bss.add_line(assembler.format_equ("memory_end", "aligned_end + %i" % (offset)))
     self.sections += [bss]
+    return size
 
   def remove_rodata(self):
     """Remove .rodata sections by merging them into the previous .text section."""
@@ -690,13 +704,13 @@ assembler_ehdr = (
     ("e_flags, unused", 4, 0),
     ("e_ehsize, Elf32_Ehdr size", 2, "ehdr_end - ehdr"),
     ("e_phentsize, Elf32_Phdr size", 2, "phdr_load_end - phdr_load"),
-    ("e_phnum, Elf32_Phdr coutn, PT_LOAD, PT_INTERP, PT_DYNAMIC = 3", 2, 3),
+    ("e_phnum, Elf32_Phdr count, PT_LOAD, [PT_LOAD (bss)], PT_INTERP, PT_DYNAMIC", 2, PlatformVar("phdr_count")),
     ("e_shentsize, Elf32_Shdr size", 2, 0),
     ("e_shnum, Elf32_Shdr count", 2, 0),
     ("e_shstrndx, index of section containing string table of section header names", 2, 0),
     )
 
-assembler_phdr_load = (
+assembler_phdr_load_single = (
     "phdr_load",
     "Elf32_Phdr, PT_LOAD",
     ("p_type, PT_LOAD = 1", 4, 1),
@@ -706,7 +720,33 @@ assembler_phdr_load = (
     ("p_filesz, program size on disk", 4, "end - ehdr"),
     ("p_memsz, program size in memory", 4, "memory_end - ehdr"),
     ("p_flags, rwx = 7", 4, 7),
-    ("p_align, usually 0x1000", 4, 4),
+    ("p_align, usually 0x1000", 4, 4096),
+    )
+
+assembler_phdr_load_double = (
+    "phdr_load",
+    "Elf32_Phdr, PT_LOAD",
+    ("p_type, PT_LOAD = 1", 4, 1),
+    ("p_offset, offset of program start", 4, 0),
+    ("p_vaddr, program virtual address", 4, 0x08048000),
+    ("p_paddr, unused", 4, 0),
+    ("p_filesz, program size on disk", 4, "end - ehdr"),
+    ("p_memsz, program headers size in memory", 4, "end - ehdr"),
+    ("p_flags, rwx = 7", 4, 7),
+    ("p_align, usually 0x1000", 4, 4096),
+    )
+
+assembler_phdr_load_bss = (
+    "phdr_load_bss",
+    "Elf32_Phdr, PT_LOAD (.bss)",
+    ("p_type, PT_LOAD = 1", 4, 1),
+    ("p_offset, offset of fake .bss segment", 4, "end - ehdr"),
+    ("p_vaddr, program virtual address", 4, "end + 0x1000"),
+    ("p_paddr, unused", 4, 0),
+    ("p_filesz, .bss size on disk", 4, 0),
+    ("p_memsz, .bss size in memory", 4, "memory_end - end"),
+    ("p_flags, rw = 6", 4, 6),
+    ("p_align, usually 0x1000", 4, 4096),
     )
 
 assembler_phdr_dynamic = (
@@ -1785,7 +1825,6 @@ if __name__ == "__main__":
     if "maximum" == compilation_mode:
       compiler.compile_asm(source_file, output_file + ".S")
       segment_ehdr = AssemblerSegment(assembler_ehdr)
-      segment_phdr_load = AssemblerSegment(assembler_phdr_load)
       segment_phdr_dynamic = AssemblerSegment(assembler_phdr_dynamic)
       segment_phdr_interp = AssemblerSegment(assembler_phdr_interp)
       segment_hash = AssemblerSegment(assembler_hash)
@@ -1797,10 +1836,23 @@ if __name__ == "__main__":
         library_name = linker.get_library_name(ii)
         segment_dynamic.add_dt_needed(library_name)
         segment_strtab.add_library_name(library_name)
-      segments = [segment_ehdr, segment_phdr_load, segment_phdr_dynamic, segment_phdr_interp, segment_hash, segment_dynamic, segment_symtab, segment_interp, segment_strtab]
-      segments = merge_segments(segments)
       asm = AssemblerFile(output_file + ".S")
-      asm.generate_fake_bss(assembler)
+      bss_size = asm.generate_fake_bss(assembler)
+      # TODO: probably creates incorrect binaries at values very close but less than 128M due to code size
+      if 128 * 1024 * 1024 < bss_size:
+        replace_platform_variable("phdr_count", 4)
+        segment_phdr_load_double = AssemblerSegment(assembler_phdr_load_double)
+        segment_phdr_load_bss = AssemblerSegment(assembler_phdr_load_bss)
+        load_segments = [segment_phdr_load_double, segment_phdr_load_bss]
+        if verbose:
+          print("More than 128M of memory used, second PT_LOAD required.")
+      else:
+        segment_phdr_load_single = AssemblerSegment(assembler_phdr_load_single)
+        load_segments = [segment_phdr_load_single]
+        if verbose:
+          print("Less than 128M of memory used, going with one PT_LOAD.")
+      segments = [segment_ehdr] + load_segments + [segment_phdr_dynamic, segment_phdr_interp, segment_hash, segment_dynamic, segment_symtab, segment_interp, segment_strtab]
+      segments = merge_segments(segments)
       fd = open(output_file + ".final.S", "w")
       for ii in segments:
         ii.write(fd, assembler)
