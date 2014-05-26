@@ -101,8 +101,8 @@ class PlatformVar:
     """Initialize platform variable."""
     self.name = name
 
-  def __str__(self):
-    """Produce string of self."""
+  def get(self):
+    """Get value associated with the name."""
     if not self.name in platform_variables:
       raise RuntimeError("unknown platform variable '%s'" % (self.name))
     var = platform_variables[self.name]
@@ -111,20 +111,29 @@ class PlatformVar:
       if ii in platform_mapping:
         ii = platform_mapping[ii]
       if ii in var:
-        ret = var[ii]
-        if isinstance(ret, int):
-          return hex(ret)
-        return ret
+        return var[ii]
     if "default" in var:
-      ret = var["default"]
-      if isinstance(ret, int):
-        return hex(ret)
-      return ret
+      return var["default"]
     raise RuntimeError("current platform %s not supported for variable '%s'" % (str(platform), self.name))
+
+  def __int__(self):
+    """Convert to integer."""
+    ret = self.get()
+    if not isinstance(ret, int):
+      return int(ret, 0)
+    return ret
+
+  def __str__(self):
+    """Convert to string."""
+    ret = self.get()
+    if isinstance(ret, int):
+      return hex(ret)
+    return ret
 
 platform_mapping = { "i686" : "i386" }
 
 platform_variables = {
+    "align" : { "i386" : 4 },
     "e_machine" : { "i386" : 3 },
     "ei_osabi" : { "FreeBSD" : 9, "Linux" : 3 },
     "entry" : { "i386" : 0x08048000 },
@@ -389,11 +398,11 @@ class AssemblerSection:
         self.erase(lst[0])
         continue
       break
-    if "i386" == osarch or "i686" == osarch:
-      self.crunch_i386()
+    if osarch_is_ia32:
+      self.crunch_ia32()
     self.tag = None
 
-  def crunch_i386(self):
+  def crunch_ia32(self):
     """Perform platform-dependent crunching."""
     lst = self.want_line(r'\s*(_start)\:.*')
     if lst:
@@ -488,11 +497,22 @@ class AssemblerSection:
       return None
 
   def minimal_align(self):
-    """Remove all .align declarations, replace with 32-bit alignment."""
+    """Remove all .align declarations, replace with desired alignment."""
+    desired = int(PlatformVar("align"))
     for ii in range(len(self.content)):
       line = self.content[ii]
-      if re.match(r'.*\.align\s.*', line):
-        self.content[ii] = "  .balign 4\n"
+      match = re.match(r'.*\.align\s+(\d+).*', line)
+      if match:
+        align = int(match.group(1))
+        # Due to GNU AS compatibility modes, .align may mean different things.
+        if osarch_is_ia32():
+          if desired != align:
+            if verbose:
+              print("Replacing %i-byte alignment with %i-byte alignment." % (align, desired))
+            self.content[ii] = "  .balign %i\n" % (desired)
+        else:
+          print("Replacing low-order bit alignment %i with %i-byte alignment." % (align, desired))
+          self.content[ii] = "  .balign %i\n" % (desired)
 
   def want_line(self, op, first = 0):
     """Want a line matching regex from object."""
@@ -1587,6 +1607,33 @@ def merge_segments(lst):
       ii += 1
   return lst
 
+def osarch_is_ia32():
+  """Check is the OS architecture maps to IA-32."""
+  if osarch in platform_mapping:
+    return "i386" == platform_mapping[osarch]
+  return "i386" == osarch
+
+def readelf_truncate(src, dst):
+  """Truncate file to size reported by readelf first PT_LOAD file size."""
+  (so, se) = run_command(["readelf", "--program-headers", src])
+  match = re.search(r'LOAD\s+\S+\s+\S+\s+\S+\s+(\S+)\s+', so, re.MULTILINE)
+  if match:
+    truncate_size = int(match.group(1), 0)
+  else:
+    raise RuntimeError("could not read file size from executable '%s'" % (src))
+  size = os.path.getsize(src)
+  if size == truncate_size:
+    if verbose:
+      print("Executable size equals PT_LOAD size (%u bytes), no truncation necessary." % (size))
+    shutil.copy(src, dst)
+  else:
+    print("Truncating file size to PT_LOAD size: %u bytes" % (truncate_size))
+    rfd = open(src, "r")
+    wfd = open(dst, "w")
+    wfd.write(rfd.read(truncate_size))
+    rfd.close()
+    wfd.close()
+
 def run_command(lst):
   """Run program identified by list of command line parameters."""
   if verbose:
@@ -1861,7 +1908,8 @@ if __name__ == "__main__":
       if verbose:
         print("Wrote assembler source '%s'." % (output_file + ".final.S"))
       assembler.assemble(output_file + ".final.S", output_file + ".o")
-      linker.link_binary(output_file + ".o", output_file + ".stripped")
+      linker.link_binary(output_file + ".o", output_file + ".unprocessed")
+      readelf_truncate(output_file + ".unprocessed", output_file + ".stripped")
     elif "hash" == compilation_mode:
       compiler.compile_asm(source_file, output_file + ".S")
       asm = AssemblerFile(output_file + ".S")
