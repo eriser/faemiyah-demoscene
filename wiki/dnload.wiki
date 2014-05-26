@@ -231,7 +231,7 @@ This will perform of dynamic loading of all required symbols (here: only `puts`)
 
 Since we already discarded the premise of using the default `main` procedure, no-one is going to terminate our program.
 
-We could make it "return" but that would normally only pass control to the shell provided by the system, we now have nowhere to return to. Thus, we must make a system call[#References [11]] to terminate the program ourselves. The file [https://code.google.com/p/faemiyah-demoscene/source/browse/trunk/dnload/src/asm_exit.h `src/asm_exit.h`] (automatically included in `dnload.h`) provides a macro called `asm``_``exit()` that will do exactly this. Essentially on i386 architecture, it will evaluate into the following :
+We could make it "return" but that would normally only pass control to the shell provided by the system, we now have nowhere to return to. Thus, we must make a system call[#References [11]] to terminate the program ourselves. This code that will do this is written into the [https://code.google.com/p/faemiyah-demoscene/source/browse/trunk/dnload/src/dnload.h dnload header] directly as inline assembler. On i386 architecture, it will evaluate into the following :
 
 {{{
 movl $1, %eax
@@ -380,7 +380,7 @@ typedef struct {
 } Elf32_Sym;
 }}}
 
-This is 16 bytes per symbol. In addition the linker will generate linkage tables (going into `.plt`), which seem to be at the very least 2 instructions, per symbol (look at _Prodedure Linkage Table_ in the ELF specification part 2 [#References [16]]). Global offset table adds 4 bytes each. In any case, we're talking roughly 30 bytes per symbol. Not counting the space consumed by the function names themselves.
+This is 16 bytes per symbol. In addition the linker will generate linkage tables (going into `.plt`), which seem to be at the very least 2 instructions, per symbol (look at _Prodedure Linkage Table_ in the ELF specification part 2 [#References [16]]). Global Offset Table adds 4 bytes each. In any case, we're talking roughly 30 bytes per symbol. Not counting the space consumed by the function names themselves.
 
 Luckily, using the forementioned two symbols, we can perform dynamic loading ourselves. _Yellow Rose_ only loaded the GL functions this way, but using a clever arrangement of text, we can embed the library information in a text block at practically no cost:
   * First string is a library name, terminated by zero.
@@ -416,6 +416,7 @@ static const char g_dynstr[] = ""
 "SDL_SetVideoMode\0"
 "SDL_ShowCursor\0"
 "\0";
+
 static void dnload(void)
 {
   char *src = (char*)g_dynstr;
@@ -435,6 +436,20 @@ static void dnload(void)
 }
 }}}
 
+The code snippet reveals a 'fake' symbol table with the name `g_symbol_table`. It is simply a list of function pointers constructed from the prefixed function names found when preprocessing the source file earlier. Depending on the build mode, we will either select the regular function call or redirect to our table. For the hello world example, with the simplest possible symbol table, this code would look like this:
+
+{{{
+#if defined(USE_LD)
+#define dnload_puts puts
+#else
+#define dnload_puts g_symbol_table.puts
+static struct SymbolTableStruct
+{
+  int (*puts)(const char*);
+} g_symbol_table;
+#endif
+}}}
+
 Recompiling with *-m dlfcn* we get new sizes. Interestingly, even though the size of hello world example is reduced, its compressed size is increased due to increasing complexity. On any nontrivial program the tradeoff is still worth it.
 
 {{{
@@ -450,7 +465,181 @@ Recompiling with *-m dlfcn* we get new sizes. Interestingly, even though the siz
 
 == Import by hash - scouring ELF32 headers ==
 
-TODO: fill
+Even if the cost of function name only is rather little, it still adds up for quite a block of data, especially when using `dlopen` and `dlsym` requires us to have symbol definitions and all that PLT/GOT information in the binary.
+
+Fortunately, there is a better way. In 2008, Pouet users *parcelshit* [#References [3]] and *las/Mercury* [#References [4]] published code to search for symbols in ELF32 shared objects by their hashed names. Some of the code linked in the discussion [#References [19]] seems to be unaccessible by now, but at least the original import-by-hash implementation [#References [18]] seems to still be available.
+
+The technique essentially takes advantage of the `DT_DEBUG` element in the `.dynamic` section (when present). 
+
+To explain. When the dynamic linker passes control to your program, you will have access to the ELF headers. The ELF header is 52 bytes long, and is immediately followed by an array of program headers. Each program header looks like this (all source code definitions are taken from FreeBSD system headers):
+
+{{{
+typedef struct {
+	Elf32_Word	p_type;		/* Entry type. */
+	Elf32_Off	p_offset;	/* File offset of contents. */
+	Elf32_Addr	p_vaddr;	/* Virtual address in memory image. */
+	Elf32_Addr	p_paddr;	/* Physical address (not used). */
+	Elf32_Word	p_filesz;	/* Size of contents in file. */
+	Elf32_Word	p_memsz;	/* Size of contents in memory. */
+	Elf32_Word	p_flags;	/* Access permission flags. */
+	Elf32_Word	p_align;	/* Alignment in memory and file. */
+} Elf32_Phdr;
+}}}
+
+For examining the dynamically loaded elements, we need to look for a program header of type `PT_DYNAMIC`. Upon finding the header, the `p_vaddr` virtual address pointer will point directly to the dynamic section. The dynamic section, then further consists of an array of structures of type `Elf32_Dyn`, they look like this:
+
+{{{
+typedef struct {
+	Elf32_Sword	d_tag;		/* Entry type. */
+	union {
+		Elf32_Word	d_val;	/* Integer value. */
+		Elf32_Addr	d_ptr;	/* Address value. */
+	} d_un;
+} Elf32_Dyn;
+}}}
+
+When the dynamic linker passes control to your program, the `Elf32_Dyn` structure with the tag `DT_DEBUG` will have been filled with a pointer to the debug structure associated with a library. The debug structure looks like this:
+
+{{{
+struct r_debug {
+	int		r_version;		/* not used */
+	struct link_map *r_map;			/* list of loaded images */
+	void		(*r_brk)(struct r_debug *, struct link_map *);
+						/* pointer to break point */
+	enum {
+		RT_CONSISTENT,			/* things are stable */
+		RT_ADD,				/* adding a shared library */
+		RT_DELETE			/* removing a shared library */
+	}		r_state;
+};
+}}}
+
+In here, the element `r_map` will now contain a pointer to a linked list of structures representing shared objects, that is, libraries. They look like this:
+
+{{{
+typedef struct link_map {
+	caddr_t		l_addr;			/* Base Address of library */
+#ifdef __mips__
+	caddr_t		l_offs;			/* Load Offset of library */
+#endif
+	const char	*l_name;		/* Absolute Path to Library */
+	const void	*l_ld;			/* Pointer to .dynamic in memory */
+	struct link_map	*l_next, *l_prev;	/* linked list of of mapped libs */
+} Link_map;
+}}}
+
+The field `l_ld` in this structure is a pointer to the particular .dynamic section of this shared object. Reading the ELF specification [#References [16]], we also know that:
+  * All symbols of the shared object are located in the section pointed by tag `DT_SYMTAB`.
+  * All symbol names are located in the section pointed by tag `DT_STRTAB`.
+  * Symbols names point to offsets from the start of `DT_STRTAB` section.
+  * The total number of symbols in a shared object is the number of chains in the hash table of the shared object.
+
+We can simply go through the shared objects, one by one, go through symbols in the shared objects, one by one, and stop when we find a name with a hash matching the hash we want. We can also use the symbol table format defined in the earlier section by storing these hashes at the same location the function pointer is going to get stored at. The only thing that remains to be done is to find a convenient hashing algorithm.
+
+Fortunately, this has been done for us already [#References [20]]. There are many good candidates where collisions are improbable enough to be nonexistent. We simply pick the one that produces smallest code. Parcelshit's original code used the DJB hash, which is already good, but in my testing, using SDBM hash produced a smaller binary.
+
+Combining all this, and improving on the proof-of-concept implementation gives us the following algorithm:
+
+{{{
+#include <stdint.h>
+#include <sys/link_elf.h> // <link.h> on Linux
+
+#define ELF_BASE_ADDRESS 0x8048000
+
+static uint32_t sdbm_hash(const uint8_t *op)
+{
+  uint32_t ret = 0;
+  for(;;)
+  {
+    uint32_t cc = *op++;
+    if(!cc)
+    {
+      return ret;
+    }
+    ret = ret * 65599 + cc;
+  }
+}
+
+static const void* elf32_get_dynamic_address_by_tag(const void *dyn, Elf32_Sword tag)
+{
+  const Elf32_Dyn *dynamic = (Elf32_Dyn*)dyn;
+  for(;;)
+  {
+    if(dynamic->d_tag == tag)
+    {
+      return (const void*)dynamic->d_un.d_ptr;
+    }
+    ++dynamic;
+  }
+}
+
+static const void* elf32_get_library_dynamic_section(const struct link_map *lmap, Elf32_Sword op)
+{
+  const void *ret = elf32_get_dynamic_address_by_tag(lmap->l_ld, op);
+  // Sometimes the value is an offset instead of a naked pointer.
+  return (ret < (void*)lmap->l_addr) ? (uint8_t*)ret + (size_t)lmap->l_addr : ret;
+}
+
+static const struct link_map* elf32_get_link_map()
+{
+  // ELF header is in a fixed location in memory.
+  // First program header is located directly afterwards.
+  const Elf32_Ehdr *ehdr = (const Elf32_Ehdr*)ELF_BASE_ADDRESS;
+  const Elf32_Phdr *phdr = (const Elf32_Phdr*)((size_t)ehdr + (size_t)ehdr->e_phoff);
+  // Find the dynamic header by traversing the phdr array.
+  for(; (phdr->p_type != PT_DYNAMIC); ++phdr) { }
+  // Find the debug entry in the dynamic header array.
+  {
+    const struct r_debug *debug = (const struct r_debug*)elf32_get_dynamic_address_by_tag((const void*)phdr->p_vaddr, DT_DEBUG);
+    return debug->r_map;
+  }
+}
+
+static void* dnload_find_symbol(uint32_t hash)
+{
+  const struct link_map* lmap = elf32_get_link_map();
+  for(;;)
+  {
+    /* Find symbol from link map. We need the string table and a corresponding symbol table. */
+    const char* strtab = (const char*)elf32_get_library_dynamic_section(lmap, DT_STRTAB);
+    const Elf32_Sym* symtab = (const Elf32_Sym*)elf32_get_library_dynamic_section(lmap, DT_SYMTAB);
+    const uint32_t* hashtable = (const uint32_t*)elf32_get_library_dynamic_section(lmap, DT_HASH);
+    unsigned numchains = hashtable[1]; /* Number of symbols. */
+    unsigned ii;
+    for(ii = 0; (ii < numchains); ++ii)
+    {
+      const Elf32_Sym* sym = &symtab[ii];
+      const char *name = &strtab[sym->st_name];
+      if(sdbm_hash((const uint8_t*)name) == hash)
+      {
+        return (void*)((const uint8_t*)sym->st_value + (size_t)lmap->l_addr);
+      }
+    }
+    lmap = lmap->l_next;
+  }
+}
+
+static void dnload(void)
+{
+  unsigned ii;
+  for(ii = 0; (24 > ii); ++ii)
+  {
+    void **iter = ((void**)&g_symbol_table) + ii;
+    *iter = dnload_find_symbol(*(uint32_t*)iter);
+  }
+}
+}}}
+
+Compiling with the *-m hash* to get new sizes gives us:
+
+{{{
+'hello_world.stripped': 1180 bytes
+'hello_world': 637 bytes
+'quad.stripped': 2152 bytes
+'quad': 1233 bytes
+}}}
+
+The command line option *-m hash* additionally does some low-hanging optimizations such as removing all known unneeded symbols (`_end`, `_edata` and `__bss_start`) and combining `.rodata` and `.text` into one section to free 40 bytes that would be consumed by a section header. This kind of hacking is, however, ultimately uninteresting as the only real way to further reduce the size is to construct all the ELF headers manually.
 
 == Crafting headers manually ==
 
@@ -516,4 +705,7 @@ There are probably easy ways to do the same on Linux, but they are out of the sc
 `[`14`]` [http://pubs.opengroup.org/onlinepubs/009695399/functions/dlopen.html dlopen specification at The Open Group Base Specifications]<br>
 `[`15`]` [http://pubs.opengroup.org/onlinepubs/009695399/functions/dlsym.html dlopen specification at The Open Group Base Specifications]<br>
 `[`16`]` [http://www.skyfree.org/linux/references/ELF_Format.pdf ELF Format Specification]<br>
-`[`17`]` [http://svnweb.freebsd.org/base/stable/10/sys/sys/ FreeBSD system headers]
+`[`17`]` [http://svnweb.freebsd.org/base/stable/10/sys/sys/ FreeBSD system headers]<br>
+`[`18`]` [http://pastebin.com/f479f8beb parcelshit's original import-by-hash implementation]<br>
+`[`19`]` [http://www.pouet.net/topic.php?which=5392&page=4 Haxxoring the ELF format for 1k/4k stuff -thread on Pouet]<br>
+`[`20`]` [http://programmers.stackexchange.com/questions/49550/which-hashing-algorithm-is-best-for-uniqueness-and-speed Which hashing algorithm is best for uniqueness and speed? - Ian Boyd's answer at Programmers Stack Exchange]
