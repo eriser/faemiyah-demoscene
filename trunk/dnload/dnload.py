@@ -1059,8 +1059,9 @@ class Compiler(Linker):
     for ii in lst:
       if os.path.isdir(ii):
         new_include_directory = prefix + ii
+        if new_include_directory in self.compiler_flags_extra:
+          self.compiler_flags_extra.remove(new_include_directory)
         self.include_directories += [new_include_directory]
-        self.compiler_flags_extra.remove(new_include_directory)
 
 ########################################
 # Symbol ###############################
