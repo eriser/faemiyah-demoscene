@@ -436,7 +436,7 @@ static void dnload(void)
 }
 }}}
 
-The code snippet reveals a 'fake' symbol table with the name `g_symbol_table`. It is simply a list of function pointers constructed from the prefixed function names found when preprocessing the source file earlier. Depending on the build mode, we will either select the regular function call or redirect to our table. For the hello world example, with the simplest possible symbol table, this code would look like this:
+The code snippet reveals a 'fake' symbol table with the name `g_symbol_table`. It is simply a list of function pointers constructed from the prefixed function names found when preprocessing the source file earlier. Depending on the build mode, we will either select the regular function call or redirect to our table. For the hello world example, the code would look like this:
 
 {{{
 #if defined(USE_LD)
@@ -450,7 +450,9 @@ static struct SymbolTableStruct
 #endif
 }}}
 
-Recompiling with *-m dlfcn* we get new sizes. Interestingly, even though the size of hello world example is reduced, its compressed size is increased due to increasing complexity. On any nontrivial program the tradeoff is still worth it.
+To gain access to these functions, we need to link against the standard C library with *-lc* flag. On Linux, use *-ldl* instead. Additionally on FreeBSD, when using SDL, user must now manually link against `libthr`. Since SDL is not explicitly linked against, it is not pulling the thread library as consequence. It seems threading is not properly initialized unless the dynamic linker gets to load `libthr`.
+
+Recompiling with *-m dlfcn* we get new sizes:
 
 {{{
 'hello_world.stripped': 1568 bytes
@@ -459,9 +461,7 @@ Recompiling with *-m dlfcn* we get new sizes. Interestingly, even though the siz
 'quad': 1408 bytes
 }}}
 
-*NOTE:* On FreeBSD, user must now additionally link against `libthr`. Since SDL is not explicitly linked against, it is not pulling the thread library as consequence. It seems threading is not properly initialized unless the dynamic linker gets to load `libthr`.
-
-*NOTE:* On Linux, the functions are contained in `libdl`, not `libc`.
+Interestingly, even though the size of hello world example is reduced, its compressed size is increased due to increasing complexity. On any nontrivial program the tradeoff is still worth it.
 
 == Import by hash - scouring ELF32 headers ==
 
@@ -469,9 +469,9 @@ Even if the cost of function name only is rather little, it still adds up for qu
 
 Fortunately, there is a better way. In 2008, Pouet users *parcelshit* [#References [3]] and *las/Mercury* [#References [4]] published code to search for symbols in ELF32 shared objects by their hashed names. Some of the code linked in the discussion [#References [19]] seems to be unaccessible by now, but at least the original import-by-hash implementation [#References [18]] seems to still be available.
 
-The technique essentially takes advantage of the `DT_DEBUG` element in the `.dynamic` section (when present). 
+The technique essentially takes advantage of the `DT_DEBUG` element in the `.dynamic` section (when present) that will contain information about linked shared libraries. We simply need to gain access to it.
 
-To explain. When the dynamic linker passes control to your program, you will have access to the ELF headers. The ELF header is 52 bytes long, and is immediately followed by an array of program headers. Each program header looks like this (all source code definitions are taken from FreeBSD system headers):
+Programs using ELF will have access to their own headers directly at the program load address `0x8048000`. The ELF header is 52 bytes long, and is immediately followed by an array of program headers. Each program header looks like this (all source code definitions are taken from FreeBSD system headers):
 
 {{{
 typedef struct {
@@ -630,7 +630,7 @@ static void dnload(void)
 }
 }}}
 
-Compiling with the *-m hash* to get new sizes gives us:
+Compiling with the *-m hash* and linking against normal libraries (as opposed to what was needed with the dlfcn method) gives us new sizes:
 
 {{{
 'hello_world.stripped': 1180 bytes
@@ -638,6 +638,8 @@ Compiling with the *-m hash* to get new sizes gives us:
 'quad.stripped': 2152 bytes
 'quad': 1233 bytes
 }}}
+
+Significantly better.
 
 The command line option *-m hash* additionally does some low-hanging optimizations such as removing all known unneeded symbols (`_end`, `_edata` and `__bss_start`) and combining `.rodata` and `.text` into one section to free 40 bytes that would be consumed by a section header. This kind of hacking is, however, ultimately uninteresting as the only real way to further reduce the size is to construct all the ELF headers manually.
 
