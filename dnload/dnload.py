@@ -42,8 +42,10 @@ these same source files to decrease executable size.\n
 Optionally also perform the actual compilation of a size-optimized binary
 after generating the header.\n
 Command line options without arguments:
-  -h, --help          Print this help string.
-  -v, --verbose       Print more about what is being done.\n
+  -c, --create-binary   Create output file, determine output file name from
+                        input file name.
+  -h, --help            Print this help string.
+  -v, --verbose         Print more about what is being done.\n
 Command line options with arguments:
   -A, --assembler           Try to use given assembler executable as opposed to
                             autodetect.
@@ -138,6 +140,7 @@ platform_variables = {
     "ei_osabi" : { "FreeBSD" : 9, "Linux" : 3 },
     "entry" : { "i386" : 0x08048000 },
     "interp" : { "FreeBSD" : "\"/libexec/ld-elf.so.1\"", "Linux" : "\"/lib/ld-linux.so.2\"" },
+    "memory_page" : { "i386" : 0x1000 },
     "phdr_count" : { "default" : 3 },
     }
 
@@ -272,36 +275,47 @@ class AssemblerFile:
 
   def generate_fake_bss(self, assembler):
     """Remove local labels that would seem to generate .bss, make a fake .bss section."""
-    bss = AssemblerSection(".bss")
-    bss.add_line("end:\n")
-    bss.add_line(".balign 4\n")
-    bss.add_line("aligned_end:\n")
     offset = 0
     size = 0
+    bss_elements = []
     for ii in self.sections:
       while True:
         entry = ii.extract_bss()
         if not entry:
           break
         name, size = entry
-        bss.add_line(assembler.format_equ(name, "aligned_end + %i" % (offset)))
+        bss_elements += [(name, offset)]
         offset += size
         size = offset
         if 0 < offset % 4:
           offset += 4 - (offset % 4)
+    # TODO: Probably creates incorrect binaries at values very close but less than 128M due to code size.
+    if 128 * 1048576 < size:
+      pt_load_string = ", second PT_LOAD required"
+      bss_offset = PlatformVar("memory_page")
+    else:
+      pt_load_string = ", one PT_LOAD sufficient"
+      bss_offset = 0
     if verbose:
       outstr = "Constructed fake .bss segement: "
       if 1073741824 < size:
-        print(outstr + "%1.1f Gbytes" % (float(size) / 1073741824.0))
+        print("%s%1.1f Gbytes%s" % (outstr, float(size) / 1073741824.0, pt_load_string))
       elif 1048576 < size:
-        print(outstr + "%1.1f Mbytes" % (float(size) / 1048576.0))
+        print("%s%1.1f Mbytes%s" % (outstr, float(size) / 1048576.0, pt_load_string))
       elif 1024 < size:
-        print(outstr + "%1.1f kbytes" % (float(size) / 1024.0))
+        print("%s%1.1f kbytes%s" % (outstr, float(size) / 1024.0, pt_load_string))
       else:
-        print(outstr + "%u bytes" % (size))
-    bss.add_line(assembler.format_equ("memory_end", "aligned_end + %i" % (offset)))
+        print("%s%u bytes%s" % (outstr, size, pt_load_string))
+    bss = AssemblerSection(".bss")
+    bss.add_line("end:\n")
+    bss.add_line(".balign 4\n")
+    bss.add_line("aligned_end:\n")
+    bss.add_line(assembler.format_equ("bss_start", "aligned_end + " + str(bss_offset)))
+    for ii in bss_elements:
+      bss.add_line(assembler.format_equ(ii[0], "bss_start + %i" % (ii[1])))
+    bss.add_line(assembler.format_equ("bss_end", "bss_start + %i" % (size)))
     self.sections += [bss]
-    return size
+    return (0 != bss_offset)
 
   def remove_rodata(self):
     """Remove .rodata sections by merging them into the previous .text section."""
@@ -738,7 +752,7 @@ assembler_phdr_load_single = (
     ("p_vaddr, program virtual address", 4, 0x08048000),
     ("p_paddr, unused", 4, 0),
     ("p_filesz, program size on disk", 4, "end - ehdr"),
-    ("p_memsz, program size in memory", 4, "memory_end - ehdr"),
+    ("p_memsz, program size in memory", 4, "bss_end - ehdr"),
     ("p_flags, rwx = 7", 4, 7),
     ("p_align, usually 0x1000", 4, 4096),
     )
@@ -761,10 +775,10 @@ assembler_phdr_load_bss = (
     "Elf32_Phdr, PT_LOAD (.bss)",
     ("p_type, PT_LOAD = 1", 4, 1),
     ("p_offset, offset of fake .bss segment", 4, "end - ehdr"),
-    ("p_vaddr, program virtual address", 4, "end + 0x1000"),
+    ("p_vaddr, program virtual address", 4, "bss_start"),
     ("p_paddr, unused", 4, 0),
     ("p_filesz, .bss size on disk", 4, 0),
-    ("p_memsz, .bss size in memory", 4, "memory_end - end"),
+    ("p_memsz, .bss size in memory", 4, "bss_end - end"),
     ("p_flags, rw = 6", 4, 6),
     ("p_align, usually 0x1000", 4, 4096),
     )
@@ -1814,6 +1828,8 @@ if __name__ == "__main__":
     if arg in ("-A", "--assembler"):
       ii += 1
       assembler = sys.argv[ii]
+    elif arg in ("-c", "--create-binary"):
+      output_file = True
     elif arg in ("-C", "--compiler"):
       ii += 1
       compiler = sys.argv[ii]
@@ -1971,11 +1987,18 @@ if __name__ == "__main__":
     if 1 < len(source_files):
       raise RuntimeError("only one source file supported when generating output file")
     source_file = source_files[0]
-    output_file = os.path.normpath(output_file)
-    output_path, output_basename = os.path.split(output_file)
-    if output_basename == output_file:
-      output_path = target_path
-    output_file = os.path.normpath(os.path.join(output_path, output_basename))
+    if not isinstance(output_file, str):
+      output_path, output_basename = os.path.split(source_file)
+      output_basename, source_extension = os.path.splitext(output_basename)
+      output_file = os.path.normpath(os.path.join(output_path, output_basename))
+      if verbose:
+        print("Using output file '%s' after source file '%s'." % (output_file, source_file))
+    else:
+      output_file = os.path.normpath(output_file)
+      output_path, output_basename = os.path.split(output_file)
+      if output_basename == output_file:
+        output_path = target_path
+      output_file = os.path.normpath(os.path.join(output_path, output_basename))
     compiler.generate_compiler_flags()
     compiler.generate_linker_flags()
     compiler.set_definitions([])
@@ -1999,20 +2022,15 @@ if __name__ == "__main__":
         segment_dynamic.add_dt_needed(library_name)
         segment_strtab.add_library_name(library_name)
       asm = AssemblerFile(output_file + ".S")
-      bss_size = asm.generate_fake_bss(assembler)
-      # TODO: probably creates incorrect binaries at values very close but less than 128M due to code size
-      if 128 * 1024 * 1024 < bss_size:
+      # generate_fake_bss() returns true if second PT_LOAD was needed.
+      if asm.generate_fake_bss(assembler):
         replace_platform_variable("phdr_count", 4)
         segment_phdr_load_double = AssemblerSegment(assembler_phdr_load_double)
         segment_phdr_load_bss = AssemblerSegment(assembler_phdr_load_bss)
         load_segments = [segment_phdr_load_double, segment_phdr_load_bss]
-        if verbose:
-          print("More than 128M of memory used, second PT_LOAD required.")
       else:
         segment_phdr_load_single = AssemblerSegment(assembler_phdr_load_single)
         load_segments = [segment_phdr_load_single]
-        if verbose:
-          print("Less than 128M of memory used, going with one PT_LOAD.")
       segments = [segment_ehdr] + load_segments + [segment_phdr_dynamic, segment_phdr_interp, segment_hash, segment_dynamic, segment_symtab, segment_interp, segment_strtab]
       segments = merge_segments(segments)
       fd = open(output_file + ".final.S", "w")
