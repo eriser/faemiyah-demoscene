@@ -763,6 +763,14 @@ From this on, it's all just manual work, instrumenting the dynamic linker and se
 
 The `maximum` compression mode uses the following techniques to decrease binary size:
 
+=== Section headers and sections ===
+
+Seem to be not needed. At all.
+
+ELF uses the section information for introspection. Names of sections are contained in a specific section, `readelf` will except fixed section names to decrypt symbol tables, etc.
+
+But when push comes to shove, the program will still be executed solely based on instructions in program headers and the `.dynamic` information. Section headers are 40 bytes a piece. We will have none of that.
+
 === Fake .bss section ===
 
 Traditionally programs put uninitialized but statically reserved memoroy in a section named `.bss` or _Block Started by Symbol_ that will be handled by the linker. We naturally do not have anything of the like. However, the ptogram header PT_LOAD provides a possibility to set the size on disk (`p_filesz`) as different from size in memory (`p_memsz`).
@@ -784,7 +792,62 @@ aligned_end:
 
 The file size will use `end` while the memory size will use 'bss_end`.
 
-*NOTE:* This will fail with _Bus error_ if the size of fake `.bss` segment nears 128 megabytes. If this happens, the solution is to do the exact same thing `ld` would do - construct another `PT_LOAD` segment at the next memory page without the execute flag set and assign all uninitialized memory there instead.
+*NOTE:* This will fail with a _bus error_ if the size of fake `.bss` segment nears 128 megabytes. If this happens, the solution is to do the exact same thing `ld` would do - construct another `PT_LOAD` segment at the next memory page without the execute flag set and assign all uninitialized memory there instead.
+
+=== Entry into and exit from `_start` ===
+
+As said [#Examining_the_source earlier], we take care from entry and exit from the `_start` procedure ourselves. The compiler will, however, happily push registers at the beginning and substract stack at the end of the function. On IA-32, it looks like this (from `hello_world.cpp` example):
+
+{{{
+_start:
+  pushl %ebp
+  pushl %edi
+  pushl %esi
+  pushl %ebx
+...
+<_start content here>
+...
+  movl $1,%eax
+  int $128
+# 0 "" 2
+#NO_APP
+  popl %eax
+  addl $12, %esp
+  popl %ebx
+  popl %esi
+  popl %edi
+  popl %ebp
+  ret
+}}}
+
+None of the push operations at the beginning or any operations after the system call are necessary. They may go.
+
+=== Alignment ===
+
+Compilers seem to generate alignment directives rather arbitrarily. This necessary on some architectures, but no matter what, unnecessarily high alignments are irrelevant on 32-bit architectures.
+
+All alignment takes space on disk. To prevent this, all alignment directives greater than 32 bits in the generated assembler source are converted to explicit `.balign` directives for 4 bytes.
+
+=== Merging headers === 
+
+As Brian Raiter already noted in _A Whirlwind Tutorial on Creating Really Teensy ELF Executables for Linux_ [#References [2]], it does not really seem to matter if the ELF headers overlap. The structures will be assigned addresses exactly based on the offsets given, and they can freely overlap with other structs in memory.
+
+The process of interleaving the struts is automated. At the time of writing, it produces the following:
+
+{{{
+Merging headers phdr_interp and hash at point 1.
+Merging headers hash and dynamic at point 1.
+Merging headers dynamic and symtab at point 2.
+Merging headers interp and strtab at point 1.
+}}}
+
+This takes advantage of:
+  * `.interp` section is aligned at one-byte boundary. This alignment is the last value of `PT_INTERP` phdr. Hash table containing only the symbols required by `libc` starts with number 1 (one chain).
+  * `.dynamic` section can start with many numbers. We put the `PT_NEEDED` library requirements at the top so it can correctly interleave with the last value of the hash table.
+  * `.dynamic` section ends with the `PT_NULL` terminator. Symbol table starts with the null symbol. Size of null terminator is 8 bytes, and the size of null symbol is 16 bytes. These can be partially interleaved.
+  * `.interp` section ends with terminating zero for the interpreter string. `.strtab` always starts with a zero as per specification. Ditto.
+
+*NOTE:* It might seem that `.dynamic` and `.dynsym` could be interleaved at 12 bytes instead, since the previous value in the symbol table is `DT_DEBUG`, that always takes a null value afterwards. However, as seen in [#Import_by_hash_-_scouring_ELF32 headers an earlier section], this field will be filled in runtime. In practice, interleaving at 12 bytes would crash.
 
 ----
 
@@ -826,6 +889,8 @@ There are probably easy ways to do the same on Linux, but they are out of the sc
   * Add cross-compilation support, at the very least between `*`nix systems and the "maximum" operation mode.
   * Only SDL/OpenGL supported right now. Should probably also support GLFW.
   * Perhaps there are more advanced tricks available for Linux? Would require hacking `ld-linux.so.2` to find out.
+  * IA-32 does not seem to care that much about alignment. Perhaps alignment directives could be completely removed on some platforms?
+  * Perhaps there's more efficient ways to interleave the header structs?
 
 ----
 
