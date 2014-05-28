@@ -225,7 +225,7 @@ void _start()
   dnload_SDL_Quit();
 #if defined(USE_LD)
   return 0;
-#elif defined(asm_exit)
+#else
   asm_exit();
 #endif
 }
