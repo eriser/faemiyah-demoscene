@@ -773,7 +773,7 @@ But when push comes to shove, the program will still be executed solely based on
 
 === Fake .bss section ===
 
-Traditionally programs put uninitialized but statically reserved memoroy in a section named `.bss` or _Block Started by Symbol_ that will be handled by the linker. We naturally do not have anything of the like. However, the ptogram header PT_LOAD provides a possibility to set the size on disk (`p_filesz`) as different from size in memory (`p_memsz`).
+Traditionally programs put uninitialized but statically reserved memory in a section named `.bss` or _Block Started by Symbol_ that will be handled by the linker. We naturally do not have anything of the like. However, the program header PT_LOAD provides a possibility to set the size on disk (`p_filesz`) as different from size in memory (`p_memsz`).
 
 Setting these into different sizes will simply cause more memory to be allocated. We parse the variable definitions directly from assembler code and construct virtual locations and pointers 'after' the end-of-file in the following manner (taken from `quad.cpp` example):
 
