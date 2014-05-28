@@ -36,7 +36,7 @@ void _start()
 
 #if defined(USE_LD)
   return 0;
-#elif defined(asm_exit)
+#else
   asm_exit();
 #endif
 }
