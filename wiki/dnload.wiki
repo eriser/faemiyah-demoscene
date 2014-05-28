@@ -652,6 +652,113 @@ The command line option *-m hash* additionally does some low-hanging optimizatio
 
 There are earlier examples, on manually writing ELF32 headers byte [#References [21]] by byte [#References [22]]. These are easily runnable with 32-bit Linux emulation. The also come complete with source code, so one would assume converting them to run in FreeBSD would be as easy as changing 8th byte of the ELF header into `ELFOSABI_FREEBSD` or `9` and recompiling with `nasm`. Unfortunately, things are not quite so easy, and binaries constructed  thus will just crash.
 
+However, even if the examples themselves are not usable, they prove that manual hacks are least possible. What we need to do is, have some kind of access into the process of dynamic loading itself, and see what we can do to decrease space. This is all done for us already, quoting manpages of `ld-elf.so`:
+
+  The *ld-elf.so.1* utility is a self-contained shared object providing run-time support for loading and link-editing shared objects into a process' address space. It is also commonly known as the dynamic linker.
+
+Full operating system source have already been provided in `/usr/src`. Recompiling the dynamic linker is as easy as going there and building (but not installing) `world`. This constructs our dynamic linker in `/usr/obj/usr/src/libexec/rtld-elf/ld-elf.so.1`, and gives us access to the source in `/usr/src/libexec/rtld-elf/`.
+
+The authors have been kind enough to _literally_ point out where the hacking should begin. `rtlf.c` line 334:
+
+{{{
+/*
+ * On entry, the dynamic linker itself has not been relocated yet.
+ * Be very careful not to reference any global data until after
+ * init_rtld has returned.  It is OK to reference file-scope statics
+ * and string constants, and to call static and global functions.
+ */
+}}}
+
+What can I say? Thank you.
+
+We obviously do not want to replace our own rtld with a crappy, hacked version so it's better to use the custom version directly. Reading _A Whirlwind Tutorial on Creating Really Teensy ELF Executables for Linux_ [#References [2]] and _Executable and Linkable Format (ELF)_ [#References [16]], we can construct the minimal program to do this and start the investigation:
+
+{{{
+ehdr:  
+  .byte 0x7f                        # e_ident[EI_MAG0], magic value 0x7F  
+  .ascii "ELF"                      # e_ident[EI_MAG1] to e_indent[EI_MAG3], magic value "ELF"  
+  .byte 0x1                         # e_ident[EI_CLASS], ELFCLASS32 = 1
+  .byte 0x1                         # e_ident[EI_DATA], ELFDATA2LSB = 1  
+  .byte 0x1                         # e_ident[EI_VERSION], EV_CURRENT = 1
+  .byte 0x9                         # e_ident[EI_OSABI], ELFOSABI_LINUX = 3, ELFOSABI_FREEBSD = 9  
+  .zero 8                           # e_indent[EI_MAG9 to EI_MAG15], unused
+  .short 0x2                        # e_type, ET_EXEC = 2
+  .short 0x3                        # e_machine, EM_386 = 3
+  .long 0x1                         # e_version, EV_CURRENT = 1
+  .long _start                      # e_entry, execution starting point
+  .long ehdr_end - ehdr             # e_phoff, offset from start to program headers
+  .long 0x0                         # e_shoff, start of section headers
+  .long 0x0                         # e_flags, unused
+  .short ehdr_end - ehdr            # e_ehsize, Elf32_Ehdr size
+  .short phdr_load_end - phdr_load  # e_phentsize, Elf32_Phdr size
+  .short 0x2                        # e_phnum, Elf32_Phdr count, PT_LOAD, PT_INTERP = 2
+  .short 0x0                        # e_shentsize, Elf32_Shdr size
+  .short 0x0                        # e_shnum, Elf32_Shdr count
+  .short 0x0                        # e_shstrndx, index of section containing string table of section header names
+ehdr_end:
+
+phdr_load:
+  .long 0x1         # p_type, PT_LOAD = 1
+  .long 0x0         # p_offset, offset of program start
+  .long 0x8048000   # p_vaddr, program virtual address
+  .long 0x0         # p_paddr, unused
+  .long end - ehdr  # p_filesz, program size on disk
+  .long end - ehdr  # p_memsz, program size in memory
+  .long 0x7         # p_flags, rwx = 7
+  .long 0x1000      # p_align, usually 0x1000
+phdr_load_end:
+
+phdr_interp:
+  .long 0x3                  # p_type, PT_INTERP = 3
+  .long interp - ehdr        # p_offset, offset of block
+  .long interp               # p_vaddr, address of block
+  .long 0x0                  # p_paddr, unused
+  .long interp_end - interp  # p_filesz, block size on disk
+  .long interp_end - interp  # p_memsz, block size in memory
+  .long 0x0                  # p_flags, ignored
+  .long 0x1                  # p_align, 1 for strtab
+phdr_interp_end:
+
+interp:
+  .asciz "/usr/obj/usr/src/libexec/rtld-elf/ld-elf.so.1"
+interp_end:
+
+_start:
+  pushl $42
+  pushl $0
+  movl $1, %eax
+  int $128
+end:
+}}}
+
+You can copypaste the earlier into, say, `header.S` and run:
+
+{{{
+as -o header.o header.S && ld --oformat=binary -o header header.o && ./header
+}}}
+
+This should produce:
+
+{{{
+ld: warning: cannot find entry symbol _start; defaulting to 0000000008048000
+Segmentation fault
+}}}
+
+Disappointing. But add something, anything, into your custom rtld sources, recompile rtld, and try again. At the time of writing this document, mine says:
+
+{{{
+> as -o header.o header.S && ld --oformat=binary --entry=0x8048000 -o header header.o && ./header
+Going to process program header.
+Going to read interp.
+.interp read: /usr/obj/usr/src/libexec/rtld-elf/ld-elf.so.1
+obj->dynamic = 0x0
+Segmentation fault
+}}}
+
+So that's why it crashes.
+
+From this on, it's all just manual work, instrumenting the dynamic linker and seeing what can be done to minimize size, I guess this also answers why it segfaults.
+
 ----
 
 = Acknowledgements =
@@ -712,7 +819,7 @@ There are probably easy ways to do the same on Linux, but they are out of the sc
 `[`13`]` [http://www.pouet.net/prod.php?which=10562 Yellow Rose of Texas by Fit & Bandwagon in Pouet]<br>
 `[`14`]` [http://pubs.opengroup.org/onlinepubs/009695399/functions/dlopen.html dlopen specification at The Open Group Base Specifications]<br>
 `[`15`]` [http://pubs.opengroup.org/onlinepubs/009695399/functions/dlsym.html dlopen specification at The Open Group Base Specifications]<br>
-`[`16`]` [http://www.skyfree.org/linux/references/ELF_Format.pdf ELF Format Specification]<br>
+`[`16`]` [http://www.skyfree.org/linux/references/ELF_Format.pdf Executable and Linkable Format (ELF) specification]<br>
 `[`17`]` [http://svnweb.freebsd.org/base/stable/10/sys/sys/ FreeBSD system headers]<br>
 `[`18`]` [http://pastebin.com/f479f8beb parcelshit's original import-by-hash implementation]<br>
 `[`19`]` [http://www.pouet.net/topic.php?which=5392&page=4 Haxxoring the ELF format for 1k/4k stuff -thread on Pouet]<br>
