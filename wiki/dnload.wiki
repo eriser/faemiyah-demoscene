@@ -191,7 +191,7 @@ void _start()
 {
 }}}
 
-If the macro `USE``_``LD` would be defined, all this would simply evaluate to `int main() {`, which is the entry point the compiler would except to find.
+If the macro `USE``_``LD` would be defined, all this would simply evaluate to `int main() {`, which is the entry point the compiler would expect to find.
 
 However, `main()` is not the real entry point into the program. In actuality, the linker will generate code that will perform initialization of global variables, environment, etc., and only afterwards pass the control to the main function provided by the user. Since we're aiming for a small binary, any initialization that needs doing, we'll be doing ourselves. The actual program execution will begin at a symbol traditionally called *`_`start*, which is exactly what we will be using.
 
@@ -767,7 +767,7 @@ The `maximum` compression mode uses the following techniques to decrease binary 
 
 Seem to be not needed. At all.
 
-ELF uses the section information for introspection. Names of sections are contained in a specific section, `readelf` will except fixed section names to decrypt symbol tables, etc.
+ELF uses the section information for introspection. Names of sections are contained in a specific section, `readelf` will expect fixed section names to decrypt symbol tables, etc.
 
 But when push comes to shove, the program will still be executed solely based on instructions in program headers and the `.dynamic` information. Section headers are 40 bytes a piece. We will have none of that.
 
