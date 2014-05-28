@@ -288,7 +288,7 @@ If the script was invoked to additionally generate the binary:
 
 = The quest for minimal ELF32 binaries =
 
-This section of the documentation explores both the current and historical methods of reducing executable file size on `*`nix systems. If you are only interested in the current 'best practice' operation of the script, you can [#Crafting_headers_manually skip directly therein].
+This section of the documentation explores both the current and historical methods of reducing executable file size on `*`nix systems. If you are only interested in the current 'best practice' operation of the script, you can [#Findings skip directly therein].
 
 == Compiler flags ==
 
@@ -669,7 +669,7 @@ The authors have been kind enough to _literally_ point out where the hacking sho
  */
 }}}
 
-What can I say? Thank you.
+What can I say? Thank you!
 
 We obviously do not want to replace our own rtld with a crappy, hacked version so it's better to use the custom version directly. Reading _A Whirlwind Tutorial on Creating Really Teensy ELF Executables for Linux_ [#References [2]] and _Executable and Linkable Format (ELF)_ [#References [16]], we can construct the minimal program to do this and start the investigation:
 
@@ -757,7 +757,34 @@ Segmentation fault
 
 So that's why it crashes.
 
-From this on, it's all just manual work, instrumenting the dynamic linker and seeing what can be done to minimize size, I guess this also answers why it segfaults.
+From this on, it's all just manual work, instrumenting the dynamic linker and seeing what can be done to minimize size. As this is an ongoing process, it's probably not useful to go on a rant on any longer rants, instead, it's easier to list the findings.
+
+== Findings ==
+
+The `maximum` compression mode uses the following techniques to decrease binary size:
+
+=== Fake .bss section ===
+
+Traditionally programs put uninitialized but statically reserved memoroy in a section named `.bss` or _Block Started by Symbol_ that will be handled by the linker. We naturally do not have anything of the like. However, the ptogram header PT_LOAD provides a possibility to set the size on disk (`p_filesz`) as different from size in memory (`p_memsz`).
+
+Setting these into different sizes will simply cause more memory to be allocated. We parse the variable definitions directly from assembler code and construct virtual locations and pointers 'after' the end-of-file in the following manner (taken from `quad.cpp` example):
+
+{{{
+end:
+.balign 4
+aligned_end:
+.equ bss_start, aligned_end + 0
+.equ __progname, bss_start + 0
+.equ environ, bss_start + 4
+.equ g_attribute_quad_a, bss_start + 8
+.equ g_program_quad, bss_start + 12
+.equ _ZL14g_audio_buffer, bss_start + 16
+.equ bss_end, bss_start + 144016
+}}}
+
+The file size will use `end` while the memory size will use 'bss_end`.
+
+*NOTE:* This will fail with _Bus error_ if the size of fake `.bss` segment nears 128 megabytes. If this happens, the solution is to do the exact same thing `ld` would do - construct another `PT_LOAD` segment at the next memory page without the execute flag set and assign all uninitialized memory there instead.
 
 ----
 
