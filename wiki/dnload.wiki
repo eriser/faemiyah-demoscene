@@ -858,6 +858,8 @@ This script would not have been possible without the prior work done by various 
   * *Brian Raiter* for _A Whirlwind Tutorial on Creating Really Teensy ELF Executables for Linux_ [#References [2]] and the insight of interleaving headers.
   * *parcelshit* [#References [3]] and *las/Mercury* [#References [4]] for the original ELF32 import-by hash algorithm.
   * *Hymy* [#References [5]] and *Ye Olde Laptops Posse* [#References [6]] for earlier forays into manual ELF32 header construction.
+
+And:
   * *viznut/PWP* [#References [7]] for the series _Experimental music from very short C programs_ [#References [8]], a snipped of which is used in one of the examples.
 
 The list might be missing some parties, that are thus not getting the credit they deserve. If you notice this, please help correct the error(s).
@@ -891,6 +893,7 @@ There are probably easy ways to do the same on Linux, but they are out of the sc
   * Perhaps there are more advanced tricks available for Linux? Would require hacking `ld-linux.so.2` to find out.
   * IA-32 does not seem to care that much about alignment. Perhaps alignment directives could be completely removed on some platforms?
   * Perhaps there's more efficient ways to interleave the header structs?
+  * Support cross-compilation. Shouldn't be that hard.
 
 ----
 
