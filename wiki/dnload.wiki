@@ -25,7 +25,7 @@ If compiling without size optimizations, you will need GLEW and SDL development 
 
 Mainly, the script will be used for two purposes:
   * Building size-limited binaries directly from C/C++ source on systems where compilation is supported.
-  * Generating a header file to hide the complexities of size-limited linking. This can be done both on systems where compilation is supported and where it is not, since some developers might be working on other platforms.
+  * Generating a header file to hide the complexities of size-limited linking. This can be done both on systems where compilation is not, since some developers might be working on other platforms. The generated header tries to preserve portability.
 
 == Getting started ==
 
@@ -65,7 +65,7 @@ void _start()
 
 #if defined(USE_LD)
   return 0;
-#elif defined(asm_exit)
+#else
   asm_exit();
 #endif
 }
@@ -133,18 +133,21 @@ Symbols found: ['puts']
 Wrote header file 'src/dnload.h'.
 Executing command: g++49 -S src/hello_world.cpp -o src/hello_world.S -Os -ffast-math -fno-asynchronous-unwind-tables -fno-exceptions -fno-rtti -fno-threadsafe-statics -fomit-frame-pointer -fsingle-precision-constant -fwhole-program -march=pentium4 -mpreferred-stack-boundary=2 -D_GNU_SOURCE=1 -D_REENTRANT -D_THREAD_SAFE -I/usr/local/include -I/usr/local/include/SDL
 Using shared library 'libc.so.7' instead of 'libc.so'.
+Read 7 sections in 'src/hello_world.S': text, text, text, rodata, text, text, note
+Erasing function header from '_start': 4 lines.
+Erasing function footer after interrupt '128': 9 lines.
+Constructed fake .bss segement: 8 bytes, one PT_LOAD sufficient
 Merging headers phdr_interp and hash at point 1.
 Merging headers hash and dynamic at point 1.
 Merging headers dynamic and symtab at point 2.
 Merging headers interp and strtab at point 1.
-Read 7 sections in 'src/hello_world.S': text, text, text, rodata, text, text, note
-Erasing function header from '_start': 4 lines.
-Erasing function footer after interrupt '128': 9 lines.
 Wrote assembler source 'src/hello_world.final.S'.
 Executing command: /usr/local/bin/as src/hello_world.final.S -o src/hello_world.o
-Executing command: /usr/local/bin/ld --oformat=binary --entry=0x8048000 src/hello_world.o -o src/hello_world.stripped
+Executing command: /usr/local/bin/ld --oformat=binary --entry=0x8048000 src/hello_world.o -o src/hello_world.unprocessed
+Executing command: readelf --program-headers src/hello_world.unprocessed
+Executable size equals PT_LOAD size (528 bytes), no truncation necessary.
 Executing command: xz --format=lzma --lzma1=preset=9e,lc=1,lp=0,pb=0 --stdout src/hello_world.stripped
-Wrote 'src/hello_world': 414 bytes
+Wrote 'src/hello_world': 425 bytes
 }}}
 
 When ran, it will do just the same:
@@ -162,7 +165,7 @@ First of all, all programs wanting to use the loader will have to include the ge
 #include "dnload.h"
 }}}
 
-This will internally include the relevant loader and some other header present in the `src/` subdirectory in the repo. The user may of course include any other source files necessary, but all function calls should be done through the interface wrapped herein.
+This will internally include the relevant loader and some other header(s) present in the `src/` subdirectory in the repo. The user may of course include any other source files necessary, but all function calls should be done through the interface wrapped herein.
 
 More interesting is the declaration of the main function:
 
@@ -190,7 +193,7 @@ void _start()
 
 If the macro `USE``_``LD` would be defined, all this would simply evaluate to `int main() {`, which is the entry point the compiler would except to find.
 
-However, main() is not the entry point actually used by the system. In actuality, the linker will generate code that will perform initialization of global variables, environment, etc., and only afterwards pass the control to the main function provided by the user. Since we're aiming for a small binary, any initialization that needs doing, we'll be doing ourselves. The actual program execution will begin at a symbol traditionally called *`_`start*, which is exactly what we will be using.
+However, `main()` is not the real entry point into the program. In actuality, the linker will generate code that will perform initialization of global variables, environment, etc., and only afterwards pass the control to the main function provided by the user. Since we're aiming for a small binary, any initialization that needs doing, we'll be doing ourselves. The actual program execution will begin at a symbol traditionally called *`_`start*, which is exactly what we will be using.
 
 *NOTE:* When manually creating the program headers, the symbol would not necessarily need to be named `_``start` - it could be anything, the name will be stripped out anyway. However, why break a known convention?
 
@@ -224,14 +227,14 @@ This will perform of dynamic loading of all required symbols (here: only `puts`)
 {{{
 #if defined(USE_LD)
   return 0;
-#elif defined(asm_exit)
+#else
   asm_exit();
 #endif
 }}}
 
 Since we already discarded the premise of using the default `main` procedure, no-one is going to terminate our program.
 
-We could make it "return" but that would normally only pass control to the shell provided by the system, we now have nowhere to return to. Thus, we must make a system call[#References [11]] to terminate the program ourselves. This code that will do this is written into the [https://code.google.com/p/faemiyah-demoscene/source/browse/trunk/dnload/src/dnload.h dnload header] directly as inline assembler. On i386 architecture, it will evaluate into the following :
+We could make it "return" but that would normally only pass control to the shell provided by the system, we now have nowhere to return to. Thus, we must make a system call [#References [11]] to terminate the program ourselves. The code that will do this is written into the [https://code.google.com/p/faemiyah-demoscene/source/browse/trunk/dnload/src/dnload.h dnload header] directly as inline assembler. On i386 architecture, it will evaluate into the following :
 
 {{{
 movl $1, %eax
@@ -285,16 +288,18 @@ If the script was invoked to additionally generate the binary:
 
 = The quest for minimal ELF32 binaries =
 
-This section of the documentation explores both the current and historical methods of reducing executable file size on `*`nix systems. If you are only interested in the current "best practice" operation of the script, you can [#Crafting_headers_manually skip directly therein].
+This section of the documentation explores both the current and historical methods of reducing executable file size on `*`nix systems. If you are only interested in the current 'best practice' operation of the script, you can [#Crafting_headers_manually skip directly therein].
 
 == Compiler flags ==
 
-We can alter the compiler output to produce smaller binaries both by making it actually optimize for size and by altering the output to be better compressable. The options would go into three categories:
+We can alter the compiler output to produce smaller binaries both by making it actually optimize for size and by altering the output to be more compressable. The command line options would fall into three categories:
   * Options that decrease size of generated code or constants.
   * Options that just happen to produce a smaller or better compressable binary.
   * Options that disable language features, making output smaller.
 
-Despite Clang being all the rage nowadays, gcc seems to still produce binaries that size-optimize better. In particular, the script will attempt to use g++49 (latest available in FreeBSD at the time of writing) whenever possible, but any compiler may be specified with the `-C` or `--compiler` command line option.
+Despite Clang being all the rage nowadays, gcc seems to still produce binaries that size-optimize better. In particular, the script will attempt to use g++49 (latest available in FreeBSD at the time of writing) whenever possible.
+
+*NOTE:* Any compiler may be specified with the `-C` or `--compiler` command line option, but compilation is currently only supported with `gcc` or `clang`. `cl.exe` may be used to generate the header in Windows.
 
 Using g++, the flags of the first type (just smaller) would be:
   * `-Os`
@@ -303,9 +308,9 @@ Using g++, the flags of the first type (just smaller) would be:
   * `-fsingle-precision-constant`
   * `-fwhole-program`
 
-These are all self-explanatory. In general the mere `-Os -ffast-math -fomit-frame-pointer` seems to do an excellent job.
+These are all self-explanatory. In general, mere `-Os -ffast-math -fomit-frame-pointer` seems to do an excellent job.
 
-Also the following options, seem to produce consistently better compressable code:
+The following options, seem to consistently produce code that compresses better:
   * `-march=pentium4`: After permutating through all available instruction sets with several different intros, Pentium 4 seems to usually yield the best results.
   * `-mpreferred-stack-boundary=2`: Forces the compiler to attempt keeping the stack aligned at `2`^`2 = 4` bytes. This seems to consistently perform better than the default of `16` bytes.
 
@@ -388,7 +393,7 @@ Luckily, using the forementioned two symbols, we can perform dynamic loading our
   * Two successive zeroes revert to initial state, next string will again be a library name.
   * Third successive zero stops loading.
 
-This produces the following loader (using quad example):
+This produces the following loader (using `quad.cpp` example):
 
 {{{
 static const char g_dynstr[] = ""
@@ -452,7 +457,7 @@ static struct SymbolTableStruct
 
 To gain access to these functions, we need to link against the standard C library with *-lc* flag. On Linux, use *-ldl* instead. Additionally on FreeBSD, when using SDL, user must now manually link against `libthr`. Since SDL is not explicitly linked against, it is not pulling the thread library as consequence. It seems threading is not properly initialized unless the dynamic linker gets to load `libthr`.
 
-Recompiling with *-m dlfcn* we get new sizes:
+Recompiling with *-m dlfcn*, we get new sizes:
 
 {{{
 'hello_world.stripped': 1568 bytes
@@ -467,7 +472,7 @@ Interestingly, even though the size of hello world example is reduced, its compr
 
 Even if the cost of function name only is rather little, it still adds up for quite a block of data, especially when using `dlopen` and `dlsym` requires us to have symbol definitions and all that PLT/GOT information in the binary.
 
-Fortunately, there is a better way. In 2008, Pouet users *parcelshit* [#References [3]] and *las/Mercury* [#References [4]] published code to search for symbols in ELF32 shared objects by their hashed names. Some of the code linked in the discussion [#References [19]] seems to be unaccessible by now, but at least the original import-by-hash implementation [#References [18]] seems to still be available.
+Fortunately, there is a better way. In 2008, Pouet users *parcelshit* [#References [3]] and *las/Mercury* [#References [4]] published code to search for symbols in ELF32 shared objects by their hashed names. Some of the code linked in the discussion [#References [19]] seems to be unaccessible by now, but at least the original import-by-hash implementation [#References [18]] (used as proof-of-concept for our implementation) seems to still be available.
 
 The technique essentially takes advantage of the `DT_DEBUG` element in the `.dynamic` section (when present) that will contain information about linked shared libraries. We simply need to gain access to it.
 
@@ -498,7 +503,7 @@ typedef struct {
 } Elf32_Dyn;
 }}}
 
-When the dynamic linker passes control to your program, the `Elf32_Dyn` structure with the tag `DT_DEBUG` will have been filled with a pointer to the debug structure associated with a library. The debug structure looks like this:
+When the dynamic linker passes control to your program, the `Elf32_Dyn` structure with the tag `DT_DEBUG` will have been filled with a pointer to the debug structure associated with the program. The debug structure looks like this:
 
 {{{
 struct r_debug {
@@ -630,7 +635,7 @@ static void dnload(void)
 }
 }}}
 
-Compiling with the *-m hash* and linking against normal libraries (as opposed to what was needed with the dlfcn method) gives us new sizes:
+Compiling with *-m hash* and linking against normal libraries (as opposed to what was needed with the dlfcn method) gives us new sizes:
 
 {{{
 'hello_world.stripped': 1180 bytes
@@ -645,14 +650,14 @@ The command line option *-m hash* additionally does some low-hanging optimizatio
 
 == Crafting headers manually ==
 
-TODO: fill
+There are earlier examples, on manually writing ELF32 headers byte [#References [21]] by byte [#References [22]]. These are easily runnable with 32-bit Linux emulation. The also come complete with source code, so one would assume converting them to run in FreeBSD would be as easy as changing 8th byte of the ELF header into `ELFOSABI_FREEBSD` or `9` and recompiling with `nasm`. Unfortunately, things are not quite so easy, and binaries constructed  thus will just crash.
 
 ----
 
 = Acknowledgements =
 
 This script would not have been possible without the prior work done by various other parties. Especially the following parties deserve kudos for their efforts:
-  * *Marq/Fit* [#reference_1 [1]] for the original unpack header and dlopen/dlsym implementation.
+  * *Marq/Fit* [#References [1]] for the original unpack header and dlopen/dlsym implementation.
   * *Brian Raiter* for _A Whirlwind Tutorial on Creating Really Teensy ELF Executables for Linux_ [#References [2]] and the insight of interleaving headers.
   * *parcelshit* [#References [3]] and *las/Mercury* [#References [4]] for the original ELF32 import-by hash algorithm.
   * *Hymy* [#References [5]] and *Ye Olde Laptops Posse* [#References [6]] for earlier forays into manual ELF32 header construction.
@@ -686,6 +691,7 @@ There are probably easy ways to do the same on Linux, but they are out of the sc
   * Should probably create the header file in a smart(er) manner if it's not found.
   * Add cross-compilation support, at the very least between `*`nix systems and the "maximum" operation mode.
   * Only SDL/OpenGL supported right now. Should probably also support GLFW.
+  * Perhaps there are more advanced tricks available for Linux? Would require hacking `ld-linux.so.2` to find out.
 
 ----
 
@@ -710,4 +716,6 @@ There are probably easy ways to do the same on Linux, but they are out of the sc
 `[`17`]` [http://svnweb.freebsd.org/base/stable/10/sys/sys/ FreeBSD system headers]<br>
 `[`18`]` [http://pastebin.com/f479f8beb parcelshit's original import-by-hash implementation]<br>
 `[`19`]` [http://www.pouet.net/topic.php?which=5392&page=4 Haxxoring the ELF format for 1k/4k stuff -thread on Pouet]<br>
-`[`20`]` [http://programmers.stackexchange.com/questions/49550/which-hashing-algorithm-is-best-for-uniqueness-and-speed Which hashing algorithm is best for uniqueness and speed? - Ian Boyd's answer at Programmers Stack Exchange]
+`[`20`]` [http://programmers.stackexchange.com/questions/49550/which-hashing-algorithm-is-best-for-uniqueness-and-speed Which hashing algorithm is best for uniqueness and speed? - Ian Boyd's answer at Programmers Stack Exchange]<br>
+`[`21`]` [http://www.pouet.net/prod.php?which=61753 Inconsistency by Hymy in Pouet]<br>
+`[`22`]` [http://www.pouet.net/prod.php?which=59264 tutorial2 by Ye Olde Laptops Posse in Pouet]
