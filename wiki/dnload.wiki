@@ -757,7 +757,7 @@ Segmentation fault
 
 So that's why it crashes.
 
-From this on, it's all just manual work, instrumenting the dynamic linker and seeing what can be done to minimize size. As this is an ongoing process, it's probably not useful to go on a rant on any longer rants, instead, it's easier to list the findings.
+From this on, it's all just manual work, instrumenting the dynamic linker and seeing what can be done to minimize size. As this is an ongoing process, it's probably not useful to go on any longer rant. Instead, it's easier to list the findings.
 
 == Findings ==
 
@@ -832,7 +832,7 @@ All alignment takes space on disk. To prevent this, all alignment directives gre
 
 As Brian Raiter already noted in _A Whirlwind Tutorial on Creating Really Teensy ELF Executables for Linux_ [#References [2]], it does not really seem to matter if the ELF headers overlap. The structures will be assigned addresses exactly based on the offsets given, and they can freely overlap with other structs in memory.
 
-The process of interleaving the strutcs is automated. At the time of writing, it produces the following:
+The process of interleaving the structs is automated. At the time of writing, it produces the following:
 
 {{{
 Merging headers phdr_interp and hash at point 1.
