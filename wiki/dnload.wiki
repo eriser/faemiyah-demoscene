@@ -25,7 +25,7 @@ If compiling without size optimizations, you will need GLEW and SDL development 
 
 Mainly, the script will be used for two purposes:
   * Building size-limited binaries directly from C/C++ source on systems where compilation is supported.
-  * Generating a header file to hide the complexities of size-limited linking. This can be done both on systems where compilation is not, since some developers might be working on other platforms. The generated header tries to preserve portability.
+  * Generating a header file to hide the complexities of size-limited linking. This can be also be on systems where compilation is not supported, since some developers might be working on other platforms. The generated header tries to preserve portability.
 
 == Getting started ==
 
