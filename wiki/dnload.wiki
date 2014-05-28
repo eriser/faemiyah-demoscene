@@ -282,7 +282,7 @@ If the script was invoked to additionally generate the binary:
   * Perform a series on operations on the compiler output known to further reduce code footprint.
   * Link an output binary.
   * Possibly strip the generated binary.
-  * Compress the produced binary and concatenate it with a shell scrip that will decompress and execute it.
+  * Compress the produced binary and concatenate it with a shell script that will decompress and execute it.
 
 ----
 
