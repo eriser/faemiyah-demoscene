@@ -650,7 +650,7 @@ The command line option *-m hash* additionally does some low-hanging optimizatio
 
 == Crafting headers manually ==
 
-There are earlier examples, on manually writing ELF32 headers byte [#References [21]] by byte [#References [22]]. These are easily runnable with 32-bit Linux emulation. The also come complete with source code, so one would assume converting them to run in FreeBSD would be as easy as changing 8th byte of the ELF header into `ELFOSABI_FREEBSD` (i,e. `9`) and recompiling with `nasm`. Unfortunately, things are not quite so easy, and binaries constructed  thus will just crash.
+There are earlier examples, on manually writing ELF32 headers byte [#References [21]] by byte [#References [22]]. These are easily runnable with 32-bit Linux emulation. The also come complete with source code, so one would assume converting them to run in FreeBSD would be as easy as changing 8th byte of the ELF header into `ELFOSABI_FREEBSD` (i.e. `9`) and recompiling with `nasm`. Unfortunately, things are not quite so easy, and binaries constructed  thus will just crash.
 
 However, even if the examples themselves are not usable, they prove that manual hacks are least possible. What we need to do is, have some kind of access into the process of dynamic loading itself, and see what we can do to decrease space. This is all done for us already, quoting manpages of `ld-elf.so`:
 
