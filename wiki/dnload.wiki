@@ -932,7 +932,7 @@ There are probably easy ways to do the same on Linux, but they are out of the sc
 `[`12`]` [http://www.pouet.net/prod.php?which=5021 helsinki-spiegelberg by tsygä in Pouet]<br>
 `[`13`]` [http://www.pouet.net/prod.php?which=10562 Yellow Rose of Texas by Fit & Bandwagon in Pouet]<br>
 `[`14`]` [http://pubs.opengroup.org/onlinepubs/009695399/functions/dlopen.html dlopen specification at The Open Group Base Specifications]<br>
-`[`15`]` [http://pubs.opengroup.org/onlinepubs/009695399/functions/dlsym.html dlopen specification at The Open Group Base Specifications]<br>
+`[`15`]` [http://pubs.opengroup.org/onlinepubs/009695399/functions/dlsym.html dlsym specification at The Open Group Base Specifications]<br>
 `[`16`]` [http://www.skyfree.org/linux/references/ELF_Format.pdf Executable and Linkable Format (ELF) specification]<br>
 `[`17`]` [http://svnweb.freebsd.org/base/stable/10/sys/sys/ FreeBSD system headers]<br>
 `[`18`]` [http://pastebin.com/f479f8beb parcelshit's original import-by-hash implementation]<br>
