@@ -849,6 +849,19 @@ This takes advantage of:
 
 *NOTE:* It might seem that `.dynamic` and `.dynsym` could be interleaved at 12 bytes instead, since the previous value in the symbol table is `DT_DEBUG`, that always takes a null value afterwards. However, as seen in [#Import_by_hash_-_scouring_ELF32 headers an earlier section], this field will be filled in runtime. In practice, interleaving at 12 bytes would crash.
 
+=== Final sizes ===
+
+Compiling with all the tricks listed above (using *-m maximum* or just omitting the option) gives us:
+
+{{{
+'hello_world.stripped': 528 bytes
+'hello_world': 425 bytes
+'quad.stripped': 1312 bytes
+'quad': 997 bytes
+}}}
+
+*NOTE:* Numbers subject to change if new progress is done.
+
 ----
 
 = Acknowledgements =
