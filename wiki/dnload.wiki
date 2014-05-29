@@ -656,7 +656,13 @@ However, even if the examples themselves are not usable, they prove that manual 
 
   The *ld-elf.so.1* utility is a self-contained shared object providing run-time support for loading and link-editing shared objects into a process' address space. It is also commonly known as the dynamic linker.
 
-Full operating system source have already been provided in `/usr/src`. Recompiling the dynamic linker is as easy as going there and building (but not installing) `world`. This constructs our dynamic linker in `/usr/obj/usr/src/libexec/rtld-elf/ld-elf.so.1`, and gives us access to the source in `/usr/src/libexec/rtld-elf/`.
+Full operating system sources have already been provided in `/usr/src`. Recompiling the dynamic linker is as easy as going there and building (but not installing) `world` by issuing:
+
+{{{
+cd /usr/src && make buildworld
+}}}
+
+This constructs our dynamic linker in `/usr/obj/usr/src/libexec/rtld-elf/ld-elf.so.1`, and gives us access to the source in `/usr/src/libexec/rtld-elf/`.
 
 The authors have been kind enough to _literally_ point out where the hacking should begin. `rtlf.c` line 334:
 
