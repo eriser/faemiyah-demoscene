@@ -33,7 +33,7 @@ symbol_prefix = "dnload_"
 target = None
 target_search_path = []
 verbose = False
-version = "r79"
+version = "r80"
 
 string_help = """Usage: %s [args] <source file> [-c output]\n
 Size-optimized executable generator for *nix platforms.\n
@@ -134,17 +134,20 @@ class PlatformVar:
       return hex(ret)
     return ret
 
-platform_mapping = { "i686" : "i386" }
+platform_mapping = {
+  "i386" : "ia32",
+  "i686" : "ia32",
+  }
 
 platform_variables = {
-    "align" : { "i386" : 4 },
-    "e_machine" : { "i386" : 3 },
-    "ei_osabi" : { "FreeBSD" : 9, "Linux" : 3 },
-    "entry" : { "i386" : 0x08048000 },
-    "interp" : { "FreeBSD" : "\"/libexec/ld-elf.so.1\"", "Linux" : "\"/lib/ld-linux.so.2\"" },
-    "memory_page" : { "i386" : 0x1000 },
-    "phdr_count" : { "default" : 3 },
-    }
+  "align" : { "ia32" : 4 },
+  "e_machine" : { "ia32" : 3 },
+  "ei_osabi" : { "FreeBSD" : 9, "Linux" : 3 },
+  "entry" : { "ia32" : 0x1000000 }, # compresses better
+  "interp" : { "FreeBSD" : "\"/libexec/ld-elf.so.1\"", "Linux" : "\"/lib/ld-linux.so.2\"" },
+  "memory_page" : { "ia32" : 0x1000 },
+  "phdr_count" : { "default" : 3 },
+  }
 
 def replace_platform_variable(name, op):
   """Destroy platform variable, replace with default."""
@@ -647,43 +650,60 @@ class AssemblerSegment:
           self.desc = ii
         else:
           raise RuntimeError("too many string arguments for list constructor")
-    if 0 >= len(self.data):
-      raise RuntimeError("segment '%s' is empty" % self.name)
-    self.add_name_label()
-    self.add_name_end_label()
+    self.refresh_name_label()
+    self.refresh_name_end_label()
 
   def add_data(self, op):
     """Add data into this segment."""
     self.data += [AssemblerVariable(op)]
+    self.refresh_name_label()
+    self.refresh_name_end_label()
 
   def add_dt_needed(self, op):
     """Add requirement to given library."""
-    friendly = get_friendly_library_name(op)
     d_tag = AssemblerVariable(("d_tag, DT_NEEDED = 1", 4, 1))
-    d_un = AssemblerVariable(("d_un, library name offset in strtab", 4, "strtab_%s - strtab" % friendly))
+    d_un = AssemblerVariable(("d_un, library name offset in strtab", 4, "strtab_%s - strtab" % labelify(op)))
     self.data[0:0] = [d_tag, d_un]
-    self.add_name_label()
+    self.refresh_name_label()
+
+  def add_hash(self, lst):
+    """Generate .hash contents based on symbol listing."""
+    self.data = []
+    # TODO: Do this better.
+    if 2 == len(lst):
+      self.add_data(("", 4, 1))
+      self.add_data(("", 4, 3))
+      self.add_data(("", 4, 2))
+      self.add_data(("", 4, 0))
+      self.add_data(("", 4, 0))
+      self.add_data(("", 4, 1))
+    elif 0 == len(lst):
+      self.add_data(("", 4, 1))
+      self.add_data(("", 4, 1))
+      self.add_data(("", 4, 0))
+      self.add_data(("", 4, 0))
 
   def add_library_name(self, op):
     """Add a library name."""
-    friendly = get_friendly_library_name(op)
-    libname = AssemblerVariable(("library name string", 1, "\"%s\"" % op, friendly))
+    libname = AssemblerVariable(("library name string", 1, "\"%s\"" % op, labelify(op)))
     terminator = AssemblerVariable(("string terminating zero", 1, 0))
     self.data += [libname, terminator]
-    self.add_name_end_label()
+    self.refresh_name_end_label()
 
-  def add_name_label(self):
-    """Add name label to first assembler variable."""
-    for ii in self.data:
-      ii.remove_label_pre(self.name)
-    self.data[0].add_label_pre(self.name)
+  def add_strtab(self, lst):
+    """Generate .strtab contents based on symbol listing."""
+    for ii in lst:
+      self.add_data(("symbol name", 1, "\"%s\"" % ii, labelify(ii)))
+      self.add_data(("string terminating zero", 1, 0))
 
-  def add_name_end_label(self):
-    """Add a name end label to last assembler variable."""
-    end_label = "%s_end" % (self.name)
-    for ii in self.data:
-      ii.remove_label_post(end_label)
-    self.data[-1].add_label_post(end_label)
+  def add_symbol_und(self, name):
+    """Add a symbol to satisfy UND from external source."""
+    self.add_data(("st_name", 4, "strtab_%s - strtab" % (name)))
+    self.add_data(("st_value", 4, name))
+    self.add_data(("st_size", 4, 4))
+    self.add_data(("st_info", 1, 17))
+    self.add_data(("st_other", 1, 0))
+    self.add_data(("st_shndx", 2, 9))
 
   def empty(self):
     """Tell if this segment is empty."""
@@ -717,8 +737,25 @@ class AssemblerSegment:
     op.data[0:highest_mergable] = []
     return True
 
+  def refresh_name_label(self):
+    """Add name label to first assembler variable."""
+    for ii in self.data:
+      ii.remove_label_pre(self.name)
+    if 0 < len(self.data):
+      self.data[0].add_label_pre(self.name)
+
+  def refresh_name_end_label(self):
+    """Add a name end label to last assembler variable."""
+    end_label = "%s_end" % (self.name)
+    for ii in self.data:
+      ii.remove_label_post(end_label)
+    if 0 < len(self.data):
+      self.data[-1].add_label_post(end_label)
+
   def write(self, fd, assembler):
     """Write segment onto disk."""
+    if 0 >= len(self.data):
+      raise RuntimeError("segment '%s' is empty" % self.name)
     fd.write(self.generate_source(assembler))
 
 assembler_ehdr = (
@@ -751,12 +788,12 @@ assembler_phdr_load_single = (
     "Elf32_Phdr, PT_LOAD",
     ("p_type, PT_LOAD = 1", 4, 1),
     ("p_offset, offset of program start", 4, 0),
-    ("p_vaddr, program virtual address", 4, 0x08048000),
+    ("p_vaddr, program virtual address", 4, PlatformVar("entry")),
     ("p_paddr, unused", 4, 0),
     ("p_filesz, program size on disk", 4, "end - ehdr"),
     ("p_memsz, program size in memory", 4, "bss_end - ehdr"),
     ("p_flags, rwx = 7", 4, 7),
-    ("p_align, usually 0x1000", 4, 4096),
+    ("p_align, usually 0x1000", 4, PlatformVar("memory_page")),
     )
 
 assembler_phdr_load_double = (
@@ -764,12 +801,12 @@ assembler_phdr_load_double = (
     "Elf32_Phdr, PT_LOAD",
     ("p_type, PT_LOAD = 1", 4, 1),
     ("p_offset, offset of program start", 4, 0),
-    ("p_vaddr, program virtual address", 4, 0x08048000),
+    ("p_vaddr, program virtual address", 4, PlatformVar("entry")),
     ("p_paddr, unused", 4, 0),
     ("p_filesz, program size on disk", 4, "end - ehdr"),
     ("p_memsz, program headers size in memory", 4, "end - ehdr"),
     ("p_flags, rwx = 7", 4, 7),
-    ("p_align, usually 0x1000", 4, 4096),
+    ("p_align, usually 0x1000", 4, PlatformVar("memory_page")),
     )
 
 assembler_phdr_load_bss = (
@@ -814,12 +851,6 @@ assembler_phdr_interp = (
 assembler_hash = (
     "hash",
     "DT_HASH",
-    ("", 4, 1),
-    ("", 4, 3),
-    ("", 4, 2),
-    ("", 4, 0),
-    ("", 4, 0),
-    ("", 4, 1),
     )
 
 assembler_dynamic = (
@@ -843,18 +874,6 @@ assembler_symtab = (
     ("empty symbol", 4, 0),
     ("empty symbol", 4, 0),
     ("unmergable empty symbol", 4, (0, 0)),
-    ("st_name", 4, "strtab_environ - strtab"),
-    ("st_value", 4, "environ"),
-    ("st_size", 4, 4),
-    ("st_info", 1, 17),
-    ("st_other", 1, 0),
-    ("st_shndx", 2, 9),
-    ("st_name", 4, "strtab_progname - strtab"),
-    ("st_value", 4, "__progname"),
-    ("st_size", 4, 4),
-    ("st_info", 1, 17),
-    ("st_other", 1, 0),
-    ("st_shndx", 2, 9),
     )
 
 assembler_interp = (
@@ -868,10 +887,6 @@ assembler_strtab = (
     "strtab",
     "DT_STRTAB",
     ("initial zero", 1, 0),
-    ("symbol name", 1, "\"__progname\"", "progname"),
-    ("string terminating zero", 1, 0),
-    ("symbol name", 1, "\"environ\"", "environ"),
-    ("string terminating zero", 1, 0),
     )
 
 ########################################
@@ -931,6 +946,8 @@ class Linker:
 
   def get_library_name(self, op):
     """Get actual name of library."""
+    if op.startswith("/"):
+      return op
     libname = "lib%s.so" % (op)
     # Shared object may be linker script, if so, it will tell actual shared object.
     for ii in self.library_directories:
@@ -946,9 +963,23 @@ class Linker:
           return ret
     return libname
 
-  def get_linker_script(self, src, dst):
-    """Try to link, generate linker script as side effect."""
-    return self.link(src, dst, ["--verbose"])
+  def generate_linker_script(self, dst):
+    """Get linker script from linker, improve it, write improved linker script to given file."""
+    (so, se) = run_command([self.command, "--verbose"])
+    if 0 < len(se) and verbose:
+      print(se)
+    match = re.match(r'.*linker script\S+\s*\n=+\s+(.*)\s+=+\s*\n.*', so, re.DOTALL)
+    if not match:
+      raise RuntimeError("could not extract script from linker output")
+    ld_script = match.group(1)
+    ld_script = re.sub(r'\n([^\n]+)(_end|_edata|__bss_start)(\s*=[^\n]+)\n', r'\n\1/*\2\3*/\n', ld_script, re.MULTILINE)
+    ld_script = re.sub(r'SEGMENT_START\s*\(\s*(\S+)\s*,\s*\d*x?\d+\s*\)', r'SEGMENT_START(\1, %s)' % (str(PlatformVar("entry"))), ld_script, re.MULTILINE)
+    fd = open(dst, "w")
+    fd.write(ld_script)
+    fd.close()
+    if verbose:
+      print("Wrote linker script '%s'." % (dst))
+    return ld_script
 
   def link(self, src, dst, extra_args = []):
     """Link a file."""
@@ -961,10 +992,11 @@ class Linker:
   def link_binary(self, src, dst):
     """Link a binary file with no bells and whistles."""
     entry_param = "--entry=" + str(PlatformVar("entry"))
-    cmd = [self.command, "--oformat=binary", entry_param, src, "-o", dst]
+    cmd = [self.command, "--oformat=binary", entry_param, src, "-o", dst] + self.linker_script
     (so, se) = run_command(cmd)
     if 0 < len(se) and verbose:
       print(se)
+    return so
 
   def set_libraries(self, lst):
     """Set libraries to link."""
@@ -1661,6 +1693,10 @@ def find_symbols(lst):
     ret += [find_symbol(ii)]
   return ret
 
+def labelify(op):
+  """Take string as input. Convert into string that passes as label."""
+  return re.sub(r'[\/\.]', '_', op)
+
 def listify(lhs, rhs):
   """Make a list of two elements if reasonable."""
   if not lhs:
@@ -1674,22 +1710,6 @@ def listify(lhs, rhs):
   if is_listing(rhs):
     return [lhs] + rhs
   return [lhs, rhs]
-
-def generate_linker_script(src, dst):
-  """Get the linker script from given listing, write improved linker script to given file."""
-  match = re.match(r'.*linker script\S+\s*\n=+\s+(.*)\s+=+\s*\n.*', src, re.DOTALL)
-  if not match:
-    raise RuntimeError("could not extract script from linker output")
-  ld_script = re.sub(r'\n([^\n]+)(_end|_edata|__bss_start)(\s*=[^\n]+)\n', r'\n\1/*\2\3*/\n', match.group(1), re.MULTILINE)
-  fd = open(dst, "w")
-  fd.write(ld_script)
-  fd.close()
-  if verbose:
-    print("Wrote linker script '%s'." % (dst))
-
-def get_friendly_library_name(op):
-  """Get library name suitable for labels."""
-  return op.replace(".", "_")
 
 def get_indent(op):
   """Get indentation for given level."""
@@ -1742,8 +1762,8 @@ def merge_segments(lst):
 def osarch_is_ia32():
   """Check is the OS architecture maps to IA-32."""
   if osarch in platform_mapping:
-    return "i386" == platform_mapping[osarch]
-  return "i386" == osarch
+    return "ia32" == platform_mapping[osarch]
+  return "ia32" == osarch
 
 def readelf_truncate(src, dst):
   """Truncate file to size reported by readelf first PT_LOAD file size."""
@@ -2023,6 +2043,20 @@ if __name__ == "__main__":
       segment_symtab = AssemblerSegment(assembler_symtab)
       segment_interp = AssemblerSegment(assembler_interp)
       segment_strtab = AssemblerSegment(assembler_strtab)
+      und_symbol_string = "Checking for required UND symbols... "
+      if "FreeBSD" == osname:
+        und_symbols = ["environ", "__progname"]
+      else:
+        und_symbols = []
+      if verbose:
+        if 0 < len(und_symbols):
+          print(und_symbol_string + str(und_symbols))
+        else:
+          print(und_symbol_string + "none")
+      for ii in und_symbols:
+        segment_symtab.add_symbol_und(ii)
+      segment_hash.add_hash(und_symbols)
+      segment_strtab.add_strtab(und_symbols)
       for ii in libraries:
         library_name = linker.get_library_name(ii)
         segment_dynamic.add_dt_needed(library_name)
@@ -2047,6 +2081,8 @@ if __name__ == "__main__":
       if verbose:
         print("Wrote assembler source '%s'." % (output_file + ".final.S"))
       assembler.assemble(output_file + ".final.S", output_file + ".o")
+      linker.generate_linker_script(output_file + ".ld")
+      linker.set_linker_script(output_file + ".ld")
       linker.link_binary(output_file + ".o", output_file + ".unprocessed")
       readelf_truncate(output_file + ".unprocessed", output_file + ".stripped")
     elif "hash" == compilation_mode:
@@ -2055,8 +2091,7 @@ if __name__ == "__main__":
       asm.remove_rodata()
       asm.write(output_file + ".final.S", assembler)
       assembler.assemble(output_file + ".final.S", output_file + ".o")
-      linker_script = linker.get_linker_script(output_file + ".o", output_file + ".unprocessed")
-      generate_linker_script(linker_script, output_file + ".ld")
+      linker.generate_linker_script(output_file + ".ld")
       linker.set_linker_script(output_file + ".ld")
       linker.link(output_file + ".o", output_file + ".unprocessed")
     elif "dlfcn" == compilation_mode or "vanilla" == compilation_mode:
