@@ -33,6 +33,7 @@ symbol_prefix = "dnload_"
 target = None
 target_search_path = []
 verbose = False
+version = "r79"
 
 string_help = """Usage: %s [args] <source file> [-c output]\n
 Size-optimized executable generator for *nix platforms.\n
@@ -45,7 +46,8 @@ Command line options without arguments:
   -c, --create-binary   Create output file, determine output file name from
                         input file name.
   -h, --help            Print this help string.
-  -v, --verbose         Print more about what is being done.\n
+  -v, --verbose         Print more about what is being done.
+  -V, --version         Print version and exit.\n
 Command line options with arguments:
   -A, --assembler           Try to use given assembler executable as opposed to
                             autodetect.
@@ -1878,6 +1880,9 @@ if __name__ == "__main__":
       compression = sys.argv[ii]
     elif arg in ("-v", "--verbose"):
       verbose = True
+    elif arg in ("-V", "--version"):
+      print(version)
+      sys.exit(0)
     else:
       source_files += [sys.argv[ii]]
     ii += 1
