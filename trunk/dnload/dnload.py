@@ -33,7 +33,7 @@ symbol_prefix = "dnload_"
 target = None
 target_search_path = []
 verbose = False
-version = "r80"
+version = "r83"
 
 string_help = """Usage: %s [args] <source file> [-c output]\n
 Size-optimized executable generator for *nix platforms.\n
