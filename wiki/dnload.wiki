@@ -279,7 +279,7 @@ Have fun!
 
 = The quest for minimal ELF32 binaries =
 
-This section of the documentation explores both the current and historical methods of reducing executable file size on `*`nix systems. If you are only interested in the current 'best practice' operation of the script, you can [#Findings skip directly therein].
+This section of the documentation explores both the current and historical methods of reducing executable file size on `*`nix systems. If you are only interested in the current 'best practice' operation of the script, you can [#Current_compression_procedure skip directly therein].
 
 == Compiler flags ==
 
@@ -795,7 +795,7 @@ The file size will use `end` while the memory size will use 'bss_end`.
 
 === Entry into and exit from `_start` ===
 
-As described [#Examining_the_source earlier], we take care from entry and exit from the `_start` procedure ourselves. The compiler will happily push registers at the beginning and subtract the stack at the end of the function. On IA-32, this looks like the following (from `hello_world.cpp` example):
+As described [#Example_program earlier], we take care from entry and exit from the `_start` procedure ourselves. The compiler will happily push registers at the beginning and subtract the stack at the end of the function. On IA-32, this looks like the following (from `hello_world.cpp` example):
 
 {{{
 _start:
