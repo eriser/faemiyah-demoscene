@@ -896,11 +896,11 @@ Even on a 64-bit system, you should be able to execute the result file if the co
 
 There are probably easy ways to do the same on Linux, but they are out of the scope of this document.
 
-=== What does `USE``_``LD` stand for? ===
+==== What does `USE_LD` stand for? ====
 
 The name `USE``_``LD` is legacy, which has preserved unchanged from earlier Faemiyah prods. You may change the definition with the `-d` or `--definition` command line argument when invoking the script.
 
-=== Do I need to use `_``start` ? ===
+==== Do I need to use `_start` ? ====
 
 When manually creating the program headers, the symbol would not necessarily need to be named `_``start` - it could be anything, and the name will be stripped out anyway. However, this is a known convention.
 
