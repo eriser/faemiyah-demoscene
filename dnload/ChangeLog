@@ -1,7 +1,8 @@
-r80 (2014-05-31)
+r82 (2014-05-31)
   * Omit unnecessary 'environ' and '__progname' symbols on non-FreeBSD platforms.
   * Construct .hash, .strtab and .symtab as needed.
   * Enable changing entry point, use a better compressable one.
+  * Added README that points to the online documentation.
 
 r79 (2014-05-30)
   * First public version.
