@@ -848,6 +848,12 @@ This takes advantage of:
 
 *NOTE:* It might seem that `.dynamic` and `.dynsym` could be interleaved at 12 bytes instead, since the previous value in the symbol table is `DT_DEBUG`, that always takes a null value afterwards. However, as seen in [#Import_by_hash_-_scouring_ELF32 headers an earlier section], this field will be filled in runtime. In practice, interleaving at 12 bytes would crash.
 
+=== Entry point ===
+
+Default ELF entry point is fixed to address `0x8048000`. This can be changed to a better compressable address.
+
+The only issue here is that specifying `--entry` to `ld` does not actually change the entry point (it probably would if `ld` would also construct the headers). We need to modify linker scripts. This is done the same way as [Import_by_hash_-_scouring_ELF32_headers earlier] - make the linker export the full linker script and change the `SEGMENT_START` directives into a better constant (`0x01000000` at the time of writing).
+
 === Final sizes ===
 
 Compiling with all the tricks listed above (using *-m maximum* or just omitting the option) gives us:
