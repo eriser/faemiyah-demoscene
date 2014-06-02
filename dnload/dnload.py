@@ -1830,14 +1830,14 @@ def main():
   parser.add_argument("-C", "--compiler", help = "Try to use given compiler executable as opposed to autodetect.")
   parser.add_argument("-d", "--define", help = "Definition to use for checking whether to use 'safe' mechanism instead of dynamic loading.\n(default: %s)" % (definition_ld))
   parser.add_argument("-h", "--help", action = "store_true", help = "Print this help string and exit.")
-  parser.add_argument("-I", "--include-directory", nargs = 1, help = "Add an include directory to be searched for header files.")
+  parser.add_argument("-I", "--include-directory", action = "append", help = "Add an include directory to be searched for header files.")
   parser.add_argument("-k", "--linker", help = "Try to use given linker executable as opposed to autodetect.")
-  parser.add_argument("-l", "--library", nargs = 1, help = "Add a library to be linked against.")
-  parser.add_argument("-L", "--library-directory", nargs = 1, help = "Add a library directory to be searched for libraries when linking.")
+  parser.add_argument("-l", "--library", action = "append", help = "Add a library to be linked against.")
+  parser.add_argument("-L", "--library-directory", action = "append", help = "Add a library directory to be searched for libraries when linking.")
   parser.add_argument("-m", "--method", choices = ("vanilla", "dlfcn", "hash", "maximum"), help = "Method to use for decreasing output file size:\n\tvanilla:\n\t\tProduce binary normally, use no tricks except unpack header.\n\tdlfcn:\n\t\tUse dlopen/dlsym to decrease size without dependencies to any specific object format.\n\thash:\n\t\tUse knowledge of object file format to perform 'import by hash' loading, but do not break any specifications.\n\tmaximum:\n\t\tUse all available techniques to decrease output file size. Resulting file may violate object file specification.\n(default: %s)" % (compilation_mode))
   parser.add_argument("-o", "--output-file", help = "Compile a named binary, do not only create a header. If the name specified features a path, it will be used verbatim. Otherwise the binary will be created in the same path as source file(s) compiled.")
   parser.add_argument("-P", "--call-prefix", help = "Call prefix to identify desired calls.\n(default: %s)" % (symbol_prefix))
-  parser.add_argument("-s", "--search-path", nargs = 1, help = "Directory to search for the header file to generate. May be specified multiple times. If not given, searches paths of source files to compile. If not given and no source files to compile, current path will be used.")
+  parser.add_argument("-s", "--search-path", action = "append", help = "Directory to search for the header file to generate. May be specified multiple times. If not given, searches paths of source files to compile. If not given and no source files to compile, current path will be used.")
   parser.add_argument("-S", "--strip-binary", help = "Try to use given strip executable as opposed to autodetect.")
   parser.add_argument("-t", "--target", help = "Target header file to look for.\n(default: %s)" % (target))
   parser.add_argument("-u", "--unpack-header", choices = ("lzma", "xz"), help = "Unpack header to use.\n(default: %s)" % (compression))
@@ -1846,6 +1846,7 @@ def main():
   parser.add_argument("source", nargs = "*", help = "Source file(s) to preprocess and/or compile.")
  
   args = parser.parse_args()
+  print(str(args))
   if args.assembler:
     assembler = args.assembler
   if args.create_binary:
@@ -2008,6 +2009,8 @@ def main():
       if output_basename == output_file:
         output_path = target_path
       output_file = os.path.normpath(os.path.join(output_path, output_basename))
+    if verbose:
+      print("Linking against libraries: %s" % (str(libraries)))
     compiler.generate_compiler_flags()
     compiler.generate_linker_flags()
     compiler.set_definitions([])
