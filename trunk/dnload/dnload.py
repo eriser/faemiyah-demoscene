@@ -39,10 +39,12 @@ class PlatformVar:
     var = platform_variables[self.name]
     platform = (osname, osarch)
     for ii in platform:
-      if ii in platform_mapping:
-        ii = platform_mapping[ii]
       if ii in var:
         return var[ii]
+      while ii in platform_mapping:
+        ii = platform_mapping[ii]
+        if ii in var:
+          return var[ii]
     if "default" in var:
       return var["default"]
     raise RuntimeError("current platform %s not supported for variable '%s'" % (str(platform), self.name))
@@ -62,17 +64,26 @@ class PlatformVar:
     return ret
 
 platform_mapping = {
+  "amd64" : "64-bit",
+  "freebsd" : "FreeBSD",
   "i386" : "ia32",
   "i686" : "ia32",
+  "ia32" : "32-bit",
+  "linux" : "Linux",
   }
 
 platform_variables = {
-  "align" : { "ia32" : 4 },
-  "e_machine" : { "ia32" : 3 },
+  "addr" : { "32-bit" : 4, "64-bit" : 8 },
+  "align" : { "32-bit" : 4, "64-bit" : 8 },
+  "e_machine" : { "amd64" : 62, "ia32" : 3 },
+  "ei_class" : { "32-bit" : 1, "64-bit" : 2 },
   "ei_osabi" : { "FreeBSD" : 9, "Linux" : 3 },
-  "entry" : { "ia32" : 0x1000000 }, # compresses better
+  "entry" : { "32-bit" : 0x2000000, "64-bit" : 0x400000 },
+  #"entry" : { "32-bit" : 0x8048000, "64-bit" : 0x400000 },
   "interp" : { "FreeBSD" : "\"/libexec/ld-elf.so.1\"", "Linux" : "\"/lib/ld-linux.so.2\"" },
-  "memory_page" : { "ia32" : 0x1000 },
+  "march" : { "amd64" : "core2", "ia32" : "pentium4" },
+  "memory_page" : { "32-bit" : 0x1000, "64-bit" : 0x200000 },
+  "mpreferred-stack-boundary" : { "32-bit" : 2, "64-bit" : 4 },
   "phdr_count" : { "default" : 3 },
   }
 
@@ -96,6 +107,7 @@ class Assembler:
     self.byte = ".byte"
     self.short = ".short"
     self.word = ".long"
+    self.quad = ".quad"
     self.string = ".ascii"
     op = os.path.basename(op)
     if op.startswith("nasm"):
@@ -138,6 +150,7 @@ class Assembler:
 
   def format_data(self, size, value, indent = ""):
     """Get data element."""
+    size = int(size)
     if isinstance(value, int):
       value = hex(value)
     elif is_listing(value):
@@ -158,6 +171,8 @@ class Assembler:
       return indent + self.short + " " + value + "\n"
     elif 4 == size:
       return indent + self.word + " " + value + "\n"
+    elif 8 == size:
+      return indent + self.quad + " " + value + "\n"
     else:
       raise NotImplementedError("exporting assembler value of size %i", size)
 
@@ -344,7 +359,7 @@ class AssemblerSection:
         self.erase(lst[0])
         continue
       break
-    if osarch_is_ia32:
+    if osarch_is_ia32():
       self.crunch_ia32()
     self.tag = None
 
@@ -529,7 +544,7 @@ class AssemblerVariable:
 
   def mergable(self, op):
     """Tell if the two assembler variables are mergable."""
-    if self.size != op.size:
+    if int(self.size) != int(op.size):
       return False
     if self.value != op.value:
       return False
@@ -588,8 +603,8 @@ class AssemblerSegment:
 
   def add_dt_needed(self, op):
     """Add requirement to given library."""
-    d_tag = AssemblerVariable(("d_tag, DT_NEEDED = 1", 4, 1))
-    d_un = AssemblerVariable(("d_un, library name offset in strtab", 4, "strtab_%s - strtab" % labelify(op)))
+    d_tag = AssemblerVariable(("d_tag, DT_NEEDED = 1", PlatformVar("addr"), 1))
+    d_un = AssemblerVariable(("d_un, library name offset in strtab", PlatformVar("addr"), "strtab_%s - strtab" % labelify(op)))
     self.data[0:0] = [d_tag, d_un]
     self.refresh_name_label()
 
@@ -623,14 +638,38 @@ class AssemblerSegment:
       self.add_data(("symbol name", 1, "\"%s\"" % ii, labelify(ii)))
       self.add_data(("string terminating zero", 1, 0))
 
+  def add_symbol_empty(self):
+    """Add an empty symbol."""
+    if osarch_is_32_bit():
+      self.add_data(("empty symbol", 4, 0))
+      self.add_data(("empty symbol", 4, 0))
+      self.add_data(("unmergable empty symbol", 4, (0, 0)))
+    elif osarch_is_64_bit():
+      self.add_data(("empty symbol", 4, 0))
+      self.add_data(("empty symbol", 4, 0))
+      self.add_data(("empty symbol", PlatformVar("addr"), 0))
+      self.add_data(("empty symbol", PlatformVar("addr"), 0))
+    else:
+      raise_unknown_address_size()
+
   def add_symbol_und(self, name):
     """Add a symbol to satisfy UND from external source."""
-    self.add_data(("st_name", 4, "strtab_%s - strtab" % (name)))
-    self.add_data(("st_value", 4, name))
-    self.add_data(("st_size", 4, 4))
-    self.add_data(("st_info", 1, 17))
-    self.add_data(("st_other", 1, 0))
-    self.add_data(("st_shndx", 2, 9))
+    if osarch_is_32_bit():
+      self.add_data(("st_name", 4, "strtab_%s - strtab" % (name)))
+      self.add_data(("st_value", PlatformVar("addr"), name))
+      self.add_data(("st_size", PlatformVar("addr"), PlatformVar("addr")))
+      self.add_data(("st_info", 1, 17))
+      self.add_data(("st_other", 1, 0))
+      self.add_data(("st_shndx", 2, 1))
+    elif osarch_is_64_bit():
+      self.add_data(("st_name", 4, "strtab_%s - strtab" % (name)))
+      self.add_data(("st_info", 1, 17))
+      self.add_data(("st_other", 1, 0))
+      self.add_data(("st_shndx", 2, 1))
+      self.add_data(("st_value", PlatformVar("addr"), name))
+      self.add_data(("st_size", PlatformVar("addr"), PlatformVar("addr")))
+    else:
+      raise_unknown_address_size()
 
   def empty(self):
     """Tell if this segment is empty."""
@@ -687,20 +726,21 @@ class AssemblerSegment:
 
 assembler_ehdr = (
     "ehdr",
-    "Elf32_Ehdr",
+    "Elf32_Ehdr or Elf64_Ehdr",
     ("e_ident[EI_MAG0], magic value 0x7F", 1, 0x7F),
     ("e_ident[EI_MAG1] to e_indent[EI_MAG3], magic value \"ELF\"", 1, "\"ELF\""),
-    ("e_ident[EI_CLASS], ELFCLASS32 = 1", 1, 1),
-    ("e_ident[EI_DATA], ELFDATA2LSB = 1", 1, 1),
+    ("e_ident[EI_CLASS], ELFCLASS32 = 1, ELFCLASS64 = 2", 1, PlatformVar("ei_class")),
+    ("e_ident[EI_DATA], ELFDATA2LSB = 1, ELFDATA2MSB = 2", 1, 1),
     ("e_ident[EI_VERSION], EV_CURRENT = 1", 1, 1),
     ("e_ident[EI_OSABI], ELFOSABI_LINUX = 3, ELFOSABI_FREEBSD = 9", 1, PlatformVar("ei_osabi")),
-    ("e_indent[EI_MAG9 to EI_MAG15], unused", 1, [0, 0, 0, 0, 0, 0, 0, 0]),
+    ("e_ident[EI_ABIVERSION], always 0", 1, 0),
+    ("e_indent[EI_MAG10 to EI_MAG15], unused", 1, [0, 0, 0, 0, 0, 0, 0]),
     ("e_type, ET_EXEC = 2", 2, 2),
-    ("e_machine, EM_386 = 3", 2, PlatformVar("e_machine")),
+    ("e_machine, EM_386 = 3, EM_X86_64 = 62", 2, PlatformVar("e_machine")),
     ("e_version, EV_CURRENT = 1", 4, 1),
-    ("e_entry, execution starting point", 4, "_start"),
-    ("e_phoff, offset from start to program headers", 4, "ehdr_end - ehdr"),
-    ("e_shoff, start of section headers", 4, 0),
+    ("e_entry, execution starting point", PlatformVar("addr"), "_start"),
+    ("e_phoff, offset from start to program headers", PlatformVar("addr"), "ehdr_end - ehdr"),
+    ("e_shoff, start of section headers", PlatformVar("addr"), 0),
     ("e_flags, unused", 4, 0),
     ("e_ehsize, Elf32_Ehdr size", 2, "ehdr_end - ehdr"),
     ("e_phentsize, Elf32_Phdr size", 2, "phdr_load_end - phdr_load"),
@@ -710,69 +750,108 @@ assembler_ehdr = (
     ("e_shstrndx, index of section containing string table of section header names", 2, 0),
     )
 
-assembler_phdr_load_single = (
+assembler_phdr32_load_single = (
     "phdr_load",
     "Elf32_Phdr, PT_LOAD",
     ("p_type, PT_LOAD = 1", 4, 1),
-    ("p_offset, offset of program start", 4, 0),
-    ("p_vaddr, program virtual address", 4, PlatformVar("entry")),
-    ("p_paddr, unused", 4, 0),
-    ("p_filesz, program size on disk", 4, "end - ehdr"),
-    ("p_memsz, program size in memory", 4, "bss_end - ehdr"),
+    ("p_offset, offset of program start", PlatformVar("addr"), 0),
+    ("p_vaddr, program virtual address", PlatformVar("addr"), PlatformVar("entry")),
+    ("p_paddr, unused", PlatformVar("addr"), 0),
+    ("p_filesz, program size on disk", PlatformVar("addr"), "end - ehdr"),
+    ("p_memsz, program size in memory", PlatformVar("addr"), "bss_end - ehdr"),
     ("p_flags, rwx = 7", 4, 7),
-    ("p_align, usually 0x1000", 4, PlatformVar("memory_page")),
+    ("p_align, usually 0x1000", PlatformVar("addr"), PlatformVar("memory_page")),
     )
 
-assembler_phdr_load_double = (
+assembler_phdr32_load_double = (
     "phdr_load",
     "Elf32_Phdr, PT_LOAD",
     ("p_type, PT_LOAD = 1", 4, 1),
-    ("p_offset, offset of program start", 4, 0),
-    ("p_vaddr, program virtual address", 4, PlatformVar("entry")),
-    ("p_paddr, unused", 4, 0),
-    ("p_filesz, program size on disk", 4, "end - ehdr"),
-    ("p_memsz, program headers size in memory", 4, "end - ehdr"),
+    ("p_offset, offset of program start", PlatformVar("addr"), 0),
+    ("p_vaddr, program virtual address", PlatformVar("addr"), PlatformVar("entry")),
+    ("p_paddr, unused", PlatformVar("addr"), 0),
+    ("p_filesz, program size on disk", PlatformVar("addr"), "end - ehdr"),
+    ("p_memsz, program headers size in memory", PlatformVar("addr"), "end - ehdr"),
     ("p_flags, rwx = 7", 4, 7),
-    ("p_align, usually 0x1000", 4, PlatformVar("memory_page")),
+    ("p_align, usually 0x1000", PlatformVar("addr"), PlatformVar("memory_page")),
     )
 
-assembler_phdr_load_bss = (
+assembler_phdr32_load_bss = (
     "phdr_load_bss",
     "Elf32_Phdr, PT_LOAD (.bss)",
     ("p_type, PT_LOAD = 1", 4, 1),
-    ("p_offset, offset of fake .bss segment", 4, "end - ehdr"),
-    ("p_vaddr, program virtual address", 4, "bss_start"),
-    ("p_paddr, unused", 4, 0),
-    ("p_filesz, .bss size on disk", 4, 0),
-    ("p_memsz, .bss size in memory", 4, "bss_end - end"),
+    ("p_offset, offset of fake .bss segment", PlatformVar("addr"), "end - ehdr"),
+    ("p_vaddr, program virtual address", PlatformVar("addr"), "bss_start"),
+    ("p_paddr, unused", PlatformVar("addr"), 0),
+    ("p_filesz, .bss size on disk", PlatformVar("addr"), 0),
+    ("p_memsz, .bss size in memory", PlatformVar("addr"), "bss_end - end"),
     ("p_flags, rw = 6", 4, 6),
-    ("p_align, usually 0x1000", 4, 4096),
+    ("p_align, usually 0x1000", PlatformVar("addr"), PlatformVar("memory_page")),
     )
 
-assembler_phdr_dynamic = (
+assembler_phdr32_dynamic = (
     "phdr_dynamic",
     "Elf32_Phdr, PT_DYNAMIC",
     ("p_type, PT_DYNAMIC = 2", 4, 2),
-    ("p_offset, offset of block", 4, "dynamic - ehdr"),
-    ("p_vaddr, address of block", 4, "dynamic"),
-    ("p_paddr, unused", 4, 0),
-    ("p_filesz, block size on disk", 4, "dynamic_end - dynamic"),
-    ("p_memsz, block size in memory", 4, "dynamic_end - dynamic"),
+    ("p_offset, offset of block", PlatformVar("addr"), "dynamic - ehdr"),
+    ("p_vaddr, address of block", PlatformVar("addr"), "dynamic"),
+    ("p_paddr, unused", PlatformVar("addr"), 0),
+    ("p_filesz, block size on disk", PlatformVar("addr"), "dynamic_end - dynamic"),
+    ("p_memsz, block size in memory", PlatformVar("addr"), "dynamic_end - dynamic"),
     ("p_flags, ignored", 4, 0),
-    ("p_align", 4, 4),
+    ("p_align", PlatformVar("addr"), 4),
     )
 
-assembler_phdr_interp = (
+assembler_phdr32_interp = (
     "phdr_interp",
     "Elf32_Phdr, PT_INTERP",
     ("p_type, PT_INTERP = 3", 4, 3),
-    ("p_offset, offset of block", 4, "interp - ehdr"),
-    ("p_vaddr, address of block", 4, "interp"),
-    ("p_paddr, unused", 4, 0),
-    ("p_filesz, block size on disk", 4, "interp_end - interp"),
-    ("p_memsz, block size in memory", 4, "interp_end - interp"),
+    ("p_offset, offset of block", PlatformVar("addr"), "interp - ehdr"),
+    ("p_vaddr, address of block", PlatformVar("addr"), "interp"),
+    ("p_paddr, unused", PlatformVar("addr"), 0),
+    ("p_filesz, block size on disk", PlatformVar("addr"), "interp_end - interp"),
+    ("p_memsz, block size in memory", PlatformVar("addr"), "interp_end - interp"),
     ("p_flags, ignored", 4, 0),
-    ("p_align, 1 for strtab", 4, 1),
+    ("p_align, 1 for strtab", PlatformVar("addr"), 1),
+    )
+
+assembler_phdr64_load_single = (
+    "phdr_load",
+    "Elf64_Phdr, PT_LOAD",
+    ("p_type, PT_LOAD = 1", 4, 1),
+    ("p_flags, rwx = 7", 4, 7),
+    ("p_offset, offset of program start", PlatformVar("addr"), 0),
+    ("p_vaddr, program virtual address", PlatformVar("addr"), PlatformVar("entry")),
+    ("p_paddr, unused", PlatformVar("addr"), 0),
+    ("p_filesz, program size on disk", PlatformVar("addr"), "end - ehdr"),
+    ("p_memsz, program size in memory", PlatformVar("addr"), "bss_end - ehdr"),
+    ("p_align, usually 0x1000", PlatformVar("addr"), PlatformVar("memory_page")),
+    )
+
+assembler_phdr64_dynamic = (
+    "phdr_dynamic",
+    "Elf64_Phdr, PT_DYNAMIC",
+    ("p_type, PT_DYNAMIC = 2", 4, 2),
+    ("p_flags, ignored", 4, 0),
+    ("p_offset, offset of block", PlatformVar("addr"), "dynamic - ehdr"),
+    ("p_vaddr, address of block", PlatformVar("addr"), "dynamic"),
+    ("p_paddr, unused", PlatformVar("addr"), 0),
+    ("p_filesz, block size on disk", PlatformVar("addr"), "dynamic_end - dynamic"),
+    ("p_memsz, block size in memory", PlatformVar("addr"), "dynamic_end - dynamic"),
+    ("p_align", PlatformVar("addr"), 4),
+    )
+
+assembler_phdr64_interp = (
+    "phdr_interp",
+    "Elf64_Phdr, PT_INTERP",
+    ("p_type, PT_INTERP = 3", 4, 3),
+    ("p_flags, ignored", 4, 0),
+    ("p_offset, offset of block", PlatformVar("addr"), "interp - ehdr"),
+    ("p_vaddr, address of block", PlatformVar("addr"), "interp"),
+    ("p_paddr, unused", PlatformVar("addr"), 0),
+    ("p_filesz, block size on disk", PlatformVar("addr"), "interp_end - interp"),
+    ("p_memsz, block size in memory", PlatformVar("addr"), "interp_end - interp"),
+    ("p_align, 1 for strtab", PlatformVar("addr"), 1),
     )
 
 assembler_hash = (
@@ -783,24 +862,21 @@ assembler_hash = (
 assembler_dynamic = (
     "dynamic",
     "PT_DYNAMIC",
-    ("d_tag, DT_HASH = 4", 4, 4),
-    ("d_un", 4, "hash"),
-    ("d_tag, DT_STRTAB = 5", 4, 5),
-    ("d_un", 4, "strtab"),
-    ("d_tag, DT_SYMTAB = 6", 4, 6),
-    ("d_un", 4, "symtab"),
-    ("d_tag, DT_DEBUG = 21", 4, 21),
-    ("d_un", 4, 0),
-    ("d_tag, DT_NULL = 0", 4, 0),
-    ("d_un", 4, 0),
+    ("d_tag, DT_HASH = 4", PlatformVar("addr"), 4),
+    ("d_un", PlatformVar("addr"), "hash"),
+    ("d_tag, DT_STRTAB = 5", PlatformVar("addr"), 5),
+    ("d_un", PlatformVar("addr"), "strtab"),
+    ("d_tag, DT_SYMTAB = 6", PlatformVar("addr"), 6),
+    ("d_un", PlatformVar("addr"), "symtab"),
+    ("d_tag, DT_DEBUG = 21", PlatformVar("addr"), 21),
+    ("d_un", PlatformVar("addr"), 0),
+    ("d_tag, DT_NULL = 0", PlatformVar("addr"), 0),
+    ("d_un", PlatformVar("addr"), 0),
     )
 
 assembler_symtab = (
     "symtab",
     "DT_SYMTAB",
-    ("empty symbol", 4, 0),
-    ("empty symbol", 4, 0),
-    ("unmergable empty symbol", 4, (0, 0)),
     )
 
 assembler_interp = (
@@ -874,6 +950,9 @@ class Linker:
   def get_library_name(self, op):
     """Get actual name of library."""
     if op.startswith("/"):
+      return op
+    # Check if the library is specified verbatim. If yes, no need to expand.
+    if re.match(r'lib.+\.so(\..*)?', op):
       return op
     libname = "lib%s.so" % (op)
     # Shared object may be linker script, if so, it will tell actual shared object.
@@ -980,9 +1059,9 @@ class Compiler(Linker):
     """Generate compiler flags."""
     self.compiler_flags = []
     if self.command_basename.startswith("g++") or self.command_basename.startswith("gcc"):
-      self.compiler_flags += ["-Os", "-ffast-math", "-fno-asynchronous-unwind-tables", "-fno-exceptions", "-fno-rtti", "-fno-threadsafe-statics", "-fomit-frame-pointer", "-fsingle-precision-constant", "-fwhole-program", "-march=pentium4", "-mpreferred-stack-boundary=2"]
+      self.compiler_flags += ["-Os", "-ffast-math", "-fno-asynchronous-unwind-tables", "-fno-exceptions", "-fno-rtti", "-fno-threadsafe-statics", "-fomit-frame-pointer", "-fsingle-precision-constant", "-fwhole-program", "-march=%s" % (str(PlatformVar("march"))), "-mpreferred-stack-boundary=%i" % (int(PlatformVar("mpreferred-stack-boundary"))), "-Wall"]
     elif self.command_basename.startswith("clang"):
-      self.compiler_flags += ["-Os", "-ffast-math", "-fno-asynchronous-unwind-tables", "-fno-exceptions", "-fno-rtti", "-fno-threadsafe-statics", "-fomit-frame-pointer", "-march=pentium4"]
+      self.compiler_flags += ["-Os", "-ffast-math", "-fno-asynchronous-unwind-tables", "-fno-exceptions", "-fno-rtti", "-fno-threadsafe-statics", "-fomit-frame-pointer", "-march=%s" % (str(PlatformVar("march"))), "-Wall"]
     else:
       raise RuntimeError("compilation not supported with compiler '%s'" % (self.command_basename))
 
@@ -1337,7 +1416,6 @@ static uint32_t sdbm_hash(const uint8_t *op)
     ret = ret * 65599 + cc;
   }
 }
-#if defined(__i386)
 #if defined(__FreeBSD__)
 #include <sys/link_elf.h>
 #elif defined(__linux__)
@@ -1347,6 +1425,86 @@ static uint32_t sdbm_hash(const uint8_t *op)
 #endif
 /** \\brief ELF base address. */
 #define ELF_BASE_ADDRESS %s
+#if (defined(_LP64) && _LP64) || (defined(__LP64__) && __LP64__)
+/** \\brief Get the address associated with given tag in a dynamic section.
+ *
+ * \\param dyn Dynamic section.
+ * \\param tag Tag to look for.
+ * \\return Address matching given tag.
+ */
+static const void* elf64_get_dynamic_address_by_tag(const void *dyn, Elf64_Sxword tag)
+{
+  const Elf64_Dyn *dynamic = (Elf64_Dyn*)dyn;
+  for(;;)
+  {
+    if(dynamic->d_tag == tag)
+    {
+      return (const void*)dynamic->d_un.d_ptr;
+    }
+    ++dynamic;
+  }
+}
+/** \\brief Get the program link map.
+ *
+ * \\return Link map struct.
+ */
+static const struct link_map* elf64_get_link_map()
+{
+  // ELF header is in a fixed location in memory.
+  // First program header is located directly afterwards.
+  const Elf64_Ehdr *ehdr = (const Elf64_Ehdr*)ELF_BASE_ADDRESS;
+  const Elf64_Phdr *phdr = (const Elf64_Phdr*)((size_t)ehdr + (size_t)ehdr->e_phoff);
+  // Find the dynamic header by traversing the phdr array.
+  for(; (phdr->p_type != PT_DYNAMIC); ++phdr) { }
+  // Find the debug entry in the dynamic header array.
+  {
+    const struct r_debug *debug = (const struct r_debug*)elf64_get_dynamic_address_by_tag((const void*)phdr->p_vaddr, DT_DEBUG);
+    return debug->r_map;
+  }
+}
+/** \\brief Get address of one dynamic section corresponding to given library.
+ *
+ * \param lmap Link map.
+ * \param tag Tag to look for.
+ */
+static const void* elf64_get_library_dynamic_section(const struct link_map *lmap, Elf64_Sxword tag)
+{
+  const void *ret = elf64_get_dynamic_address_by_tag(lmap->l_ld, tag);
+  // Sometimes the value is an offset instead of a naked pointer.
+  return (ret < (void*)lmap->l_addr) ? (uint8_t*)ret + (size_t)lmap->l_addr : ret;
+}
+/** \\brief Find a symbol in any of the link maps.
+ *
+ * Should a symbol with name matching the given hash not be present, this function will happily continue until
+ * we crash. Size-minimal code has no room for error checking.
+ *
+ * \\param hash Hash of the function name string.
+ * \\return Symbol found.
+ */
+static void* dnload_find_symbol(uint32_t hash)
+{
+  const struct link_map* lmap = elf64_get_link_map();
+  for(;;)
+  {
+    /* Find symbol from link map. We need the string table and a corresponding symbol table. */
+    const char* strtab = (const char*)elf64_get_library_dynamic_section(lmap, DT_STRTAB);
+    const Elf64_Sym* symtab = (const Elf64_Sym*)elf64_get_library_dynamic_section(lmap, DT_SYMTAB);
+    const uint32_t* hashtable = (const uint32_t*)elf64_get_library_dynamic_section(lmap, DT_HASH);
+    unsigned numchains = hashtable[1]; /* Number of symbols. */
+    unsigned ii;
+    for(ii = 0; (ii < numchains); ++ii)
+    {
+      const Elf64_Sym* sym = &symtab[ii];
+      const char *name = &strtab[sym->st_name];
+      if(sdbm_hash((const uint8_t*)name) == hash)
+      {
+        return (void*)((const uint8_t*)sym->st_value + (size_t)lmap->l_addr);
+      }
+    }
+    lmap = lmap->l_next;
+  }
+}
+#else
 /** \\brief Get the address associated with given tag in a dynamic section.
  *
  * \\param dyn Dynamic section.
@@ -1386,11 +1544,11 @@ static const struct link_map* elf32_get_link_map()
 /** \\brief Get address of one dynamic section corresponding to given library.
  *
  * \param lmap Link map.
- * \param op Tag to look for.
+ * \param tag Tag to look for.
  */
-static const void* elf32_get_library_dynamic_section(const struct link_map *lmap, Elf32_Sword op)
+static const void* elf32_get_library_dynamic_section(const struct link_map *lmap, Elf32_Sword tag)
 {
-  const void *ret = elf32_get_dynamic_address_by_tag(lmap->l_ld, op);
+  const void *ret = elf32_get_dynamic_address_by_tag(lmap->l_ld, tag);
   // Sometimes the value is an offset instead of a naked pointer.
   return (ret < (void*)lmap->l_addr) ? (uint8_t*)ret + (size_t)lmap->l_addr : ret;
 }
@@ -1425,8 +1583,6 @@ static void* dnload_find_symbol(uint32_t hash)
     lmap = lmap->l_next;
   }
 }
-#else
-#error "no import by hash procedure defined for current architecture"
 #endif
 /** \\brief Perform init.
  *
@@ -1686,11 +1842,38 @@ def merge_segments(lst):
       ii += 1
   return lst
 
+def osarch_is_32_bit():
+  """Check if the architecture is 32-bit."""
+  return osarch_match("32-bit")
+
+def osarch_is_64_bit():
+  """Check if the architecture is 32-bit."""
+  return osarch_match("64-bit")
+
 def osarch_is_ia32():
-  """Check is the OS architecture maps to IA-32."""
-  if osarch in platform_mapping:
-    return "ia32" == platform_mapping[osarch]
-  return "ia32" == osarch
+  """Check is the architecture maps to IA-32."""
+  return osarch_match("ia32")
+
+def osarch_match(op):
+  """Check if osarch matches some chain resulting in given value."""
+  if op == osarch:
+    return True
+  ii = osarch
+  while ii in platform_mapping:
+    ii = platform_mapping[ii]
+    if op == ii:
+      return True
+  return False
+
+def platform_map(op):
+  """Follow platform mapping chain as long as possible."""
+  while op in platform_mapping:
+    op = platform_mapping[op]
+  return op
+
+def raise_unknown_address_size():
+  """Common function to raise an error if os architecture address size is unknown."""
+  raise RuntimeError("platform '%s' addressing size unknown" % (osarch))
 
 def readelf_truncate(src, dst):
   """Truncate file to size reported by readelf first PT_LOAD file size."""
@@ -1803,10 +1986,12 @@ def main():
   """Main function."""
   global compilation_mode
   global definition_ld
+  global osname
   global symbol_prefix
   global verbose
 
   assembler = None
+  cross_compile = False
   compiler = None
   compression = "lzma"
   default_assembler_list = ["/usr/local/bin/as", "as"]
@@ -1836,6 +2021,7 @@ def main():
   parser.add_argument("-L", "--library-directory", action = "append", help = "Add a library directory to be searched for libraries when linking.")
   parser.add_argument("-m", "--method", choices = ("vanilla", "dlfcn", "hash", "maximum"), help = "Method to use for decreasing output file size:\n\tvanilla:\n\t\tProduce binary normally, use no tricks except unpack header.\n\tdlfcn:\n\t\tUse dlopen/dlsym to decrease size without dependencies to any specific object format.\n\thash:\n\t\tUse knowledge of object file format to perform 'import by hash' loading, but do not break any specifications.\n\tmaximum:\n\t\tUse all available techniques to decrease output file size. Resulting file may violate object file specification.\n(default: %s)" % (compilation_mode))
   parser.add_argument("-o", "--output-file", help = "Compile a named binary, do not only create a header. If the name specified features a path, it will be used verbatim. Otherwise the binary will be created in the same path as source file(s) compiled.")
+  parser.add_argument("-O", "--operating-system", help = "Try to target given operating system insofar cross-compilation is possible.")
   parser.add_argument("-P", "--call-prefix", help = "Call prefix to identify desired calls.\n(default: %s)" % (symbol_prefix))
   parser.add_argument("-s", "--search-path", action = "append", help = "Directory to search for the header file to generate. May be specified multiple times. If not given, searches paths of source files to compile. If not given and no source files to compile, current path will be used.")
   parser.add_argument("-S", "--strip-binary", help = "Try to use given strip executable as opposed to autodetect.")
@@ -1846,7 +2032,6 @@ def main():
   parser.add_argument("source", nargs = "*", help = "Source file(s) to preprocess and/or compile.")
  
   args = parser.parse_args()
-  print(str(args))
   if args.assembler:
     assembler = args.assembler
   if args.create_binary:
@@ -1868,6 +2053,11 @@ def main():
     library_directories += args.library_directory
   if args.method:
     compilation_mode = args.method
+  if args.operating_system:
+    new_osname = platform_map(args.operating_system.lower())
+    if new_osname != osname:
+      cross_compile = True
+      osname = new_osname
   if args.output_file:
     output_file = args.output_file
   if args.call_prefix:
@@ -2022,8 +2212,14 @@ def main():
     if "maximum" == compilation_mode:
       compiler.compile_asm(source_file, output_file + ".S")
       segment_ehdr = AssemblerSegment(assembler_ehdr)
-      segment_phdr_dynamic = AssemblerSegment(assembler_phdr_dynamic)
-      segment_phdr_interp = AssemblerSegment(assembler_phdr_interp)
+      if osarch_is_32_bit():
+        segment_phdr_dynamic = AssemblerSegment(assembler_phdr32_dynamic)
+        segment_phdr_interp = AssemblerSegment(assembler_phdr32_interp)
+      elif osarch_is_64_bit():
+        segment_phdr_dynamic = AssemblerSegment(assembler_phdr64_dynamic)
+        segment_phdr_interp = AssemblerSegment(assembler_phdr64_interp)
+      else:
+        raise_unknown_address_size()
       segment_hash = AssemblerSegment(assembler_hash)
       segment_dynamic = AssemblerSegment(assembler_dynamic)
       segment_symtab = AssemblerSegment(assembler_symtab)
@@ -2039,6 +2235,7 @@ def main():
           print(und_symbol_string + str(und_symbols))
         else:
           print(und_symbol_string + "none")
+      segment_symtab.add_symbol_empty()
       for ii in und_symbols:
         segment_symtab.add_symbol_und(ii)
       segment_hash.add_hash(und_symbols)
@@ -2051,11 +2248,22 @@ def main():
       # generate_fake_bss() returns true if second PT_LOAD was needed.
       if asm.generate_fake_bss(assembler):
         replace_platform_variable("phdr_count", 4)
-        segment_phdr_load_double = AssemblerSegment(assembler_phdr_load_double)
-        segment_phdr_load_bss = AssemblerSegment(assembler_phdr_load_bss)
+        if osarch_is_32_bit():
+          segment_phdr_load_double = AssemblerSegment(assembler_phdr32_load_double)
+          segment_phdr_load_bss = AssemblerSegment(assembler_phdr32_load_bss)
+        elif osarch_is_64_bit():
+          segment_phdr_load_double = AssemblerSegment(assembler_phdr64_load_double)
+          segment_phdr_load_bss = AssemblerSegment(assembler_phdr64_load_bss)
+        else:
+          raise_unknown_address_size()
         load_segments = [segment_phdr_load_double, segment_phdr_load_bss]
       else:
-        segment_phdr_load_single = AssemblerSegment(assembler_phdr_load_single)
+        if osarch_is_32_bit():
+          segment_phdr_load_single = AssemblerSegment(assembler_phdr32_load_single)
+        elif osarch_is_64_bit():
+          segment_phdr_load_single = AssemblerSegment(assembler_phdr64_load_single)
+        else:
+          raise_unknown_address_size()
         load_segments = [segment_phdr_load_single]
       segments = [segment_ehdr] + load_segments + [segment_phdr_dynamic, segment_phdr_interp, segment_hash, segment_dynamic, segment_symtab, segment_interp, segment_strtab]
       segments = merge_segments(segments)

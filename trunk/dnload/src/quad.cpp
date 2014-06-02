@@ -201,7 +201,7 @@ void _start()
     // Example by "bst", taken from "Music from very short programs - the 3rd iteration" by viznut.
     for(ii = 0; (INTRO_LENGTH / sizeof(uint8_t) > ii); ++ii)
     {
-      g_audio_buffer[ii] = (int)(ii / 70000000 * ii * ii + ii) % 127 | ii >> 4 | ii >> 5 | ii % 127 + (ii >> 17) | ii;
+      g_audio_buffer[ii] = (int)(ii / 70000000 * ii * ii + ii) % 127 | ii >> 4 | ii >> 5 | (ii % 127 + (ii >> 17)) | ii;
     }
   }
 
