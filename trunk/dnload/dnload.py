@@ -1,96 +1,23 @@
 #!/usr/bin/env python
 """Script to read C/C++ source input and generate a minimal program."""
 
+import argparse
 import os
 import re
 import shutil
 import subprocess
 import stat
 import sys
+import textwrap
 
 ########################################
 # Globals ##############################
 ########################################
 
-assembler = None
 compilation_mode = "maximum"
-compiler = None
-compression = "lzma"
-default_assembler_list = ["/usr/local/bin/as", "as"]
-default_compiler_list = ["g++49", "g++-4.9", "g++", "clang++"]
-default_linker_list = ["/usr/local/bin/ld", "ld"]
-default_strip_list = ["/usr/local/bin/strip", "strip"]
 definition_ld = "USE_LD"
-header_file = "dnload.h"
-include_directories = ["/usr/include/SDL", "/usr/local/include", "/usr/local/include/SDL"]
-libraries = []
-library_directories = ["/lib", "/usr/lib", "/usr/local/lib"]
-linker = None
-output_file = None
-source_files = []
-strip = None
 symbol_prefix = "dnload_"
-target = None
-target_search_path = []
 verbose = False
-version = "r83"
-
-string_help = """Usage: %s [args] <source file> [-c output]\n
-Size-optimized executable generator for *nix platforms.\n
-Preprocesses given source file(s) looking for specifically marked function
-calls, then generates a dynamic loader header file that can be used within
-these same source files to decrease executable size.\n
-Optionally also perform the actual compilation of a size-optimized binary
-after generating the header.\n
-Command line options without arguments:
-  -c, --create-binary   Create output file, determine output file name from
-                        input file name.
-  -h, --help            Print this help string.
-  -v, --verbose         Print more about what is being done.
-  -V, --version         Print version and exit.\n
-Command line options with arguments:
-  -A, --assembler           Try to use given assembler executable as opposed to
-                            autodetect.
-  -C, --compiler            Try to use given compiler executable as opposed to
-                            autodetect.
-  -d, --define              Definition to use for checking whether to use
-                            'safe' mechanism instead of dynamic loading.
-                            (default: %s)
-  -I, --include             Add an include directory to be searched for header
-                            files when preprocessing.
-  -k, --linker              Try to use given linker executable as opposed to
-                            autodetect.
-  -l, --library             Add a library to be linked against.
-  -L, --library-directory   Add a library directory to be searched for
-                            libraries when linking.
-  -m, --method              Method to use for decreasing output file size:
-                              vanilla  Produce binary normally, use no tricks
-                                       except unpack header.
-                              dlfcn    Use dlopen/dlsym to decrease size
-                                       without dependencies to any specific
-                                       object format.
-                              hash     Use knowledge of object file format to
-                                       perform 'import by hash' loading, but do
-                                       not break any specifications.
-                              maximum  Use all available techniques to decrease
-                                       output file size. Resulting file may
-                                       violate object file specification.
-                            (default: %s)
-  -o, --output-file         Compile a named binary, do not only create a
-                            header. If the name specified features a path, it
-                            will be used verbatim. Otherwise the binary will be
-                            created in the same path as source file(s)
-                            compiled.
-  -P, --call-prefix         Call prefix to identify desired calls.
-                            (default: %s)
-  -s, --search-directory    Directory to search for the header file to
-                            generate. Current path will be used if not given.
-  -S, --strip-binary        Try to use given strip executable as opposed to
-                            autodetect.
-  -t, --target              Target header file to look for.
-                            (default: %s)
-  -u, --unpack-header       Unpack header to use [lzma, xz].
-                            (default: %s)""" % (sys.argv[0], definition_ld, compilation_mode, symbol_prefix, header_file, compression)
 
 ########################################
 # PlatformVar ##########################
@@ -1839,82 +1766,138 @@ def touch(op):
     raise RuntimeError("'%s' exists but is not a normal file" % (op))
 
 ########################################
+# CustomHelpFormatter ##################
+########################################
+
+class CustomHelpFormatter(argparse.HelpFormatter):
+  """Help formatter with necessary changes."""
+
+  def _fill_text(self, text, width, indent):
+    """Method override."""
+    ret = []
+    for ii in text.splitlines():
+      ret += [textwrap.fill(ii, width, initial_indent=indent, subsequent_indent=indent)]
+    return "\n\n".join(ret)
+
+  def _split_lines(self, text, width):
+    """Method override."""
+    indent_len = len(get_indent(1))
+    ret = []
+    for ii in text.splitlines():
+      indent = 0
+      for jj in range(len(ii)):
+        if not ii[jj].isspace():
+          indent = jj
+          break
+      lines = textwrap.wrap(ii[indent:], width - jj * indent_len)
+      for ii in range(len(lines)):
+        lines[ii] = get_indent(indent) + lines[ii]
+      ret += lines
+    return ret
+
+########################################
 # Main #################################
 ########################################
 
-if __name__ == "__main__":
+def main():
   """Main function."""
+  global compilation_mode
+  global definition_ld
+  global symbol_prefix
+  global verbose
 
-  ii = 1
-  while ii < len(sys.argv):
-    arg = sys.argv[ii]
-    if arg in ("-A", "--assembler"):
-      ii += 1
-      assembler = sys.argv[ii]
-    elif arg in ("-c", "--create-binary"):
-      output_file = True
-    elif arg in ("-C", "--compiler"):
-      ii += 1
-      compiler = sys.argv[ii]
-    elif arg in ("-d", "--define"):
-      ii += 1
-      definition_ld = sys.argv[ii]
-    elif arg in ("-h", "--help"):
-      print(string_help)
-      sys.exit(0)
-    elif arg in ("-I", "--include"):
-      ii += 1
-      include_directories += [sys.argv[ii]]
-    elif arg.startswith("-I"):
-      include_directories += [arg[2:]]
-    elif arg in ("-k", "--linker"):
-      ii += 1
-      linker += [sys.argv[ii]]
-    elif arg in ("-l", "--library"):
-      ii += 1
-      libraries += [sys.argv[ii]]
-    elif arg.startswith("-l"):
-      libraries += [arg[2:]]
-    elif arg in ("-L", "--library-directory"):
-      ii += 1
-      library_directories += [sys.argv[ii]]
-    elif arg.startswith("-L"):
-      library_directories += [arg[2:]]
-    elif arg in ("-m", "--method"):
-      ii += 1
-      compilation_mode = sys.argv[ii]
-    elif arg in ("-o", "--output-file"):
-      ii += 1
-      output_file = sys.argv[ii]
-    elif arg in ("-P", "--call-prefix"):
-      ii += 1
-      symbol_prefix = sys.argv[ii]
-    elif arg in ("-s", "--search-path"):
-      ii += 1
-      target_search_path += [sys.argv[ii]]
-    elif arg in ("-t", "--target"):
-      ii += 1
-      target = sys.argv[ii]
-    elif arg in ("-u", "--unpack-header"):
-      ii += 1
-      compression = sys.argv[ii]
-    elif arg in ("-v", "--verbose"):
-      verbose = True
-    elif arg in ("-V", "--version"):
-      print(version)
-      sys.exit(0)
-    else:
-      source_files += [sys.argv[ii]]
-    ii += 1
+  assembler = None
+  compiler = None
+  compression = "lzma"
+  default_assembler_list = ["/usr/local/bin/as", "as"]
+  default_compiler_list = ["g++49", "g++-4.9", "g++", "clang++"]
+  default_linker_list = ["/usr/local/bin/ld", "ld"]
+  default_strip_list = ["/usr/local/bin/strip", "strip"]
+  include_directories = ["/usr/include/SDL", "/usr/local/include", "/usr/local/include/SDL"]
+  libraries = []
+  library_directories = ["/lib", "/usr/lib", "/usr/local/lib"]
+  linker = None
+  output_file = None
+  source_files = []
+  strip = None
+  target = "dnload.h"
+  target_search_path = []
+  version = "r83"
+
+  parser = argparse.ArgumentParser(usage = "%s [args] <source file(s)> [-o output]" % (sys.argv[0]), description = "Size-optimized executable generator for *nix platforms.\nPreprocesses given source file(s) looking for specifically marked function calls, then generates a dynamic loader header file that can be used within these same source files to decrease executable size.\nOptionally also perform the actual compilation of a size-optimized binary after generating the header.", formatter_class = CustomHelpFormatter, add_help = False)
+  parser.add_argument("-A", "--assembler", help = "Try to use given assembler executable as opposed to autodetect.")
+  parser.add_argument("-c", "--create-binary", action = "store_true", help = "Create output file, determine output file name from input file name.")
+  parser.add_argument("-C", "--compiler", help = "Try to use given compiler executable as opposed to autodetect.")
+  parser.add_argument("-d", "--define", help = "Definition to use for checking whether to use 'safe' mechanism instead of dynamic loading.\n(default: %s)" % (definition_ld))
+  parser.add_argument("-h", "--help", action = "store_true", help = "Print this help string and exit.")
+  parser.add_argument("-I", "--include-directory", nargs = 1, help = "Add an include directory to be searched for header files.")
+  parser.add_argument("-k", "--linker", help = "Try to use given linker executable as opposed to autodetect.")
+  parser.add_argument("-l", "--library", nargs = 1, help = "Add a library to be linked against.")
+  parser.add_argument("-L", "--library-directory", nargs = 1, help = "Add a library directory to be searched for libraries when linking.")
+  parser.add_argument("-m", "--method", choices = ("vanilla", "dlfcn", "hash", "maximum"), help = "Method to use for decreasing output file size:\n\tvanilla:\n\t\tProduce binary normally, use no tricks except unpack header.\n\tdlfcn:\n\t\tUse dlopen/dlsym to decrease size without dependencies to any specific object format.\n\thash:\n\t\tUse knowledge of object file format to perform 'import by hash' loading, but do not break any specifications.\n\tmaximum:\n\t\tUse all available techniques to decrease output file size. Resulting file may violate object file specification.\n(default: %s)" % (compilation_mode))
+  parser.add_argument("-o", "--output-file", help = "Compile a named binary, do not only create a header. If the name specified features a path, it will be used verbatim. Otherwise the binary will be created in the same path as source file(s) compiled.")
+  parser.add_argument("-P", "--call-prefix", help = "Call prefix to identify desired calls.\n(default: %s)" % (symbol_prefix))
+  parser.add_argument("-s", "--search-path", nargs = 1, help = "Directory to search for the header file to generate. May be specified multiple times. If not given, searches paths of source files to compile. If not given and no source files to compile, current path will be used.")
+  parser.add_argument("-S", "--strip-binary", help = "Try to use given strip executable as opposed to autodetect.")
+  parser.add_argument("-t", "--target", help = "Target header file to look for.\n(default: %s)" % (target))
+  parser.add_argument("-u", "--unpack-header", choices = ("lzma", "xz"), help = "Unpack header to use.\n(default: %s)" % (compression))
+  parser.add_argument("-v", "--verbose", action = "store_true", help = "Print more about what is being done.")
+  parser.add_argument("-V", "--version", action = "store_true", help = "Print version and exit.")
+  parser.add_argument("source", nargs = "*", help = "Source file(s) to preprocess and/or compile.")
+ 
+  args = parser.parse_args()
+  if args.assembler:
+    assembler = args.assembler
+  if args.create_binary:
+    output_file = True
+  if args.compiler:
+    compiler = args.compiler
+  if args.define:
+    definition_ld = args.define
+  if args.help:
+    print(parser.format_help().strip())
+    return 0
+  if args.include_directory:
+    include_directories += args.include_directory
+  if args.linker:
+    linker = args.linker
+  if args.library:
+    libraries += args.library
+  if args.library_directory:
+    library_directories += args.library_directory
+  if args.method:
+    compilation_mode = args.method
+  if args.output_file:
+    output_file = args.output_file
+  if args.call_prefix:
+    symbol_prefix = args.call_prefix
+  if args.search_path:
+    target_search_path += args.search_path
+  if args.strip_binary:
+    strip = args.strip_binary
+  if args.target:
+    target = args.target
+  if args.unpack_header:
+    compression = args.unpack_header
+  if args.verbose:
+    verbose = True
+  if args.version:
+    print(version)
+    return 0
+  if args.source:
+    source_files += args.source
 
   if not compilation_mode in ("vanilla", "dlfcn", "hash", "maximum"):
     raise RuntimeError("unknown method '%s'" % (compilation_mode))
 
   if 0 >= len(target_search_path):
-    target_search_path = [ "." ]
+    for ii in source_files:
+      source_path, source_file = os.path.split(os.path.normpath(ii))
+      if source_path and not source_path in target_search_path:
+        target_search_path += [source_path]
+  if 0 >= len(target_search_path):
+    target_search_path = ["."]
 
-  if target == None:
-    target = header_file
   target_path, target_file = os.path.split(os.path.normpath(target))
   if target_path:
     if verbose:
@@ -2103,4 +2086,7 @@ if __name__ == "__main__":
       run_command([strip, "-K", ".bss", "-K", ".text", "-K", ".data", "-R", ".comment", "-R", ".eh_frame", "-R", ".eh_frame_hdr", "-R", ".fini", "-R", ".gnu.hash", "-R", ".gnu.version", "-R", ".jcr", "-R", ".note", "-R", ".note.ABI-tag", "-R", ".note.tag", output_file + ".stripped"])
     compress_file(compression, output_file + ".stripped", output_file)
 
-  sys.exit(0)
+  return 0
+
+if __name__ == "__main__":
+  sys.exit(main())
