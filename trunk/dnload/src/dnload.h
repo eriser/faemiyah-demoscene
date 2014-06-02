@@ -77,56 +77,50 @@ extern "C" {
 #if defined(USE_LD)
 /** \cond */
 #define dnload_glCreateProgram glCreateProgram
-#define dnload_rand bsd_rand
 #define dnload_glUseProgram glUseProgram
 #define dnload_glDisable glDisable
+#define dnload_glRectf glRectf
 #define dnload_glLinkProgram glLinkProgram
 #define dnload_glShaderSource glShaderSource
 #define dnload_glGetUniformLocation glGetUniformLocation
-#define dnload_glRects glRects
 #define dnload_SDL_SetVideoMode SDL_SetVideoMode
 #define dnload_SDL_ShowCursor SDL_ShowCursor
 #define dnload_SDL_GL_SwapBuffers SDL_GL_SwapBuffers
 #define dnload_SDL_PollEvent SDL_PollEvent
 #define dnload_SDL_Init SDL_Init
-#define dnload_glCompileShader glCompileShader
-#define dnload_glClear glClear
+#define dnload_glCreateShader glCreateShader
 #define dnload_SDL_PauseAudio SDL_PauseAudio
-#define dnload_glUniform2fv glUniform2fv
+#define dnload_glUniform1f glUniform1f
 #define dnload_SDL_Quit SDL_Quit
 #define dnload_glEnableVertexAttribArray glEnableVertexAttribArray
 #define dnload_glGetAttribLocation glGetAttribLocation
-#define dnload_glUniform3fv glUniform3fv
 #define dnload_SDL_OpenAudio SDL_OpenAudio
 #define dnload_glAttachShader glAttachShader
-#define dnload_glCreateShader glCreateShader
+#define dnload_glCompileShader glCompileShader
 /** \endcond */
 #else
 /** \cond */
 #define dnload_glCreateProgram g_symbol_table.glCreateProgram
-#define dnload_rand g_symbol_table.rand
 #define dnload_glUseProgram g_symbol_table.glUseProgram
 #define dnload_glDisable g_symbol_table.glDisable
+#define dnload_glRectf g_symbol_table.glRectf
 #define dnload_glLinkProgram g_symbol_table.glLinkProgram
 #define dnload_glShaderSource g_symbol_table.glShaderSource
 #define dnload_glGetUniformLocation g_symbol_table.glGetUniformLocation
-#define dnload_glRects g_symbol_table.glRects
 #define dnload_SDL_SetVideoMode g_symbol_table.SDL_SetVideoMode
 #define dnload_SDL_ShowCursor g_symbol_table.SDL_ShowCursor
 #define dnload_SDL_GL_SwapBuffers g_symbol_table.SDL_GL_SwapBuffers
 #define dnload_SDL_PollEvent g_symbol_table.SDL_PollEvent
 #define dnload_SDL_Init g_symbol_table.SDL_Init
-#define dnload_glCompileShader g_symbol_table.glCompileShader
-#define dnload_glClear g_symbol_table.glClear
+#define dnload_glCreateShader g_symbol_table.glCreateShader
 #define dnload_SDL_PauseAudio g_symbol_table.SDL_PauseAudio
-#define dnload_glUniform2fv g_symbol_table.glUniform2fv
+#define dnload_glUniform1f g_symbol_table.glUniform1f
 #define dnload_SDL_Quit g_symbol_table.SDL_Quit
 #define dnload_glEnableVertexAttribArray g_symbol_table.glEnableVertexAttribArray
 #define dnload_glGetAttribLocation g_symbol_table.glGetAttribLocation
-#define dnload_glUniform3fv g_symbol_table.glUniform3fv
 #define dnload_SDL_OpenAudio g_symbol_table.SDL_OpenAudio
 #define dnload_glAttachShader g_symbol_table.glAttachShader
-#define dnload_glCreateShader g_symbol_table.glCreateShader
+#define dnload_glCompileShader g_symbol_table.glCompileShader
 /** \endcond */
 #endif
 
@@ -138,55 +132,49 @@ extern "C" {
 static struct SymbolTableStruct
 {
   GLuint (DNLOADAPIENTRY *glCreateProgram)(void);
-  int (*rand)(void);
   void (DNLOADAPIENTRY *glUseProgram)(GLuint);
   void (DNLOADAPIENTRY *glDisable)(GLenum);
+  void (DNLOADAPIENTRY *glRectf)(GLfloat, GLfloat, GLfloat, GLfloat);
   void (DNLOADAPIENTRY *glLinkProgram)(GLuint);
   void (DNLOADAPIENTRY *glShaderSource)(GLuint, GLsizei, const GLchar**, const GLint*);
   GLint (DNLOADAPIENTRY *glGetUniformLocation)(GLuint, const GLchar*);
-  void (DNLOADAPIENTRY *glRects)(GLshort, GLshort, GLshort, GLshort);
   SDL_Surface* (*SDL_SetVideoMode)(int, int, int, Uint32);
   int (*SDL_ShowCursor)(int);
   void (*SDL_GL_SwapBuffers)(void);
   int (*SDL_PollEvent)(SDL_Event*);
   int (*SDL_Init)(Uint32);
-  void (DNLOADAPIENTRY *glCompileShader)(GLuint);
-  void (DNLOADAPIENTRY *glClear)(GLbitfield);
+  GLuint (DNLOADAPIENTRY *glCreateShader)(GLenum);
   void (*SDL_PauseAudio)(int);
-  void (DNLOADAPIENTRY *glUniform2fv)(GLint, GLsizei, const GLfloat*);
+  void (DNLOADAPIENTRY *glUniform1f)(GLint, GLfloat);
   void (*SDL_Quit)(void);
   void (DNLOADAPIENTRY *glEnableVertexAttribArray)(GLuint);
   GLint (DNLOADAPIENTRY *glGetAttribLocation)(GLuint, const GLchar*);
-  void (DNLOADAPIENTRY *glUniform3fv)(GLint, GLsizei, const GLfloat*);
   int (*SDL_OpenAudio)(SDL_AudioSpec*, SDL_AudioSpec*);
   void (DNLOADAPIENTRY *glAttachShader)(GLuint, GLuint);
-  GLuint (DNLOADAPIENTRY *glCreateShader)(GLenum);
+  void (DNLOADAPIENTRY *glCompileShader)(GLuint);
 } g_symbol_table =
 {
   (GLuint (DNLOADAPIENTRY *)(void))0x78721c3L,
-  (int (*)(void))0xe83af065L,
   (void (DNLOADAPIENTRY *)(GLuint))0xcc55bb62L,
   (void (DNLOADAPIENTRY *)(GLenum))0xb5f7c43L,
+  (void (DNLOADAPIENTRY *)(GLfloat, GLfloat, GLfloat, GLfloat))0xd419e1fdL,
   (void (DNLOADAPIENTRY *)(GLuint))0x133a35c5L,
   (void (DNLOADAPIENTRY *)(GLuint, GLsizei, const GLchar**, const GLint*))0xc609c385L,
   (GLint (DNLOADAPIENTRY *)(GLuint, const GLchar*))0x25c12218L,
-  (void (DNLOADAPIENTRY *)(GLshort, GLshort, GLshort, GLshort))0xd419e20aL,
   (SDL_Surface* (*)(int, int, int, Uint32))0x39b85060L,
   (int (*)(int))0xb88bf697L,
   (void (*)(void))0xda43e6eaL,
   (int (*)(SDL_Event*))0x64949d97L,
   (int (*)(Uint32))0x70d6574L,
-  (void (DNLOADAPIENTRY *)(GLuint))0xc5165dd3L,
-  (void (DNLOADAPIENTRY *)(GLbitfield))0x1fd92088L,
+  (GLuint (DNLOADAPIENTRY *)(GLenum))0x6b4ffac6L,
   (void (*)(int))0x29f14a4L,
-  (void (DNLOADAPIENTRY *)(GLint, GLsizei, const GLfloat*))0x21b64a33L,
+  (void (DNLOADAPIENTRY *)(GLint, GLfloat))0x4fe976c4L,
   (void (*)(void))0x7eb657f3L,
   (void (DNLOADAPIENTRY *)(GLuint))0xe9e99723L,
   (GLint (DNLOADAPIENTRY *)(GLuint, const GLchar*))0xceb27dd0L,
-  (void (DNLOADAPIENTRY *)(GLint, GLsizei, const GLfloat*))0x223459b4L,
   (int (*)(SDL_AudioSpec*, SDL_AudioSpec*))0x46fd70c8L,
   (void (DNLOADAPIENTRY *)(GLuint, GLuint))0x30b3cfcfL,
-  (GLuint (DNLOADAPIENTRY *)(GLenum))0x6b4ffac6L,
+  (void (DNLOADAPIENTRY *)(GLuint))0xc5165dd3L,
 };
 #endif
 
@@ -312,7 +300,7 @@ static void* dnload_find_symbol(uint32_t hash)
 static void dnload(void)
 {
   unsigned ii;
-  for(ii = 0; (24 > ii); ++ii)
+  for(ii = 0; (21 > ii); ++ii)
   {
     void **iter = ((void**)&g_symbol_table) + ii;
     *iter = dnload_find_symbol(*(uint32_t*)iter);
