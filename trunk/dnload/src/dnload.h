@@ -55,18 +55,22 @@
 #endif
 
 #if !defined(USE_LD)
-#if defined(__FreeBSD__) || defined(__linux__)
 #if defined(__x86_64)
+#if defined(__FreeBSD__)
 /** Assembler exit syscall macro. */
 #define asm_exit() asm volatile("movq $1,%rax\nsyscall")
+#elif defined(__linux__)
+/** Assembler exit syscall macro. */
+#define asm_exit() asm volatile("movq $60,%rax\nsyscall")
+#endif
 #elif defined(__i386)
+#if defined(__FreeBSD__) || defined(__linux__)
 /** Assembler exit syscall macro. */
 #define asm_exit() asm volatile("movl $1,%eax\nint $128")
-#else
-#error "no assembler exit procedure defined for current architecture"
 #endif
-#else
-#error "no assembler exit procerude defined for current operating system"
+#endif
+#if !defined(asm_exit)
+#error "no assembler exit procedure defined for current operating system or architecture"
 #endif
 #endif
 
@@ -163,30 +167,30 @@ static struct SymbolTableStruct
   GLuint (DNLOADAPIENTRY *glCreateShader)(GLenum);
 } g_symbol_table =
 {
-  (GLuint (DNLOADAPIENTRY *)(void))0x78721c3L,
-  (int (*)(void))0xe83af065L,
-  (void (DNLOADAPIENTRY *)(GLuint))0xcc55bb62L,
-  (void (DNLOADAPIENTRY *)(GLenum))0xb5f7c43L,
-  (void (DNLOADAPIENTRY *)(GLuint))0x133a35c5L,
-  (void (DNLOADAPIENTRY *)(GLuint, GLsizei, const GLchar**, const GLint*))0xc609c385L,
-  (GLint (DNLOADAPIENTRY *)(GLuint, const GLchar*))0x25c12218L,
-  (void (DNLOADAPIENTRY *)(GLshort, GLshort, GLshort, GLshort))0xd419e20aL,
-  (SDL_Surface* (*)(int, int, int, Uint32))0x39b85060L,
-  (int (*)(int))0xb88bf697L,
-  (void (*)(void))0xda43e6eaL,
-  (int (*)(SDL_Event*))0x64949d97L,
-  (int (*)(Uint32))0x70d6574L,
-  (void (DNLOADAPIENTRY *)(GLuint))0xc5165dd3L,
-  (void (DNLOADAPIENTRY *)(GLbitfield))0x1fd92088L,
-  (void (*)(int))0x29f14a4L,
-  (void (DNLOADAPIENTRY *)(GLint, GLsizei, const GLfloat*))0x21b64a33L,
-  (void (*)(void))0x7eb657f3L,
-  (void (DNLOADAPIENTRY *)(GLuint))0xe9e99723L,
-  (GLint (DNLOADAPIENTRY *)(GLuint, const GLchar*))0xceb27dd0L,
-  (void (DNLOADAPIENTRY *)(GLint, GLsizei, const GLfloat*))0x223459b4L,
-  (int (*)(SDL_AudioSpec*, SDL_AudioSpec*))0x46fd70c8L,
-  (void (DNLOADAPIENTRY *)(GLuint, GLuint))0x30b3cfcfL,
-  (GLuint (DNLOADAPIENTRY *)(GLenum))0x6b4ffac6L,
+  (GLuint (DNLOADAPIENTRY *)(void))0x78721c3,
+  (int (*)(void))0xe83af065,
+  (void (DNLOADAPIENTRY *)(GLuint))0xcc55bb62,
+  (void (DNLOADAPIENTRY *)(GLenum))0xb5f7c43,
+  (void (DNLOADAPIENTRY *)(GLuint))0x133a35c5,
+  (void (DNLOADAPIENTRY *)(GLuint, GLsizei, const GLchar**, const GLint*))0xc609c385,
+  (GLint (DNLOADAPIENTRY *)(GLuint, const GLchar*))0x25c12218,
+  (void (DNLOADAPIENTRY *)(GLshort, GLshort, GLshort, GLshort))0xd419e20a,
+  (SDL_Surface* (*)(int, int, int, Uint32))0x39b85060,
+  (int (*)(int))0xb88bf697,
+  (void (*)(void))0xda43e6ea,
+  (int (*)(SDL_Event*))0x64949d97,
+  (int (*)(Uint32))0x70d6574,
+  (void (DNLOADAPIENTRY *)(GLuint))0xc5165dd3,
+  (void (DNLOADAPIENTRY *)(GLbitfield))0x1fd92088,
+  (void (*)(int))0x29f14a4,
+  (void (DNLOADAPIENTRY *)(GLint, GLsizei, const GLfloat*))0x21b64a33,
+  (void (*)(void))0x7eb657f3,
+  (void (DNLOADAPIENTRY *)(GLuint))0xe9e99723,
+  (GLint (DNLOADAPIENTRY *)(GLuint, const GLchar*))0xceb27dd0,
+  (void (DNLOADAPIENTRY *)(GLint, GLsizei, const GLfloat*))0x223459b4,
+  (int (*)(SDL_AudioSpec*, SDL_AudioSpec*))0x46fd70c8,
+  (void (DNLOADAPIENTRY *)(GLuint, GLuint))0x30b3cfcf,
+  (GLuint (DNLOADAPIENTRY *)(GLenum))0x6b4ffac6,
 };
 #endif
 
@@ -222,7 +226,7 @@ static uint32_t sdbm_hash(const uint8_t *op)
 #error "no elf header location known for current platform"
 #endif
 /** \brief ELF base address. */
-#define ELF_BASE_ADDRESS 0x2000000
+#define ELF_BASE_ADDRESS 0x400000
 #if (defined(_LP64) && _LP64) || (defined(__LP64__) && __LP64__)
 /** \brief Get the address associated with given tag in a dynamic section.
  *
@@ -282,6 +286,10 @@ static const void* elf64_get_library_dynamic_section(const struct link_map *lmap
 static void* dnload_find_symbol(uint32_t hash)
 {
   const struct link_map* lmap = elf64_get_link_map();
+#if defined(__linux__)
+  // On linux, the second entry (first is this file) is not usable.
+  lmap = lmap->l_next->l_next;
+#endif
   for(;;)
   {
     /* Find symbol from link map. We need the string table and a corresponding symbol table. */
