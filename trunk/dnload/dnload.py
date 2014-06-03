@@ -360,23 +360,44 @@ class AssemblerSection:
         self.erase(lst[0])
         continue
       break
-    if osarch_is_ia32():
-      self.crunch_ia32()
+    if osarch_is_amd64():
+      self.crunch_amd64(lst)
+    elif osarch_is_ia32():
+      self.crunch_ia32(lst)
     self.tag = None
 
-  def crunch_ia32(self):
+  def crunch_amd64(self, lst):
     """Perform platform-dependent crunching."""
-    lst = self.want_line(r'\s*(_start)\:.*')
+    #self.crunch_entry_push()
+    lst = self.want_line(r'\s*(syscall).*')
     if lst:
       ii = lst[0] + 1
       jj = ii
       while True:
-        if not re.match(r'\s*push.*', self.content[jj]):
+        if len(self.content) <= jj or re.match(r'\s*\S+\:\s*', self.content[jj]):
+          if verbose:
+            print("Erasing function footer after system call: %i lines." % (jj - ii))
+          self.erase(ii, jj)
+          break
+        jj += 1
+
+  def crunch_entry_push(self):
+    """Crunch amd64/ia32 push directives from given line listing."""
+    lst = self.want_entry_point()
+    if lst:
+      ii = lst[0] + 1
+      jj = ii
+      while True:
+        if not re.match(r'\s*(push).*', self.content[jj]):
           if verbose:
             print("Erasing function header from '%s': %i lines." % (lst[1], jj - ii))
           self.erase(ii, jj)
           break
         jj += 1
+
+  def crunch_ia32(self, lst):
+    """Perform platform-dependent crunching."""
+    self.crunch_entry_push()
     lst = self.want_line(r'\s*int\s+\$?(\S+).*')
     if lst and ("0x80" == lst[1] or "128" == lst[1]):
       ii = lst[0] + 1
@@ -467,7 +488,7 @@ class AssemblerSection:
       if match:
         align = int(match.group(1))
         # Due to GNU AS compatibility modes, .align may mean different things.
-        if osarch_is_ia32():
+        if osarch_is_amd64 or osarch_is_ia32():
           if desired != align:
             if verbose:
               print("Replacing %i-byte alignment with %i-byte alignment." % (align, desired))
@@ -475,6 +496,10 @@ class AssemblerSection:
         else:
           print("Replacing low-order bit alignment %i with %i-byte alignment." % (align, desired))
           self.content[ii] = "  .balign %i\n" % (desired)
+
+  def want_entry_point(self):
+    """Want a line matching the entry point function."""
+    return self.want_line(r'\s*(_start)\:.*')
 
   def want_line(self, op, first = 0):
     """Want a line matching regex from object."""
@@ -1811,8 +1836,12 @@ def osarch_is_64_bit():
   """Check if the architecture is 32-bit."""
   return osarch_match("64-bit")
 
+def osarch_is_amd64():
+  """Check if the architecture maps to amd64."""
+  return osarch_match("amd64")
+
 def osarch_is_ia32():
-  """Check is the architecture maps to IA-32."""
+  """Check if the architecture maps to ia32."""
   return osarch_match("ia32")
 
 def osarch_match(op):
