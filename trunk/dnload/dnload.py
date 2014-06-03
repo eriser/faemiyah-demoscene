@@ -81,7 +81,7 @@ platform_variables = {
   "ei_osabi" : { "FreeBSD" : 9, "Linux" : 3 },
   "entry" : { "32-bit" : 0x2000000, "64-bit" : 0x400000 },
   #"entry" : { "32-bit" : 0x8048000, "64-bit" : 0x400000 },
-  "interp" : { "FreeBSD" : "\"/libexec/ld-elf.so.1\"", "Linux-32-bit" : "\"/lib/ld-linux.so.2\"", "Linux-64-bit" : "\"/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2\"" },
+  "interp" : { "FreeBSD" : "\"/libexec/ld-elf.so.1\"", "Linux-32-bit" : "\"/lib/ld-linux.so.2\"", "Linux-64-bit" : "\"/lib64/ld-linux-x86-64.so.2\"" },
   "march" : { "amd64" : "core2", "ia32" : "pentium4" },
   "memory_page" : { "32-bit" : 0x1000, "64-bit" : 0x200000 },
   "mpreferred-stack-boundary" : { "32-bit" : 2, "64-bit" : 4 },
@@ -2004,7 +2004,7 @@ def main():
   default_strip_list = ["/usr/local/bin/strip", "strip"]
   include_directories = ["/usr/include/SDL", "/usr/local/include", "/usr/local/include/SDL"]
   libraries = []
-  library_directories = ["/lib", "/usr/lib", "/usr/local/lib"]
+  library_directories = ["/lib", "/lib/x86_64-linux-gnu", "/usr/lib", "/usr/lib/x86_64-linux-gnu", "/usr/local/lib"]
   linker = None
   output_file = None
   source_files = []
