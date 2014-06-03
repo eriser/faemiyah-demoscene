@@ -1810,12 +1810,17 @@ def locate(pth, fn):
   pthfn = pth + "/" + fn
   if os.path.isfile(pthfn):
     return os.path.normpath(pthfn)
-  for ii in os.listdir(pth):
-    iifn = pth + "/" + ii
-    if os.path.isdir(iifn):
-      ret = locate(iifn, fn)
-      if ret:
-        return ret
+  try:
+    for ii in os.listdir(pth):
+      iifn = pth + "/" + ii
+      if os.path.isdir(iifn):
+        ret = locate(iifn, fn)
+        if ret:
+          return ret
+  except OSError as ee: # Permission denied or the like.
+    if 13 == ee.errno:
+      return None
+    raise ee
   return None
 
 def make_executable(op):
