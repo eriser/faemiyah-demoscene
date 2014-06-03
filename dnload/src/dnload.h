@@ -175,30 +175,30 @@ static struct SymbolTableStruct
   GLuint (DNLOADAPIENTRY *glCreateShader)(GLenum);
 } g_symbol_table =
 {
-  (GLuint (DNLOADAPIENTRY *)(void))0x78721c3,
-  (int (*)(void))0xe83af065,
-  (void (DNLOADAPIENTRY *)(GLuint))0xcc55bb62,
-  (void (DNLOADAPIENTRY *)(GLenum))0xb5f7c43,
-  (void (DNLOADAPIENTRY *)(GLuint))0x133a35c5,
-  (void (DNLOADAPIENTRY *)(GLuint, GLsizei, const GLchar**, const GLint*))0xc609c385,
-  (GLint (DNLOADAPIENTRY *)(GLuint, const GLchar*))0x25c12218,
-  (void (DNLOADAPIENTRY *)(GLshort, GLshort, GLshort, GLshort))0xd419e20a,
-  (SDL_Surface* (*)(int, int, int, Uint32))0x39b85060,
-  (int (*)(int))0xb88bf697,
-  (void (*)(void))0xda43e6ea,
-  (int (*)(SDL_Event*))0x64949d97,
-  (int (*)(Uint32))0x70d6574,
-  (void (DNLOADAPIENTRY *)(GLuint))0xc5165dd3,
-  (void (DNLOADAPIENTRY *)(GLbitfield))0x1fd92088,
-  (void (*)(int))0x29f14a4,
-  (void (DNLOADAPIENTRY *)(GLint, GLsizei, const GLfloat*))0x21b64a33,
-  (void (*)(void))0x7eb657f3,
-  (void (DNLOADAPIENTRY *)(GLuint))0xe9e99723,
-  (GLint (DNLOADAPIENTRY *)(GLuint, const GLchar*))0xceb27dd0,
-  (void (DNLOADAPIENTRY *)(GLint, GLsizei, const GLfloat*))0x223459b4,
-  (int (*)(SDL_AudioSpec*, SDL_AudioSpec*))0x46fd70c8,
-  (void (DNLOADAPIENTRY *)(GLuint, GLuint))0x30b3cfcf,
-  (GLuint (DNLOADAPIENTRY *)(GLenum))0x6b4ffac6,
+  (GLuint (DNLOADAPIENTRY *)(void))0x78721c3L,
+  (int (*)(void))0xe83af065L,
+  (void (DNLOADAPIENTRY *)(GLuint))0xcc55bb62L,
+  (void (DNLOADAPIENTRY *)(GLenum))0xb5f7c43L,
+  (void (DNLOADAPIENTRY *)(GLuint))0x133a35c5L,
+  (void (DNLOADAPIENTRY *)(GLuint, GLsizei, const GLchar**, const GLint*))0xc609c385L,
+  (GLint (DNLOADAPIENTRY *)(GLuint, const GLchar*))0x25c12218L,
+  (void (DNLOADAPIENTRY *)(GLshort, GLshort, GLshort, GLshort))0xd419e20aL,
+  (SDL_Surface* (*)(int, int, int, Uint32))0x39b85060L,
+  (int (*)(int))0xb88bf697L,
+  (void (*)(void))0xda43e6eaL,
+  (int (*)(SDL_Event*))0x64949d97L,
+  (int (*)(Uint32))0x70d6574L,
+  (void (DNLOADAPIENTRY *)(GLuint))0xc5165dd3L,
+  (void (DNLOADAPIENTRY *)(GLbitfield))0x1fd92088L,
+  (void (*)(int))0x29f14a4L,
+  (void (DNLOADAPIENTRY *)(GLint, GLsizei, const GLfloat*))0x21b64a33L,
+  (void (*)(void))0x7eb657f3L,
+  (void (DNLOADAPIENTRY *)(GLuint))0xe9e99723L,
+  (GLint (DNLOADAPIENTRY *)(GLuint, const GLchar*))0xceb27dd0L,
+  (void (DNLOADAPIENTRY *)(GLint, GLsizei, const GLfloat*))0x223459b4L,
+  (int (*)(SDL_AudioSpec*, SDL_AudioSpec*))0x46fd70c8L,
+  (void (DNLOADAPIENTRY *)(GLuint, GLuint))0x30b3cfcfL,
+  (GLuint (DNLOADAPIENTRY *)(GLenum))0x6b4ffac6L,
 };
 #endif
 
@@ -257,7 +257,7 @@ typedef Elf32_Sym dnload_elf_sym_t;
 typedef Elf_Sword dnload_elf_tag_t;
 #endif
 /** \brief ELF base address. */
-#define ELF_BASE_ADDRESS 0x400000
+#define ELF_BASE_ADDRESS 0x2000000
 /** \brief Get the address associated with given tag in a dynamic section.
  *
  * \param dyn Dynamic section.
