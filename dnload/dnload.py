@@ -1337,18 +1337,22 @@ template_header_begin = """#ifndef DNLOAD_H
 #include <math.h>
 #endif\n
 #if !defined(%s)
-#if defined(__FreeBSD__) || defined(__linux__)
 #if defined(__x86_64)
+#if defined(__FreeBSD__)
 /** Assembler exit syscall macro. */
 #define asm_exit() asm volatile("movq $1,%%rax\\nsyscall")
+#elif defined(__linux__)
+/** Assembler exit syscall macro. */
+#define asm_exit() asm volatile("movq $60,%%rax\\nsyscall")
+#endif
 #elif defined(__i386)
+#if defined(__FreeBSD__) || defined(__linux__)
 /** Assembler exit syscall macro. */
 #define asm_exit() asm volatile("movl $1,%%eax\\nint $128")
-#else
-#error "no assembler exit procedure defined for current architecture"
 #endif
-#else
-#error "no assembler exit procerude defined for current operating system"
+#endif
+#if !defined(asm_exit)
+#error "no assembler exit procedure defined for current operating system or architecture"
 #endif
 #endif\n
 #if defined(__cplusplus)
@@ -1485,6 +1489,10 @@ static const void* elf64_get_library_dynamic_section(const struct link_map *lmap
 static void* dnload_find_symbol(uint32_t hash)
 {
   const struct link_map* lmap = elf64_get_link_map();
+#if defined(__linux__)
+  // On linux, the second entry (first is this file) is not usable.
+  lmap = lmap->l_next->l_next;
+#endif
   for(;;)
   {
     /* Find symbol from link map. We need the string table and a corresponding symbol table. */
