@@ -1336,6 +1336,13 @@ template_header_begin = """#ifndef DNLOAD_H
 #else
 #include <math.h>
 #endif\n
+#if (defined(_LP64) && _LP64) || (defined(__LP64__) && __LP64__)
+/** Size of pointer in bytes (64-bit). */
+#define DNLOAD_POINTER_SIZE 8
+#else
+/** Size of pointer in bytes (32-bit). */
+#define DNLOAD_POINTER_SIZE 4
+#endif\n
 #if !defined(%s)
 #if defined(__x86_64)
 #if defined(__FreeBSD__)
@@ -1428,18 +1435,40 @@ static uint32_t sdbm_hash(const uint8_t *op)
 #else
 #error "no elf header location known for current platform"
 #endif
+#if (8 == DNLOAD_POINTER_SIZE)
+/** Elf header type. */
+typedef Elf64_Ehdr dnload_elf_ehdr_t;
+/** Elf program header type. */
+typedef Elf64_Phdr dnload_elf_phdr_t;
+/** Elf dynamic structure type. */
+typedef Elf64_Dyn dnload_elf_dyn_t;
+/** Elf symbol table entry type. */
+typedef Elf64_Sym dnload_elf_sym_t;
+/** Elf dynamic structure tag type. */
+typedef Elf64_Sxword dnload_elf_tag_t;
+#else
+/** Elf header type. */
+typedef Elf32_Ehdr dnload_elf_ehdr_t;
+/** Elf program header type. */
+typedef Elf32_Phdr dnload_elf_phdr_t;
+/** Elf dynamic structure type. */
+typedef Elf32_Dyn dnload_elf_dyn_t;
+/** Elf symbol table entry type. */
+typedef Elf32_Sym dnload_elf_sym_t;
+/** Elf dynamic structure tag type. */
+typedef Elf_Sword dnload_elf_tag_t;
+#endif
 /** \\brief ELF base address. */
 #define ELF_BASE_ADDRESS %s
-#if (defined(_LP64) && _LP64) || (defined(__LP64__) && __LP64__)
 /** \\brief Get the address associated with given tag in a dynamic section.
  *
  * \\param dyn Dynamic section.
  * \\param tag Tag to look for.
  * \\return Address matching given tag.
  */
-static const void* elf64_get_dynamic_address_by_tag(const void *dyn, Elf64_Sxword tag)
+static const void* elf_get_dynamic_address_by_tag(const void *dyn, dnload_elf_tag_t tag)
 {
-  const Elf64_Dyn *dynamic = (Elf64_Dyn*)dyn;
+  const dnload_elf_dyn_t *dynamic = (const dnload_elf_dyn_t*)dyn;
   for(;;)
   {
     if(dynamic->d_tag == tag)
@@ -1453,17 +1482,17 @@ static const void* elf64_get_dynamic_address_by_tag(const void *dyn, Elf64_Sxwor
  *
  * \\return Link map struct.
  */
-static const struct link_map* elf64_get_link_map()
+static const struct link_map* elf_get_link_map()
 {
   // ELF header is in a fixed location in memory.
   // First program header is located directly afterwards.
-  const Elf64_Ehdr *ehdr = (const Elf64_Ehdr*)ELF_BASE_ADDRESS;
-  const Elf64_Phdr *phdr = (const Elf64_Phdr*)((size_t)ehdr + (size_t)ehdr->e_phoff);
+  const dnload_elf_ehdr_t *ehdr = (const dnload_elf_ehdr_t*)ELF_BASE_ADDRESS;
+  const dnload_elf_phdr_t *phdr = (const dnload_elf_phdr_t*)((size_t)ehdr + (size_t)ehdr->e_phoff);
   // Find the dynamic header by traversing the phdr array.
   for(; (phdr->p_type != PT_DYNAMIC); ++phdr) { }
   // Find the debug entry in the dynamic header array.
   {
-    const struct r_debug *debug = (const struct r_debug*)elf64_get_dynamic_address_by_tag((const void*)phdr->p_vaddr, DT_DEBUG);
+    const struct r_debug *debug = (const struct r_debug*)elf_get_dynamic_address_by_tag((const void*)phdr->p_vaddr, DT_DEBUG);
     return debug->r_map;
   }
 }
@@ -1472,11 +1501,10 @@ static const struct link_map* elf64_get_link_map()
  * \param lmap Link map.
  * \param tag Tag to look for.
  */
-static const void* elf64_get_library_dynamic_section(const struct link_map *lmap, Elf64_Sxword tag)
+static const void* elf_get_library_dynamic_section(const struct link_map *lmap, dnload_elf_tag_t tag)
 {
-  const void *ret = elf64_get_dynamic_address_by_tag(lmap->l_ld, tag);
-  // Sometimes the value is an offset instead of a naked pointer.
-  return (ret < (void*)lmap->l_addr) ? (uint8_t*)ret + (size_t)lmap->l_addr : ret;
+  const void *ret = elf_get_dynamic_address_by_tag(lmap->l_ld, tag);
+  return (uint8_t*)ret + (size_t)lmap->l_addr;
 }
 /** \\brief Find a symbol in any of the link maps.
  *
@@ -1488,111 +1516,32 @@ static const void* elf64_get_library_dynamic_section(const struct link_map *lmap
  */
 static void* dnload_find_symbol(uint32_t hash)
 {
-  const struct link_map* lmap = elf64_get_link_map();
-#if defined(__linux__)
-  // On linux, the second entry (first is this file) is not usable.
-  lmap = lmap->l_next->l_next;
+  const struct link_map* lmap = elf_get_link_map();
+#if defined(__linux__) && (8 == DNLOAD_POINTER_SIZE)
+  // On 64-bit Linux, the second entry is not usable.
+  lmap = lmap->l_next;
 #endif
   for(;;)
   {
-    /* Find symbol from link map. We need the string table and a corresponding symbol table. */
-    const char* strtab = (const char*)elf64_get_library_dynamic_section(lmap, DT_STRTAB);
-    const Elf64_Sym* symtab = (const Elf64_Sym*)elf64_get_library_dynamic_section(lmap, DT_SYMTAB);
-    const uint32_t* hashtable = (const uint32_t*)elf64_get_library_dynamic_section(lmap, DT_HASH);
+    // First entry is this object itself, safe to advance first.
+    lmap = lmap->l_next;
+    // Find symbol from link map. We need the string table and a corresponding symbol table.
+    const char* strtab = (const char*)elf_get_library_dynamic_section(lmap, DT_STRTAB);
+    const dnload_elf_sym_t* symtab = (const dnload_elf_sym_t*)elf_get_library_dynamic_section(lmap, DT_SYMTAB);
+    const uint32_t* hashtable = (const uint32_t*)elf_get_library_dynamic_section(lmap, DT_HASH);
     unsigned numchains = hashtable[1]; /* Number of symbols. */
     unsigned ii;
     for(ii = 0; (ii < numchains); ++ii)
     {
-      const Elf64_Sym* sym = &symtab[ii];
+      const dnload_elf_sym_t* sym = &symtab[ii];
       const char *name = &strtab[sym->st_name];
       if(sdbm_hash((const uint8_t*)name) == hash)
       {
         return (void*)((const uint8_t*)sym->st_value + (size_t)lmap->l_addr);
       }
     }
-    lmap = lmap->l_next;
   }
 }
-#else
-/** \\brief Get the address associated with given tag in a dynamic section.
- *
- * \\param dyn Dynamic section.
- * \\param tag Tag to look for.
- * \\return Address matching given tag.
- */
-static const void* elf32_get_dynamic_address_by_tag(const void *dyn, Elf32_Sword tag)
-{
-  const Elf32_Dyn *dynamic = (Elf32_Dyn*)dyn;
-  for(;;)
-  {
-    if(dynamic->d_tag == tag)
-    {
-      return (const void*)dynamic->d_un.d_ptr;
-    }
-    ++dynamic;
-  }
-}
-/** \\brief Get the program link map.
- *
- * \\return Link map struct.
- */
-static const struct link_map* elf32_get_link_map()
-{
-  // ELF header is in a fixed location in memory.
-  // First program header is located directly afterwards.
-  const Elf32_Ehdr *ehdr = (const Elf32_Ehdr*)ELF_BASE_ADDRESS;
-  const Elf32_Phdr *phdr = (const Elf32_Phdr*)((size_t)ehdr + (size_t)ehdr->e_phoff);
-  // Find the dynamic header by traversing the phdr array.
-  for(; (phdr->p_type != PT_DYNAMIC); ++phdr) { }
-  // Find the debug entry in the dynamic header array.
-  {
-    const struct r_debug *debug = (const struct r_debug*)elf32_get_dynamic_address_by_tag((const void*)phdr->p_vaddr, DT_DEBUG);
-    return debug->r_map;
-  }
-}
-/** \\brief Get address of one dynamic section corresponding to given library.
- *
- * \param lmap Link map.
- * \param tag Tag to look for.
- */
-static const void* elf32_get_library_dynamic_section(const struct link_map *lmap, Elf32_Sword tag)
-{
-  const void *ret = elf32_get_dynamic_address_by_tag(lmap->l_ld, tag);
-  // Sometimes the value is an offset instead of a naked pointer.
-  return (ret < (void*)lmap->l_addr) ? (uint8_t*)ret + (size_t)lmap->l_addr : ret;
-}
-/** \\brief Find a symbol in any of the link maps.
- *
- * Should a symbol with name matching the given hash not be present, this function will happily continue until
- * we crash. Size-minimal code has no room for error checking.
- *
- * \\param hash Hash of the function name string.
- * \\return Symbol found.
- */
-static void* dnload_find_symbol(uint32_t hash)
-{
-  const struct link_map* lmap = elf32_get_link_map();
-  for(;;)
-  {
-    /* Find symbol from link map. We need the string table and a corresponding symbol table. */
-    const char* strtab = (const char*)elf32_get_library_dynamic_section(lmap, DT_STRTAB);
-    const Elf32_Sym* symtab = (const Elf32_Sym*)elf32_get_library_dynamic_section(lmap, DT_SYMTAB);
-    const uint32_t* hashtable = (const uint32_t*)elf32_get_library_dynamic_section(lmap, DT_HASH);
-    unsigned numchains = hashtable[1]; /* Number of symbols. */
-    unsigned ii;
-    for(ii = 0; (ii < numchains); ++ii)
-    {
-      const Elf32_Sym* sym = &symtab[ii];
-      const char *name = &strtab[sym->st_name];
-      if(sdbm_hash((const uint8_t*)name) == hash)
-      {
-        return (void*)((const uint8_t*)sym->st_value + (size_t)lmap->l_addr);
-      }
-    }
-    lmap = lmap->l_next;
-  }
-}
-#endif
 /** \\brief Perform init.
  *
  * Import by hash - style.
