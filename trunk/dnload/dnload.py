@@ -1529,7 +1529,12 @@ static const struct link_map* elf_get_link_map()
 static const void* elf_get_library_dynamic_section(const struct link_map *lmap, dnload_elf_tag_t tag)
 {
   const void *ret = elf_get_dynamic_address_by_tag(lmap->l_ld, tag);
-  return (uint8_t*)ret + (size_t)lmap->l_addr;
+  // Sometimes the value is an offset instead of a naked pointer.
+  if(ret < (const void*)lmap->l_addr)
+  {
+    return (uint8_t*)ret + (size_t)lmap->l_addr;
+  }
+  return ret;
 }
 /** \\brief Find a symbol in any of the link maps.
  *
