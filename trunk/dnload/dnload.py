@@ -37,7 +37,7 @@ class PlatformVar:
     if not self.name in platform_variables:
       raise RuntimeError("unknown platform variable '%s'" % (self.name))
     var = platform_variables[self.name]
-    platform = (osname, osarch)
+    platform = (osname, osarch, platform_map(osname) + "-" + platform_map(osarch))
     for ii in platform:
       if ii in var:
         return var[ii]
@@ -70,6 +70,7 @@ platform_mapping = {
   "i686" : "ia32",
   "ia32" : "32-bit",
   "linux" : "Linux",
+  "x86_64" : "amd64",
   }
 
 platform_variables = {
@@ -80,7 +81,7 @@ platform_variables = {
   "ei_osabi" : { "FreeBSD" : 9, "Linux" : 3 },
   "entry" : { "32-bit" : 0x2000000, "64-bit" : 0x400000 },
   #"entry" : { "32-bit" : 0x8048000, "64-bit" : 0x400000 },
-  "interp" : { "FreeBSD" : "\"/libexec/ld-elf.so.1\"", "Linux" : "\"/lib/ld-linux.so.2\"" },
+  "interp" : { "FreeBSD" : "\"/libexec/ld-elf.so.1\"", "Linux-32-bit" : "\"/lib/ld-linux.so.2\"", "Linux-64-bit" : "\"/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2\"" },
   "march" : { "amd64" : "core2", "ia32" : "pentium4" },
   "memory_page" : { "32-bit" : 0x1000, "64-bit" : 0x200000 },
   "mpreferred-stack-boundary" : { "32-bit" : 2, "64-bit" : 4 },
@@ -1822,7 +1823,7 @@ def locate(pth, fn):
 def make_executable(op):
   """Make given file executable."""
   if not os.stat(op)[stat.ST_MODE] & stat.S_IXUSR:
-    run_command(["chmod", "+x", output_file])
+    run_command(["chmod", "+x", op])
 
 def merge_segments(lst):
   """Try to merge segments in a given list in-place."""
