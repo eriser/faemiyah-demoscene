@@ -256,7 +256,7 @@ class AssemblerFile:
         print("%s%u bytes%s" % (outstr, size, pt_load_string))
     bss = AssemblerSection(".bss")
     bss.add_line("end:\n")
-    bss.add_line(".balign 4\n")
+    bss.add_line(".balign %i\n" % (int(PlatformVar("align"))))
     bss.add_line("aligned_end:\n")
     bss.add_line(assembler.format_equ("bss_start", "aligned_end + " + str(bss_offset)))
     for ii in bss_elements:
