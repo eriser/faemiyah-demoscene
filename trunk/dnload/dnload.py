@@ -958,8 +958,8 @@ class Linker:
     libname = "lib%s.so" % (op)
     # Shared object may be linker script, if so, it will tell actual shared object.
     for ii in self.library_directories:
-      current_libname = os.path.join(ii, libname)
-      if file_is_ascii_text(current_libname):
+      current_libname = locate(ii, libname)
+      if current_libname and file_is_ascii_text(current_libname):
         fd = open(current_libname, "r")
         match = re.search(r'GROUP\s*\(\s*(\S+)\s+', fd.read(), re.MULTILINE)
         fd.close()
@@ -1754,14 +1754,6 @@ def file_is_ascii_text(op):
       fd.close()
       return False
 
-def find_file(fn, path_list):
-  """Search for given file from given paths downward."""
-  for ii in path_list:
-    ret = locate(ii, fn)
-    if ret:
-      return ret
-  return None
-
 def find_symbol(op):
   """Find single symbol."""
   for ii in library_definitions:
@@ -1809,6 +1801,12 @@ def is_listing(op):
 
 def locate(pth, fn):
   """Search for given file from given path downward."""
+  if is_listing(pth):
+    for ii in pth:
+      ret = locate(ii, fn)
+      if ret:
+        return ret
+    return None
   pthfn = pth + "/" + fn
   if os.path.isfile(pthfn):
     return os.path.normpath(pthfn)
@@ -2096,7 +2094,7 @@ def main():
       print("Using explicit target header file '%s'." % (target))
     touch(target)
   else:
-    target_file = find_file(target, target_search_path)
+    target_file = locate(target_search_path, target)
     if target_file:
       target = os.path.normpath(target_file)
       target_path, target_file = os.path.split(target)
