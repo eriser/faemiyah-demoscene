@@ -627,10 +627,24 @@ class AssemblerSegment:
     self.refresh_name_label()
     self.refresh_name_end_label()
 
+  def add_dt_hash(self, op):
+    """Add hash dynamic structure."""
+    d_tag = AssemblerVariable(("d_tag, DT_HASH = 4", PlatformVar("addr"), 4))
+    d_un = AssemblerVariable(("d_un", PlatformVar("addr"), op))
+    self.data[0:0] = [d_tag, d_un]
+    self.refresh_name_label()
+
   def add_dt_needed(self, op):
     """Add requirement to given library."""
     d_tag = AssemblerVariable(("d_tag, DT_NEEDED = 1", PlatformVar("addr"), 1))
     d_un = AssemblerVariable(("d_un, library name offset in strtab", PlatformVar("addr"), "strtab_%s - strtab" % labelify(op)))
+    self.data[0:0] = [d_tag, d_un]
+    self.refresh_name_label()
+
+  def add_dt_symtab(self, op):
+    """Add symtab dynamic structure."""
+    d_tag = AssemblerVariable(("d_tag, DT_SYMTAB = 6", PlatformVar("addr"), 6))
+    d_un = AssemblerVariable(("d_un", PlatformVar("addr"), op))
     self.data[0:0] = [d_tag, d_un]
     self.refresh_name_label()
 
@@ -888,12 +902,8 @@ assembler_hash = (
 assembler_dynamic = (
     "dynamic",
     "PT_DYNAMIC",
-    ("d_tag, DT_HASH = 4", PlatformVar("addr"), 4),
-    ("d_un", PlatformVar("addr"), "hash"),
     ("d_tag, DT_STRTAB = 5", PlatformVar("addr"), 5),
     ("d_un", PlatformVar("addr"), "strtab"),
-    ("d_tag, DT_SYMTAB = 6", PlatformVar("addr"), 6),
-    ("d_un", PlatformVar("addr"), "symtab"),
     ("d_tag, DT_DEBUG = 21", PlatformVar("addr"), 21),
     ("d_un", PlatformVar("addr"), 0),
     ("d_tag, DT_NULL = 0", PlatformVar("addr"), 0),
@@ -1860,6 +1870,14 @@ def osarch_match(op):
       return True
   return False
 
+def osname_is_freebsd():
+  """Check if the operating system name maps to FreeBSD."""
+  return ("FreeBSD" == osname)
+
+def osname_is_linux():
+  """Check if the operating system name maps to Linux."""
+  return ("Linux" == osname)
+
 def platform_map(op):
   """Follow platform mapping chain as long as possible."""
   while op in platform_mapping:
@@ -2221,20 +2239,22 @@ def main():
       segment_interp = AssemblerSegment(assembler_interp)
       segment_strtab = AssemblerSegment(assembler_strtab)
       und_symbol_string = "Checking for required UND symbols... "
-      if "FreeBSD" == osname:
+      if osname_is_freebsd():
         und_symbols = ["environ", "__progname"]
       else:
-        und_symbols = []
+        und_symbols = None
       if verbose:
-        if 0 < len(und_symbols):
-          print(und_symbol_string + str(und_symbols))
-        else:
-          print(und_symbol_string + "none")
-      segment_symtab.add_symbol_empty()
-      for ii in und_symbols:
-        segment_symtab.add_symbol_und(ii)
-      segment_hash.add_hash(und_symbols)
-      segment_strtab.add_strtab(und_symbols)
+        print(und_symbol_string + str(und_symbols))
+      if is_listing(und_symbols):
+        segment_symtab.add_symbol_empty()
+        for ii in und_symbols:
+          segment_symtab.add_symbol_und(ii)
+          segment_hash.add_hash(und_symbols)
+        segment_dynamic.add_dt_symtab("symtab")
+        segment_dynamic.add_dt_hash("hash")
+        segment_strtab.add_strtab(und_symbols)
+      else:
+        segment_dynamic.add_dt_symtab(0)
       for ii in libraries:
         library_name = linker.get_library_name(ii)
         segment_dynamic.add_dt_needed(library_name)
@@ -2260,7 +2280,13 @@ def main():
         else:
           raise_unknown_address_size()
         load_segments = [segment_phdr_load_single]
-      segments = [segment_ehdr] + load_segments + [segment_phdr_dynamic, segment_phdr_interp, segment_hash, segment_dynamic, segment_symtab, segment_interp, segment_strtab]
+      segments = [segment_ehdr] + load_segments + [segment_phdr_dynamic, segment_phdr_interp]
+      if is_listing(und_symbols):
+        segments += [segment_hash]
+      segments += [segment_dynamic]
+      if is_listing(und_symbols):
+        segments += [segment_symtab]
+      segments += [segment_interp, segment_strtab]
       segments = merge_segments(segments)
       fd = open(output_file + ".final.S", "w")
       for ii in segments:
