@@ -670,21 +670,16 @@ class AssemblerSegment:
     self.refresh_name_label()
 
   def add_hash(self, lst):
-    """Generate .hash contents based on symbol listing."""
+    """Generate a minimal .hash based on symbol listing."""
     self.data = []
-    # TODO: Do this better.
-    if 2 == len(lst):
-      self.add_data(("", 4, 1))
-      self.add_data(("", 4, 3))
-      self.add_data(("", 4, 2))
-      self.add_data(("", 4, 0))
-      self.add_data(("", 4, 0))
-      self.add_data(("", 4, 1))
-    elif 0 == len(lst):
-      self.add_data(("", 4, 1))
-      self.add_data(("", 4, 1))
-      self.add_data(("", 4, 0))
-      self.add_data(("", 4, 0))
+    num = len(lst) + 1
+    self.add_data(("", 4, 1))
+    self.add_data(("", 4, num))
+    self.add_data(("", 4, num - 1))
+    self.add_data(("", 4, 0))
+    if 1 < num:
+      for ii in range(num - 1):
+        self.add_data(("", 4, ii))
 
   def add_strtab(self, op):
     """Add a library name."""
