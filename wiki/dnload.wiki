@@ -61,18 +61,6 @@ The checked out repository will have the `dnload.py` script in the root folder. 
 {{{
 #include "dnload.h"
 
-#if !defined(USE_LD)
-#if defined(__clang__)
-void *environ;
-void *__progname;
-extern "C" void _start();
-#else
-void *environ __attribute__((externally_visible));
-void *__progname __attribute__((externally_visible));
-extern "C" void _start() __attribute__((externally_visible));
-#endif
-#endif
-
 #if defined(USE_LD)
 int main()
 #else
@@ -124,7 +112,7 @@ Hello World!
 
 *NOTE:* The include directory and invoking sdl-config are currently necessary since SDL backend is what will be included by the generated headers.
 
-When `USE``_``LD` is turned on, all 'tricks' will essentially evaluate to NOP, and all calls made with the reserved `dnload``_` prefix will simply call the functions as normal.
+When `USE_LD` is turned on, all 'tricks' will essentially evaluate to NOP, and all calls made with the reserved `dnload``_` prefix will simply call the functions as normal.
 
 == Compiling the example as a size-optimized binary ==
 
@@ -148,7 +136,9 @@ Analyzing source file 'src/hello_world.cpp'.
 Executing command: g++49 src/hello_world.cpp -D_GNU_SOURCE=1 -D_REENTRANT -D_THREAD_SAFE -DDNLOAD_H -I/usr/local/include -I/usr/local/include/SDL -E
 Symbols found: ['puts']
 Wrote header file 'src/dnload.h'.
-Executing command: g++49 -S src/hello_world.cpp -o src/hello_world.S -Os -ffast-math -fno-asynchronous-unwind-tables -fno-exceptions -fno-rtti -fno-threadsafe-statics -fomit-frame-pointer -fsingle-precision-constant -fwhole-program -march=pentium4 -mpreferred-stack-boundary=2 -D_GNU_SOURCE=1 -D_REENTRANT -D_THREAD_SAFE -I/usr/local/include -I/usr/local/include/SDL
+Linking against libraries: ['c']
+Executing command: g++49 -S src/hello_world.cpp -o src/hello_world.S -Os -ffast-math -fno-asynchronous-unwind-tables -fno-exceptions -fno-rtti -fno-threadsafe-statics -fomit-frame-pointer -fsingle-precision-constant -fwhole-program -march=pentium4 -mpreferred-stack-boundary=2 -Wall -D_GNU_SOURCE=1 -D_REENTRANT -D_THREAD_SAFE -I/usr/local/include -I/usr/local/include/SDL
+Checking for required UND symbols... ['__progname', 'environ']
 Using shared library 'libc.so.7' instead of 'libc.so'.
 Read 7 sections in 'src/hello_world.S': text, text, text, rodata, text, text, note
 Erasing function header from '_start': 4 lines.
@@ -160,11 +150,13 @@ Merging headers dynamic and symtab at point 2.
 Merging headers interp and strtab at point 1.
 Wrote assembler source 'src/hello_world.final.S'.
 Executing command: /usr/local/bin/as src/hello_world.final.S -o src/hello_world.o
-Executing command: /usr/local/bin/ld --oformat=binary --entry=0x8048000 src/hello_world.o -o src/hello_world.unprocessed
+Executing command: /usr/local/bin/ld --verbose
+Wrote linker script 'src/hello_world.ld'.
+Executing command: /usr/local/bin/ld --oformat=binary --entry=0x2000000 src/hello_world.o -o src/hello_world.unprocessed -T src/hello_world.ld
 Executing command: readelf --program-headers src/hello_world.unprocessed
 Executable size equals PT_LOAD size (528 bytes), no truncation necessary.
 Executing command: xz --format=lzma --lzma1=preset=9e,lc=1,lp=0,pb=0 --stdout src/hello_world.stripped
-Wrote 'src/hello_world': 425 bytes
+Wrote 'src/hello_world': 418 bytes
 }}}
 
 The actual program output should be:
@@ -187,48 +179,35 @@ This will internally include the relevant loader and some other header(s) presen
 To understand what the script does, we will look at the main function:
 
 {{{
-#if !defined(USE_LD)
-#if defined(__clang__)
-void *environ;
-void *__progname;
-extern "C" void _start();
-#else
-void *environ __attribute__((externally_visible));
-void *__progname __attribute__((externally_visible));
-extern "C" void _start() __attribute__((externally_visible));
-#endif
-#endif
-
-/** \brief Object file starting point. */
 #if defined(USE_LD)
 int main()
 #else
 void _start()
 #endif
 {
+  dnload();
+  dnload_puts("Hello World!");
+
+#if defined(USE_LD)
+  return 0;
+#else
+  asm_exit();
+#endif
+}
 }}}
 
-If the macro `USE``_``LD` would be defined, all this would simply evaluate to `int main() {`, which is the entry point the compiler would expect to find.
-
-However, `main()` is not the real entry point into the program. In practice, the linker will generate code that will perform initialization of global variables, environment, etc., and only afterwards pass the control to the main function created by the programmer. Since we're aiming for a small binary, we will perform all necessary initializations ourselves. The actual program execution will begin at a symbol called *`_`start*.
-
-Besides the entry point, we see two other symbols named *environ* and *`__`progname*, that might seem nonsensical, as they are not used anywhere in the program (they will also not be used inside the generated headers). However, taking a look into the standard C library (`/lib/libc.so.7` on FreeBSD) will clarify their purpose.
+If the macro `USE``_``LD` would be defined, all this would simply evaluate to a self-explanatory hello world program:
 
 {{{
-> readelf -a /lib/libc.so.7
-...
-Symbol table '.dynsym' contains 3079 entries:
-   Num:    Value  Size Type    Bind   Vis      Ndx Name
-     0: 00000000     0 NOTYPE  LOCAL  DEFAULT  UND 
-     1: 00000000     0 NOTYPE  WEAK   DEFAULT  UND _Jv_RegisterClasses
-     2: 00000000     0 NOTYPE  GLOBAL DEFAULT  UND __progname
-     3: 00000000     0 NOTYPE  GLOBAL DEFAULT  UND environ
-...
+int main()
+{
+  puts("Hello World!")
+
+  return 0;
+}
 }}}
 
-We do not need these symbols, but libc expects them to be present in the binary. In practice, the dynamic linking procedure will fail if the program symbol table does not contain them.
-
-The `__attribute__((externally_visible))` is present due to Gnu C Compiler semantics. When compiling for binary size, it is necessary to use the `-fwhole-program` flag to make g++ discard all irrelevant code. Unfortunately, unless the compiler finds something it needs, this will actually cause it to discard _everything_ within the source file due to our unorthodox choice of not using `main()` at all. By requiring the symbols to be externally visible, we explicitly mark the places the dependency graph build should start from. Note, that Clang does not seem to either require or support this attribute.
+If `USE_LD` is not defined, the program instead uses an entry point named *`_`start*. This is because even if using `main()` normally, it is not the real entry point into the program. In practice, the linker will generate code that will perform initialization of global variables, environment, etc., and only afterwards pass the control to the main function created by the programmer. The actual entry point generated by the compiler/linker system is traditionally called `_start`. Since we're aiming for a small binary, we will not be using any automatically generated entry point code, and declare it ourselves.
 
 The two first lines of main function comprise the actual program:
 
@@ -917,13 +896,52 @@ The name `USE``_``LD` is legacy, which has preserved unchanged from earlier Faem
 
 When manually creating the program headers, the symbol would not necessarily need to be named `_``start` - it could be anything, and the name will be stripped out anyway. However, this is a known convention.
 
+=== What are `environ` and `__progname`? ===
+
+You you looked into the generated header, you might have seen something like this:
+
+{{{
+#if defined(__FreeBSD__)
+#if defined(__clang__)
+void *environ;
+void *__progname;
+#else
+void *environ __attribute__((externally_visible));
+void *__progname __attribute__((externally_visible));
+#endif
+#endif
+}}}
+
+These symbols might seem nonsensical, as they are not used anywhere in the program or the generated code. Taking a look into the standard C library (`/lib/libc.so.7` on FreeBSD) will clarify their purpose.
+
+{{{
+> readelf -a /lib/libc.so.7
+...
+Symbol table '.dynsym' contains 3079 entries:
+   Num:    Value  Size Type    Bind   Vis      Ndx Name
+     0: 00000000     0 NOTYPE  LOCAL  DEFAULT  UND 
+     1: 00000000     0 NOTYPE  WEAK   DEFAULT  UND _Jv_RegisterClasses
+     2: 00000000     0 NOTYPE  GLOBAL DEFAULT  UND __progname
+     3: 00000000     0 NOTYPE  GLOBAL DEFAULT  UND environ
+...
+}}}
+
+We do not need these symbols, but libc expects them to be present in the binary. In practice, the dynamic linking procedure will fail if the program symbol table does not contain them.
+
+=== Why is there an attribute `externally_visible` specified for some symbols? ===
+
+The suffix `__attribute__((externally_visible))` is present in some symbols defined, most notable in `_start`. This is due to Gnu C Compiler semantics.
+
+When compiling for binary size, it is necessary to use the `-fwhole-program` flag to make g++ discard all irrelevant code. Unfortunately, unless the compiler finds something it needs, this will actually cause it to discard _everything_ within the source file as there is no `main()` present to start building a dependency graph from.
+
+This attribute explicitly marks functions as symbols to be externally visible, so the dependency graph build shall include them. Note, that Clang does not seem to either require or support this attribute.
+
 ----
 
 = TODO =
   * Should probably create the header file in a smart(er) manner if it is not found.
   * Add cross-compilation support, at the very least between `*`nix systems at the "maximum" operation mode.
   * Only SDL/OpenGL supported right now. Should probably also support GLFW.
-  * Perhaps there are more advanced tricks available for Linux. This would require hacking `ld-linux.so.2` to find out about them.
   * IA-32 does not seem to care that much about alignment. Perhaps alignment directives could be completely removed on some platforms?
   * Perhaps there are more efficient ways to interleave the header structs?
 
