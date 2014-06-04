@@ -17,7 +17,7 @@ The script is self-contained, and should require no external python packages to 
 
 For compiling without size optimizations, GLEW and SDL development files are needed. This is subject to change if/when other backends are added.
 
-*NOTE:* Cross-compilation is not (yet?) supported. Building of binaries must be done on the actual target system. As earlier mentioned, this currently only includes `FreeBSD-ia32` and `Linux-ia32`. If you want to develop 32-bit software on a 64-bit system, you will need to set up a chroot/jail environment or a virtual machine.
+*Note:* Cross-compilation is not (yet?) supported. Building of binaries must be done on the actual target system. As earlier mentioned, this currently only includes `FreeBSD-ia32` and `Linux-ia32`. If you want to develop 32-bit software on a 64-bit system, you will need to set up a chroot/jail environment or a virtual machine.
 
 ----
 
@@ -110,7 +110,7 @@ To do this, we need to set the `USE``_``LD` flag, for example by (replace with y
 Hello World!
 }}}
 
-*NOTE:* The include directory and invoking sdl-config are currently necessary since SDL backend is what will be included by the generated headers.
+*Note:* The include directory and invoking sdl-config are currently necessary since SDL backend is what will be included by the generated headers.
 
 When `USE_LD` is turned on, all 'tricks' will essentially evaluate to NOP, and all calls made with the reserved `dnload``_` prefix will simply call the functions as normal.
 
@@ -269,7 +269,7 @@ We can alter the compiler output to produce smaller binaries both by making it a
 
 Despite Clang being all the rage nowadays, gcc seems to still produce binaries that size-optimize better. In particular, the script will attempt to use g++49 (latest available in FreeBSD at the time of writing) whenever possible.
 
-*NOTE:* Any compiler may be specified with the `-C` or `--compiler` command line option, but compilation is currently only supported with `gcc` or `clang`. `cl.exe` may be used to generate the header in Windows.
+*Note:* Any compiler may be specified with the `-C` or `--compiler` command line option, but compilation is currently only supported with `gcc` or `clang`. `cl.exe` may be used to generate the header in Windows.
 
 Using g++, the flags of the first type (just smaller) would be:
   * `-Os`
@@ -290,7 +290,7 @@ Some flags of the third type, which disable fancy language features, are:
   * `-fno-exceptions`: Self-evident.
   * `-fno-rtti`: Self-evident.
 
-*NOTE:* One could ask why C++ to begin with if we're not using any of its features? The answer is, that it should never be detrimental. After manually disabling all the features that would increase code footprint, we can basically write C using a C++ compiler. In some cases the C++ syntax will be beneficial.
+*Note:* One could ask why C++ to begin with if we're not using any of its features? The answer is, that it should never be detrimental. After manually disabling all the features that would increase code footprint, we can basically write C using a C++ compiler. In some cases the C++ syntax will be beneficial.
 
 == The self-dumping shell script ==
 
@@ -770,7 +770,7 @@ aligned_end:
 
 The file size will use `end` while the memory size will use 'bss_end`.
 
-*NOTE:* This will fail with a _bus error_ if the size of fake `.bss` segment nears 128 megabytes. If this happens, the solution is to do the exact same thing `ld` would do - construct another `PT_LOAD` segment at the next memory page without the execute flag set and assign all uninitialized memory there instead.
+*Note:* This will fail with a _bus error_ if the size of fake `.bss` segment nears 128 megabytes. If this happens, the solution is to do the exact same thing `ld` would do - construct another `PT_LOAD` segment at the next memory page without the execute flag set and assign all uninitialized memory there instead.
 
 === Entry into and exit from `_start` ===
 
@@ -825,7 +825,7 @@ This takes advantage of:
   * `.dynamic` section ends with the `PT_NULL` terminator. Symbol table starts with the null symbol. Size of null terminator is 8 bytes, and the size of null symbol is 16 bytes. These can be partially interleaved.
   * `.interp` section ends with terminating zero for the interpreter string, and `.strtab` always starts with a zero as per specification.
 
-*NOTE:* It might seem that `.dynamic` and `.dynsym` could be interleaved at 12 bytes instead, since the previous value in the symbol table is `DT_DEBUG`, that always takes a null value afterwards. However, as seen in [#Import_by_hash_-_scouring_ELF32 headers an earlier section], this field will be filled in runtime. In practice, interleaving at 12 bytes would crash.
+*Note:* It might seem that `.dynamic` and `.dynsym` could be interleaved at 12 bytes instead, since the previous value in the symbol table is `DT_DEBUG`, that always takes a null value afterwards. However, as seen in [#Import_by_hash_-_scouring_ELF32 headers an earlier section], this field will be filled in runtime. In practice, interleaving at 12 bytes would crash.
 
 === Entry point ===
 
@@ -833,11 +833,46 @@ Default ELF entry point is fixed to address `0x8048000`. This can be changed to 
 
 The only issue here is that specifying `--entry` to `ld` does not actually change the entry point (it probably would if `ld` would also construct the headers). We need to modify linker scripts. This is done the same way as [Import_by_hash_-_scouring_ELF32_headers earlier] - make the linker export the full linker script and change the `SEGMENT_START` directives into a better constant (`0x2000000` at the time of writing).
 
+=== Minimal .hash ===
+
+If symbols are present in the object, a hash table must be present to allow the dynamic linker to look for symbols. Either a GNU hash table or the traditional SYSV ELF hash table could be used. GNU hash table however uses 16 bytes for the mere headers, and does not look all that promising. SYSV hash tables seem to be relatively small. They look like this (all values are unsigned 32-bit integers):
+  * Number of buckets.
+  * Number of chains.
+  * List of indices, size equal to number of buckets.
+  * List of indices, size equal to number of chains.
+
+In here, the number of buckets serves as the basis of the hashing. Symbol equates into a hash value, that is modulated by number of buckets. Value from given bucket points to an index to start iterating the chain array from. The FreeBSD `rtld.c` implementation looks like this:
+
+{{{
+for (symnum = obj->buckets[req->hash % obj->nbuckets];
+     symnum != STN_UNDEF; symnum = obj->chains[symnum]) {
+  if (symnum >= obj->nchains)
+    return (ESRCH); /* Bad object */
+
+  if (matched_symbol(req, obj, &matchres, symnum)) {
+    req->sym_out = matchres.sym_out;
+    req->defobj_out = obj;
+    return (0);
+  }
+}
+}}}
+
+The obvious solution is to only have one bucket and point it at the end of the chain array, then have the chain array count down from this index, going through the symbols one by one. It's definitely ineffective, but that hardly matters. This results as a generation algorithm as follows:
+  * Write one integer, number of buckets (1).
+  * Write one integer, number of symbols plus one.
+  * Write one integer, pointing at the last symbol index, adding one for the obligatory empty symbol (`STN_UNDEF` is `0`).
+  * Write a zero, for padding.
+  * Write an increasing list of integers, starting from 0, ending at index of last symbol minus one (last symbol index was already at the only bucket we had).
+
+The total cost of adding symbols would thus be *`8`* (for dynamic structure referencing `DT_HASH`) *`+ (4 + numsymbols) * 4`* (for hash itself) *`+ (1 + numsymbols) * 16`* (for symbol structs plus one empty symbol struct) *`+ strlen(symnames)`* bytes.
+
+*Note*: In FreeBSD, where `libc` requires symbols `environ` and `__progname` this would be 99 bytes exactly.
+
 === Empty `DT_SYMTAB` (Linux) ===
 
 Linux `libc` does not require the user program to define `environ` and `__progname`. I was initially just leaving the `hash` and `symtab` segments blank. A blank `symtab` consists of just one empty (`NULL`) symbol, which already saves quite a lot of space.
 
-However, as Amand Tihon [#References [23]] points in his own similar project [#References [24]], on Linux the whole of symbol table can be omitted. This is done by having the `DT_SYMTAB` dynamic structure entry point to address value `0` and omitting `DT_HASH` completely. All in all, this means that size-optimized binaries on Linux are about 90 bytes smaller than on FreeBSD (~30 compressed bytes).
+However, as Amand Tihon [#References [23]] points in his own similar project [#References [24]], on Linux the whole of symbol table can be omitted. This is done by having the `DT_SYMTAB` dynamic structure entry point to address value `0` and omitting `DT_HASH` completely. All in all, this means that size-optimized binaries on Linux are [#Minimal_.hash 99 bytes] smaller than on FreeBSD (~30 compressed bytes).
 
 === Final sizes ===
 
@@ -850,7 +885,7 @@ Compiling with all the tricks listed above (using *-m maximum* or just omitting 
 'quad': 988 bytes
 }}}
 
-*NOTE:* Numbers subject to change.
+*Note:* Numbers subject to change.
 
 ----
 
