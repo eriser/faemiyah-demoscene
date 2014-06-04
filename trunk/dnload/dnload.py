@@ -368,7 +368,7 @@ class AssemblerSection:
 
   def crunch_amd64(self, lst):
     """Perform platform-dependent crunching."""
-    #self.crunch_entry_push()
+    self.crunch_entry_push()
     lst = self.want_line(r'\s*(syscall).*')
     if lst:
       ii = lst[0] + 1
@@ -384,16 +384,37 @@ class AssemblerSection:
   def crunch_entry_push(self):
     """Crunch amd64/ia32 push directives from given line listing."""
     lst = self.want_entry_point()
-    if lst:
-      ii = lst[0] + 1
-      jj = ii
-      while True:
-        if not re.match(r'\s*(push).*', self.content[jj]):
-          if verbose:
-            print("Erasing function header from '%s': %i lines." % (lst[1], jj - ii))
-          self.erase(ii, jj)
-          break
+    if not lst:
+      return
+    ii = lst[0] + 1
+    jj = ii
+    reinstated_lines = []
+    stack_offset = 0
+    while True:
+      match = re.match(r'\s*(push\S).*', self.content[jj], re.IGNORECASE)
+      if match:
+        stack_offset += asm_get_push_width(match.group(1))
         jj += 1
+        continue;
+      # xor (zeroing) seems to be only stuff inserted in the 'middle' of pushing.
+      match = re.match(r'\s*xor.*', self.content[jj], re.IGNORECASE)
+      if match:
+        reinstated_lines += [self.content[jj]]
+        jj += 1
+        continue
+      match = re.match(r'(\s*sub\S*\s+)(\$?\S+)(\s*,\s*\S*[er]sp.*)', self.content[jj], re.IGNORECASE)
+      if match:
+        addition = match.group(2)
+        if "$" == addition[:1]:
+          addition = "$" + str(int(addition[1:]) + stack_offset)
+        else:
+          addition = str(int(addition) + stack_offset)
+        self.content[jj] = match.group(1) + addition + match.group(3) + "\n"
+      if verbose:
+        print("Erasing function header from '%s': %i lines." % (lst[1], jj - ii - len(reinstated_lines)))
+      self.erase(ii, jj)
+      self.content[ii:ii] = reinstated_lines
+      break
 
   def crunch_ia32(self, lst):
     """Perform platform-dependent crunching."""
@@ -505,7 +526,7 @@ class AssemblerSection:
     """Want a line matching regex from object."""
     for ii in range(first, len(self.content)):
       line = self.content[ii]
-      match = re.match(op, line)
+      match = re.match(op, line, re.IGNORECASE)
       if match:
         return (ii, match.group(1))
     return None
@@ -1392,6 +1413,28 @@ template_header_begin = """#ifndef DNLOAD_H
 #endif\n
 #if defined(__cplusplus)
 extern "C" {
+#endif\n
+#if !defined(USE_LD)
+#if defined(__FreeBSD__)
+#if defined(__clang__)
+/** Symbol required by libc. */
+void *environ;
+/** Symbol required by libc. */
+void *__progname;
+#else
+/** Symbol required by libc. */
+void *environ __attribute__((externally_visible));
+/** Symbol required by libc. */
+void *__progname __attribute__((externally_visible));
+#endif
+#endif
+#if defined(__clang__)
+/** Program entry point. */
+void _start();
+#else
+/** Program entry point. */
+void _start() __attribute__((externally_visible));
+#endif
 #endif
 """
 
@@ -1691,6 +1734,15 @@ def generate_symbol_struct(symbols):
 ########################################
 # Functions ############################
 ########################################
+
+def asm_get_push_width(op):
+  """Get width of push instruction."""
+  op = op.lower()
+  if "pushq" == op:
+    return 8
+  elif "pushl" == op:
+    return 4
+  raise RuntimeError("width of push instruction '%s' not known" % (op))
 
 def check_executable(op):
   """Check for existence of a single binary."""
