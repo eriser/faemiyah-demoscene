@@ -1,6 +1,7 @@
-r?? (2014-??-??)
+r106 (2014-06-05)
   * Remove also unnecessary symbol definitions on non-FreeBSD platforms.
   * Properly crunch amd64 entry point.
+  * Create DT_HASH in a generic manner.
 
 r99 (2014-06-04)
   * Elf64 / amd64 support.
