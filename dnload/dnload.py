@@ -665,18 +665,11 @@ class AssemblerSegment:
       self.add_data(("", 4, 0))
       self.add_data(("", 4, 0))
 
-  def add_library_name(self, op):
+  def add_strtab(self, op):
     """Add a library name."""
-    libname = AssemblerVariable(("library name string", 1, "\"%s\"" % op, labelify(op)))
+    libname = AssemblerVariable(("symbol name string", 1, "\"%s\"" % op, labelify(op)))
     terminator = AssemblerVariable(("string terminating zero", 1, 0))
-    self.data += [libname, terminator]
-    self.refresh_name_end_label()
-
-  def add_strtab(self, lst):
-    """Generate .strtab contents based on symbol listing."""
-    for ii in lst:
-      self.add_data(("symbol name", 1, "\"%s\"" % ii, labelify(ii)))
-      self.add_data(("string terminating zero", 1, 0))
+    self.data[1:1] = [libname, terminator]
 
   def add_symbol_empty(self):
     """Add an empty symbol."""
@@ -2020,7 +2013,7 @@ def main():
   strip = None
   target = "dnload.h"
   target_search_path = []
-  version = "r83"
+  version = "r99"
 
   parser = argparse.ArgumentParser(usage = "%s [args] <source file(s)> [-o output]" % (sys.argv[0]), description = "Size-optimized executable generator for *nix platforms.\nPreprocesses given source file(s) looking for specifically marked function calls, then generates a dynamic loader header file that can be used within these same source files to decrease executable size.\nOptionally also perform the actual compilation of a size-optimized binary after generating the header.", formatter_class = CustomHelpFormatter, add_help = False)
   parser.add_argument("-A", "--assembler", help = "Try to use given assembler executable as opposed to autodetect.")
@@ -2212,6 +2205,7 @@ def main():
       if output_basename == output_file:
         output_path = target_path
       output_file = os.path.normpath(os.path.join(output_path, output_basename))
+    libraries = sorted(libraries)
     if verbose:
       print("Linking against libraries: %s" % (str(libraries)))
     compiler.generate_compiler_flags()
@@ -2233,14 +2227,14 @@ def main():
         segment_phdr_interp = AssemblerSegment(assembler_phdr64_interp)
       else:
         raise_unknown_address_size()
-      segment_hash = AssemblerSegment(assembler_hash)
       segment_dynamic = AssemblerSegment(assembler_dynamic)
-      segment_symtab = AssemblerSegment(assembler_symtab)
+      segment_hash = AssemblerSegment(assembler_hash)
       segment_interp = AssemblerSegment(assembler_interp)
       segment_strtab = AssemblerSegment(assembler_strtab)
+      segment_symtab = AssemblerSegment(assembler_symtab)
       und_symbol_string = "Checking for required UND symbols... "
       if osname_is_freebsd():
-        und_symbols = ["environ", "__progname"]
+        und_symbols = sorted(["environ", "__progname"])
       else:
         und_symbols = None
       if verbose:
@@ -2249,16 +2243,17 @@ def main():
         segment_symtab.add_symbol_empty()
         for ii in und_symbols:
           segment_symtab.add_symbol_und(ii)
-          segment_hash.add_hash(und_symbols)
+        for ii in reversed(und_symbols):
+          segment_strtab.add_strtab(ii)
         segment_dynamic.add_dt_symtab("symtab")
         segment_dynamic.add_dt_hash("hash")
-        segment_strtab.add_strtab(und_symbols)
+        segment_hash.add_hash(und_symbols)
       else:
         segment_dynamic.add_dt_symtab(0)
-      for ii in libraries:
+      for ii in reversed(libraries):
         library_name = linker.get_library_name(ii)
         segment_dynamic.add_dt_needed(library_name)
-        segment_strtab.add_library_name(library_name)
+        segment_strtab.add_strtab(library_name)
       asm = AssemblerFile(output_file + ".S")
       # generate_fake_bss() returns true if second PT_LOAD was needed.
       if asm.generate_fake_bss(assembler):
