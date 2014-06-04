@@ -402,18 +402,6 @@ static void draw(unsigned ticks, float aspect)
 // Main ################################
 //######################################
 
-#if !defined(USE_LD)
-#if defined(__clang__)
-void *environ;
-void *__progname;
-extern "C" void _start();
-#else
-void *environ __attribute__((externally_visible));
-void *__progname __attribute__((externally_visible));
-extern "C" void _start() __attribute__((externally_visible));
-#endif
-#endif
-
 #if defined(USE_LD)
 int intro(unsigned screen_w, unsigned screen_h, uint8_t flag_developer, uint8_t flag_fullscreen,
     uint8_t flag_record)
@@ -425,7 +413,6 @@ int intro(unsigned screen_w, unsigned screen_h, uint8_t flag_developer, uint8_t 
 #define flag_developer 0
 #define flag_fullscreen 0
 /** \endcond */
-/** \brief Object file starting point. */
 void _start()
 {
 #endif

@@ -1,3 +1,7 @@
+r?? (2014-??-??)
+  * Remove also unnecessary symbol definitions on non-FreeBSD platforms.
+  * Properly crunch amd64 entry point.
+
 r99 (2014-06-04)
   * Elf64 / amd64 support.
   * Amand Tihon's empty DT_SYMTAB trick on Linux.
