@@ -833,7 +833,7 @@ Default ELF entry point is fixed to address `0x8048000`. This can be changed to 
 
 The only issue here is that specifying `--entry` to `ld` does not actually change the entry point (it probably would if `ld` would also construct the headers). We need to modify linker scripts. This is done the same way as [Import_by_hash_-_scouring_ELF32_headers earlier] - make the linker export the full linker script and change the `SEGMENT_START` directives into a better constant (`0x2000000` at the time of writing).
 
-=== Minimal .hash ===
+=== Minimal `DT_HASH` ===
 
 If symbols are present in the object, a hash table must be present to allow the dynamic linker to look for symbols. Either a GNU hash table or the traditional SYSV ELF hash table could be used. GNU hash table however uses 16 bytes for the mere headers, and does not look all that promising. SYSV hash tables seem to be relatively small. They look like this (all values are unsigned 32-bit integers):
   * Number of buckets.
@@ -872,7 +872,7 @@ The total cost of adding symbols would thus be *`8`* (for dynamic structure refe
 
 Linux `libc` does not require the user program to define `environ` and `__progname`. I was initially just leaving the `hash` and `symtab` segments blank. A blank `symtab` consists of just one empty (`NULL`) symbol, which already saves quite a lot of space.
 
-However, as Amand Tihon [#References [23]] points in his own similar project [#References [24]], on Linux the whole of symbol table can be omitted. This is done by having the `DT_SYMTAB` dynamic structure entry point to address value `0` and omitting `DT_HASH` completely. All in all, this means that size-optimized binaries on Linux are [#Minimal_.hash 99 bytes] smaller than on FreeBSD (~30 compressed bytes).
+However, as Amand Tihon [#References [23]] points in his own similar project [#References [24]], on Linux the whole of symbol table can be omitted. This is done by having the `DT_SYMTAB` dynamic structure entry point to address value `0` and omitting `DT_HASH` completely. All in all, this means that size-optimized binaries on Linux are [#Minimal_DT_HASH 99 bytes] smaller than on FreeBSD (~30 compressed bytes).
 
 === Final sizes ===
 
