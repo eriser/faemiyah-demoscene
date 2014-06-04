@@ -670,7 +670,7 @@ class AssemblerSegment:
     self.refresh_name_label()
 
   def add_hash(self, lst):
-    """Generate a minimal .hash based on symbol listing."""
+    """Generate a minimal DT_HASH based on symbol listing."""
     self.data = []
     num = len(lst) + 1
     self.add_data(("", 4, 1))
@@ -2060,7 +2060,7 @@ def main():
   strip = None
   target = "dnload.h"
   target_search_path = []
-  version = "r99"
+  version = "r106"
 
   parser = argparse.ArgumentParser(usage = "%s [args] <source file(s)> [-o output]" % (sys.argv[0]), description = "Size-optimized executable generator for *nix platforms.\nPreprocesses given source file(s) looking for specifically marked function calls, then generates a dynamic loader header file that can be used within these same source files to decrease executable size.\nOptionally also perform the actual compilation of a size-optimized binary after generating the header.", formatter_class = CustomHelpFormatter, add_help = False)
   parser.add_argument("-A", "--assembler", help = "Try to use given assembler executable as opposed to autodetect.")
