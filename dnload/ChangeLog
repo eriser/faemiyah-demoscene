@@ -1,3 +1,8 @@
+r99 (2014-06-04)
+  * Elf64 / amd64 support.
+  * Amand Tihon's empty DT_SYMTAB trick on Linux.
+  * Bugfixes.
+
 r83 (2014-05-31)
   * Omit unnecessary 'environ' and '__progname' symbols on non-FreeBSD platforms.
   * Construct .hash, .strtab and .symtab as needed.
