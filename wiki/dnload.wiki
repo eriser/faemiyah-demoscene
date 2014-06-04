@@ -212,7 +212,7 @@ If the macro `USE``_``LD` would be defined, all this would simply evaluate to `i
 
 However, `main()` is not the real entry point into the program. In practice, the linker will generate code that will perform initialization of global variables, environment, etc., and only afterwards pass the control to the main function created by the programmer. Since we're aiming for a small binary, we will perform all necessary initializations ourselves. The actual program execution will begin at a symbol called *`_`start*.
 
-Besides the entry point, we see two other symbols named *environ* and *__progname*, that might seem nonsensical, as they are not used anywhere in the program (they will also not be used inside the generated headers). However, taking a look into the standard C library (`/lib/libc.so.7` on FreeBSD) will clarify their purpose.
+Besides the entry point, we see two other symbols named *environ* and *`__`progname*, that might seem nonsensical, as they are not used anywhere in the program (they will also not be used inside the generated headers). However, taking a look into the standard C library (`/lib/libc.so.7` on FreeBSD) will clarify their purpose.
 
 {{{
 > readelf -a /lib/libc.so.7
@@ -852,7 +852,13 @@ This takes advantage of:
 
 Default ELF entry point is fixed to address `0x8048000`. This can be changed to a better compressable address.
 
-The only issue here is that specifying `--entry` to `ld` does not actually change the entry point (it probably would if `ld` would also construct the headers). We need to modify linker scripts. This is done the same way as [Import_by_hash_-_scouring_ELF32_headers earlier] - make the linker export the full linker script and change the `SEGMENT_START` directives into a better constant (`0x01000000` at the time of writing).
+The only issue here is that specifying `--entry` to `ld` does not actually change the entry point (it probably would if `ld` would also construct the headers). We need to modify linker scripts. This is done the same way as [Import_by_hash_-_scouring_ELF32_headers earlier] - make the linker export the full linker script and change the `SEGMENT_START` directives into a better constant (`0x2000000` at the time of writing).
+
+=== Empty `DT_SYMTAB` (Linux) ===
+
+Linux `libc` does not require the user program to define `environ` and `__progname`. I was initially just leaving the `hash` and `symtab` segments blank. A blank `symtab` consists of just one empty (`NULL`) symbol, which already saves quite a lot of space.
+
+However, as Amand Tihon [#References [23]] points in his own similar project [#References [24]], on Linux the whole of symbol table can be omitted. This is done by having the `DT_SYMTAB` dynamic structure entry point to address value `0` and omitting `DT_HASH` completely. All in all, this means that size-optimized binaries on Linux are about 90 bytes smaller than on FreeBSD (~30 compressed bytes).
 
 === Final sizes ===
 
@@ -860,9 +866,9 @@ Compiling with all the tricks listed above (using *-m maximum* or just omitting 
 
 {{{
 'hello_world.stripped': 528 bytes
-'hello_world': 425 bytes
+'hello_world': 418 bytes
 'quad.stripped': 1312 bytes
-'quad': 997 bytes
+'quad': 988 bytes
 }}}
 
 *NOTE:* Numbers subject to change.
@@ -876,6 +882,7 @@ This script would not have been possible without the prior work done by various 
   * *Brian Raiter* for _A Whirlwind Tutorial on Creating Really Teensy ELF Executables for Linux_ [#References [2]] and the insight of interleaving headers.
   * *parcelshit* [#References [3]] and *las/Mercury* [#References [4]] for the original ELF32 import-by hash algorithm.
   * *Hymy* [#References [5]] and *Ye Olde Laptops Posse* [#References [6]] for earlier forays into manual ELF32 header construction.
+  * *Amand Tihon* [#References [23]] for _BOLD - The Byte Optimized Linker_ [#References [24]] and noticing that `DT_SYMTAB` can be empty.
 
 And:
   * *viznut/PWP* [#References [7]] for the series _Experimental music from very short C programs_ [#References [8]], a snipped of which is used in one of the examples.
@@ -945,4 +952,6 @@ When manually creating the program headers, the symbol would not necessarily nee
 `[`19`]` [http://www.pouet.net/topic.php?which=5392&page=4 Haxxoring the ELF format for 1k/4k stuff -thread on Pouet]<br>
 `[`20`]` [http://programmers.stackexchange.com/questions/49550/which-hashing-algorithm-is-best-for-uniqueness-and-speed Which hashing algorithm is best for uniqueness and speed? - Ian Boyd's answer at Programmers Stack Exchange]<br>
 `[`21`]` [http://www.pouet.net/prod.php?which=61753 Inconsistency by Hymy in Pouet]<br>
-`[`22`]` [http://www.pouet.net/prod.php?which=59264 tutorial2 by Ye Olde Laptops Posse in Pouet]
+`[`22`]` [http://www.pouet.net/prod.php?which=59264 tutorial2 by Ye Olde Laptops Posse in Pouet]<br>
+`[`23`]` [http://www.alrj.org/ Amand Tihon]<br>
+`[`24`]` [http://www.alrj.org/projects/bold/ BOLD - The Byte Optimized Linker]
