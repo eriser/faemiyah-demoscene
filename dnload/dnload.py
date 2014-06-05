@@ -7,6 +7,7 @@ import re
 import shutil
 import subprocess
 import stat
+import struct
 import sys
 import textwrap
 
@@ -53,7 +54,7 @@ class PlatformVar:
     """Convert to integer."""
     ret = self.get()
     if not isinstance(ret, int):
-      return int(ret, 0)
+      raise ValueError("not an integer platform variable")
     return ret
 
   def __str__(self):
@@ -75,7 +76,8 @@ platform_mapping = {
 
 platform_variables = {
   "addr" : { "32-bit" : 4, "64-bit" : 8 },
-  "align" : { "32-bit" : 4, "64-bit" : 8 },
+  "align" : { "32-bit" : 4, "64-bit" : 8, "amd64" : 1, "ia32" : 1 },
+  "bom" : { "amd64" : "<", "ia32" : "<" },
   "e_machine" : { "amd64" : 62, "ia32" : 3 },
   "ei_class" : { "32-bit" : 1, "64-bit" : 2 },
   "ei_osabi" : { "FreeBSD" : 9, "Linux" : 3 },
@@ -87,6 +89,12 @@ platform_variables = {
   "mpreferred-stack-boundary" : { "32-bit" : 2, "64-bit" : 4 },
   "phdr_count" : { "default" : 3 },
   }
+
+def platform_map(op):
+  """Follow platform mapping chain as long as possible."""
+  while op in platform_mapping:
+    op = platform_mapping[op]
+  return op
 
 def replace_platform_variable(name, op):
   """Destroy platform variable, replace with default."""
@@ -256,7 +264,7 @@ class AssemblerFile:
         print("%s%u bytes%s" % (outstr, size, pt_load_string))
     bss = AssemblerSection(".bss")
     bss.add_line("end:\n")
-    bss.add_line(".balign %i\n" % (int(PlatformVar("align"))))
+    bss.add_line(".balign %i\n" % (int(PlatformVar("addr"))))
     bss.add_line("aligned_end:\n")
     bss.add_line(assembler.format_equ("bss_start", "aligned_end + " + str(bss_offset)))
     for ii in bss_elements:
@@ -555,6 +563,7 @@ class AssemblerVariable:
     self.name = None
     if 3 < len(op):
       self.name = op[3]
+    self.original_size = -1
     self.label_pre = []
     self.label_post = []
 
@@ -571,6 +580,55 @@ class AssemblerVariable:
       self.label_post += op
     else:
       self.label_post += [op]
+
+  def deconstruct(self):
+    """Deconstruct into byte stream."""
+    try:
+      if is_listing(self.value):
+        lst = []
+        for ii in self.value:
+          lst += self.deconstruct_single(int(ii))
+      else:
+        lst = self.deconstruct_single(int(self.value))
+    except ValueError:
+      return False
+    if 1 >= len(lst):
+      return [self]
+    ret = []
+    for ii in range(len(lst)):
+      var = AssemblerVariable(("", 1, ord(lst[ii]), None))
+      if 0 == ii:
+        var.desc = self.desc
+        var.name = self.name
+        var.original_size = self.size
+        var.label_pre = self.label_pre
+      elif len(lst) - 1 == ii:
+        var.label_post = self.label_post
+      ret += [var]
+    return ret
+
+  def deconstruct_single(self, op):
+    """Desconstruct a single value."""
+    bom = str(PlatformVar("bom"))
+    int_size = int(self.size)
+    if 1 == int_size:
+      return struct.pack(bom + "B", op)
+    if 2 == int_size:
+      if 0 > op:
+        return struct.pack(bom + "h", op)
+      else:
+        return struct.pack(bom + "H", op)
+    elif 4 == int_size:
+      if 0 > op:
+        return struct.pack(bom + "i", op)
+      else:
+        return struct.pack(bom + "I", op)
+    elif 8 == int_size:
+      if 0 > op:
+        return struct.pack(bom + "q", op)
+      else:
+        return struct.pack(bom + "Q", op)
+    raise RuntimeError("cannot pack value of size %i" % (int_size))
 
   def generate_source(self, op, indent, label = None):
     """Generate assembler source."""
@@ -603,6 +661,40 @@ class AssemblerVariable:
     self.name = listify(self.name, op.name)
     self.label_pre = listify(self.label_pre, op.label_pre)
     self.label_post = listify(self.label_post, op.label_post)
+
+  def reconstruct(self, lst):
+    """Reconstruct variable from a listing."""
+    original_size = int(self.original_size)
+    self.original_size = -1
+    if 1 >= original_size:
+      return False
+    if len(lst) < original_size - 1:
+      return False
+    ret = chr(self.value)
+    for ii in range(original_size - 1):
+      op = lst[ii]
+      if op.name:
+        return False
+      if op.label_pre:
+        return False
+      if op.label_post:
+        if (original_size - 2) != ii:
+          return False
+        self.label_post = listify(self.label_post, op.label_post)
+      if "" != op.desc:
+        return False
+      if -1 != op.original_size:
+        return False
+      ret += chr(op.value)
+    bom = str(PlatformVar("bom"))
+    if 2 == original_size:
+      self.value = struct.unpack(bom + "H", ret)[0]
+    elif 4 == original_size:
+      self.value = struct.unpack(bom + "I", ret)[0]
+    elif 8 == original_size:
+      self.value = struct.unpack(bom + "Q", ret)[0]
+    self.size = original_size
+    return original_size - 1
 
   def remove_label_pre(self, op):
     """Remove a pre-label."""
@@ -686,18 +778,15 @@ class AssemblerSegment:
     libname = AssemblerVariable(("symbol name string", 1, "\"%s\"" % op, labelify(op)))
     terminator = AssemblerVariable(("string terminating zero", 1, 0))
     self.data[1:1] = [libname, terminator]
+    self.refresh_name_end_label()
 
   def add_symbol_empty(self):
     """Add an empty symbol."""
     if osarch_is_32_bit():
-      self.add_data(("empty symbol", 4, 0))
-      self.add_data(("empty symbol", 4, 0))
-      self.add_data(("unmergable empty symbol", 4, (0, 0)))
+      self.add_data(("empty symbol", 4, (0, 0, 0, 0)))
     elif osarch_is_64_bit():
-      self.add_data(("empty symbol", 4, 0))
-      self.add_data(("empty symbol", 4, 0))
-      self.add_data(("empty symbol", PlatformVar("addr"), 0))
-      self.add_data(("empty symbol", PlatformVar("addr"), 0))
+      self.add_data(("empty symbol", 4, (0, 0)))
+      self.add_data(("empty symbol", PlatformVar("addr"), (0, 0)))
     else:
       raise_unknown_address_size()
 
@@ -720,6 +809,26 @@ class AssemblerSegment:
     else:
       raise_unknown_address_size()
 
+  def deconstruct_head(self):
+    """Deconstruct this segment (starting from head) into a byte stream."""
+    ret = []
+    for ii in range(len(self.data)):
+      op = self.data[ii].deconstruct()
+      if not op:
+        return (ret, self.data[ii:])
+      ret += op
+    return (ret, [])
+
+  def deconstruct_tail(self):
+    """Deconstruct this segment (starting from tail) into a byte stream."""
+    ret = []
+    for ii in range(len(self.data)):
+      op = self.data[-ii - 1].deconstruct()
+      if not op:
+        return (self.data[:len(self.data) - ii], ret)
+      ret = op + ret
+    return ([], ret)
+
   def empty(self):
     """Tell if this segment is empty."""
     return 0 >= len(self.data)
@@ -734,23 +843,40 @@ class AssemblerSegment:
   def merge(self, op):
     """Attempt to merge with given segment."""
     highest_mergable = 0
-    for ii in range(min(len(self.data), len(op.data))):
+    (head_src, bytestream_src) = self.deconstruct_tail()
+    (bytestream_dst, tail_dst) = op.deconstruct_head()
+    print("me(%s): %i, other: %i" % (self.name, len(bytestream_src), len(bytestream_dst)))
+    for ii in range(min(len(bytestream_src), len(bytestream_dst))):
       mergable = True
       for jj in range(ii + 1):
-        if not self.data[-ii - 1 + jj].mergable(op.data[jj]):
+        if not bytestream_src[-ii - 1 + jj].mergable(bytestream_dst[jj]):
           mergable = False
           break
       if mergable:
         highest_mergable = ii + 1
     if 0 >= highest_mergable:
       return False
-    print("Merging headers %s and %s at point %i." % (self.name, op.name, highest_mergable))
-    ii = highest_mergable
-    while 0 < ii:
-      self.data[-ii].merge(op.data[highest_mergable - ii])
-      ii -= 1
-    op.data[0:highest_mergable] = []
+    if verbose:
+      print("Merging headers %s and %s at %i bytes." % (self.name, op.name, highest_mergable))
+    for ii in range(highest_mergable):
+      bytestream_src[-highest_mergable + ii].merge(bytestream_dst[ii])
+    bytestream_dst[0:highest_mergable] = []
+    self.reconstruct(head_src + bytestream_src)
+    op.reconstruct(bytestream_dst + tail_dst)
     return True
+
+  def reconstruct(self, bytestream):
+    """Reconstruct data from bytestream."""
+    self.data = []
+    while 0 < len(bytestream):
+      front = bytestream[0]
+      if self.name == "phdr_interp":
+        print("%s: %s (%s)" % (front.desc, str(front.value), str(front.original_size)))
+      bytestream = bytestream[1:]
+      constructed = front.reconstruct(bytestream)
+      if constructed:
+        bytestream[:constructed] = []
+      self.data += [front]
 
   def refresh_name_label(self):
     """Add name label to first assembler variable."""
@@ -783,7 +909,7 @@ assembler_ehdr = (
     ("e_ident[EI_VERSION], EV_CURRENT = 1", 1, 1),
     ("e_ident[EI_OSABI], ELFOSABI_LINUX = 3, ELFOSABI_FREEBSD = 9", 1, PlatformVar("ei_osabi")),
     ("e_ident[EI_ABIVERSION], always 0", 1, 0),
-    ("e_indent[EI_MAG10 to EI_MAG15], unused", 1, [0, 0, 0, 0, 0, 0, 0]),
+    ("e_indent[EI_MAG10 to EI_MAG15], unused", 1, (0, 0, 0, 0, 0, 0, 0)),
     ("e_type, ET_EXEC = 2", 2, 2),
     ("e_machine, EM_386 = 3, EM_X86_64 = 62", 2, PlatformVar("e_machine")),
     ("e_version, EV_CURRENT = 1", 4, 1),
@@ -822,7 +948,7 @@ assembler_phdr32_load_double = (
     ("p_filesz, program size on disk", PlatformVar("addr"), "end - ehdr"),
     ("p_memsz, program headers size in memory", PlatformVar("addr"), "end - ehdr"),
     ("p_flags, rwx = 7", 4, 7),
-    ("p_align, usually 0x1000", PlatformVar("addr"), PlatformVar("memory_page")),
+    ("p_align, usually " + str(PlatformVar("memory_page")), PlatformVar("addr"), PlatformVar("memory_page")),
     )
 
 assembler_phdr32_load_bss = (
@@ -835,7 +961,7 @@ assembler_phdr32_load_bss = (
     ("p_filesz, .bss size on disk", PlatformVar("addr"), 0),
     ("p_memsz, .bss size in memory", PlatformVar("addr"), "bss_end - end"),
     ("p_flags, rw = 6", 4, 6),
-    ("p_align, usually 0x1000", PlatformVar("addr"), PlatformVar("memory_page")),
+    ("p_align, usually " + str(PlatformVar("memory_page")), PlatformVar("addr"), PlatformVar("memory_page")),
     )
 
 assembler_phdr32_dynamic = (
@@ -848,7 +974,7 @@ assembler_phdr32_dynamic = (
     ("p_filesz, block size on disk", PlatformVar("addr"), "dynamic_end - dynamic"),
     ("p_memsz, block size in memory", PlatformVar("addr"), "dynamic_end - dynamic"),
     ("p_flags, ignored", 4, 0),
-    ("p_align", PlatformVar("addr"), 4),
+    ("p_align", PlatformVar("addr"), 1),
     )
 
 assembler_phdr32_interp = (
@@ -874,7 +1000,7 @@ assembler_phdr64_load_single = (
     ("p_paddr, unused", PlatformVar("addr"), 0),
     ("p_filesz, program size on disk", PlatformVar("addr"), "end - ehdr"),
     ("p_memsz, program size in memory", PlatformVar("addr"), "bss_end - ehdr"),
-    ("p_align, usually 0x1000", PlatformVar("addr"), PlatformVar("memory_page")),
+    ("p_align, usually " + str(PlatformVar("memory_page")), PlatformVar("addr"), PlatformVar("memory_page")),
     )
 
 assembler_phdr64_dynamic = (
@@ -887,7 +1013,7 @@ assembler_phdr64_dynamic = (
     ("p_paddr, unused", PlatformVar("addr"), 0),
     ("p_filesz, block size on disk", PlatformVar("addr"), "dynamic_end - dynamic"),
     ("p_memsz, block size in memory", PlatformVar("addr"), "dynamic_end - dynamic"),
-    ("p_align", PlatformVar("addr"), 4),
+    ("p_align", PlatformVar("addr"), 1),
     )
 
 assembler_phdr64_interp = (
@@ -1918,12 +2044,6 @@ def osname_is_linux():
   """Check if the operating system name maps to Linux."""
   return ("Linux" == osname)
 
-def platform_map(op):
-  """Follow platform mapping chain as long as possible."""
-  while op in platform_mapping:
-    op = platform_mapping[op]
-  return op
-
 def raise_unknown_address_size():
   """Common function to raise an error if os architecture address size is unknown."""
   raise RuntimeError("platform '%s' addressing size unknown" % (osarch))
@@ -2058,7 +2178,6 @@ def main():
   output_file = None
   source_files = []
   strip = None
-  target = "dnload.h"
   target_search_path = []
   version = "r106"
 
@@ -2066,20 +2185,20 @@ def main():
   parser.add_argument("-A", "--assembler", help = "Try to use given assembler executable as opposed to autodetect.")
   parser.add_argument("-c", "--create-binary", action = "store_true", help = "Create output file, determine output file name from input file name.")
   parser.add_argument("-C", "--compiler", help = "Try to use given compiler executable as opposed to autodetect.")
-  parser.add_argument("-d", "--define", help = "Definition to use for checking whether to use 'safe' mechanism instead of dynamic loading.\n(default: %s)" % (definition_ld))
+  parser.add_argument("-d", "--define", default = "USE_LD", help = "Definition to use for checking whether to use 'safe' mechanism instead of dynamic loading.\n(default: %(default)s)")
   parser.add_argument("-h", "--help", action = "store_true", help = "Print this help string and exit.")
   parser.add_argument("-I", "--include-directory", action = "append", help = "Add an include directory to be searched for header files.")
   parser.add_argument("-k", "--linker", help = "Try to use given linker executable as opposed to autodetect.")
   parser.add_argument("-l", "--library", action = "append", help = "Add a library to be linked against.")
   parser.add_argument("-L", "--library-directory", action = "append", help = "Add a library directory to be searched for libraries when linking.")
-  parser.add_argument("-m", "--method", choices = ("vanilla", "dlfcn", "hash", "maximum"), help = "Method to use for decreasing output file size:\n\tvanilla:\n\t\tProduce binary normally, use no tricks except unpack header.\n\tdlfcn:\n\t\tUse dlopen/dlsym to decrease size without dependencies to any specific object format.\n\thash:\n\t\tUse knowledge of object file format to perform 'import by hash' loading, but do not break any specifications.\n\tmaximum:\n\t\tUse all available techniques to decrease output file size. Resulting file may violate object file specification.\n(default: %s)" % (compilation_mode))
+  parser.add_argument("-m", "--method", default = compilation_mode, choices = ("vanilla", "dlfcn", "hash", "maximum"), help = "Method to use for decreasing output file size:\n\tvanilla:\n\t\tProduce binary normally, use no tricks except unpack header.\n\tdlfcn:\n\t\tUse dlopen/dlsym to decrease size without dependencies to any specific object format.\n\thash:\n\t\tUse knowledge of object file format to perform 'import by hash' loading, but do not break any specifications.\n\tmaximum:\n\t\tUse all available techniques to decrease output file size. Resulting file may violate object file specification.\n(default: %(default)s)")
   parser.add_argument("-o", "--output-file", help = "Compile a named binary, do not only create a header. If the name specified features a path, it will be used verbatim. Otherwise the binary will be created in the same path as source file(s) compiled.")
   parser.add_argument("-O", "--operating-system", help = "Try to target given operating system insofar cross-compilation is possible.")
-  parser.add_argument("-P", "--call-prefix", help = "Call prefix to identify desired calls.\n(default: %s)" % (symbol_prefix))
+  parser.add_argument("-P", "--call-prefix", default = symbol_prefix, help = "Call prefix to identify desired calls.\n(default: %(default)s)")
   parser.add_argument("-s", "--search-path", action = "append", help = "Directory to search for the header file to generate. May be specified multiple times. If not given, searches paths of source files to compile. If not given and no source files to compile, current path will be used.")
   parser.add_argument("-S", "--strip-binary", help = "Try to use given strip executable as opposed to autodetect.")
-  parser.add_argument("-t", "--target", help = "Target header file to look for.\n(default: %s)" % (target))
-  parser.add_argument("-u", "--unpack-header", choices = ("lzma", "xz"), help = "Unpack header to use.\n(default: %s)" % (compression))
+  parser.add_argument("-t", "--target", default = "dnload.h", help = "Target header file to look for.\n(default: %(default)s)")
+  parser.add_argument("-u", "--unpack-header", choices = ("lzma", "xz"), default = "lzma", help = "Unpack header to use.\n(default: %(default)s)")
   parser.add_argument("-v", "--verbose", action = "store_true", help = "Print more about what is being done.")
   parser.add_argument("-V", "--version", action = "store_true", help = "Print version and exit.")
   parser.add_argument("source", nargs = "*", help = "Source file(s) to preprocess and/or compile.")
@@ -2091,8 +2210,6 @@ def main():
     output_file = True
   if args.compiler:
     compiler = args.compiler
-  if args.define:
-    definition_ld = args.define
   if args.help:
     print(parser.format_help().strip())
     return 0
@@ -2104,8 +2221,6 @@ def main():
     libraries += args.library
   if args.library_directory:
     library_directories += args.library_directory
-  if args.method:
-    compilation_mode = args.method
   if args.operating_system:
     new_osname = platform_map(args.operating_system.lower())
     if new_osname != osname:
@@ -2113,16 +2228,10 @@ def main():
       osname = new_osname
   if args.output_file:
     output_file = args.output_file
-  if args.call_prefix:
-    symbol_prefix = args.call_prefix
   if args.search_path:
     target_search_path += args.search_path
   if args.strip_binary:
     strip = args.strip_binary
-  if args.target:
-    target = args.target
-  if args.unpack_header:
-    compression = args.unpack_header
   if args.verbose:
     verbose = True
   if args.version:
@@ -2130,6 +2239,12 @@ def main():
     return 0
   if args.source:
     source_files += args.source
+
+  definition_ld = args.define
+  compilation_mode = args.method
+  compression = args.unpack_header
+  symbol_prefix = args.call_prefix
+  target = args.target
 
   if not compilation_mode in ("vanilla", "dlfcn", "hash", "maximum"):
     raise RuntimeError("unknown method '%s'" % (compilation_mode))
