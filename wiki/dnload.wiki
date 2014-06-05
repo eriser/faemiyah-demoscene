@@ -931,7 +931,7 @@ The name `USE``_``LD` is legacy, which has preserved unchanged from earlier Faem
 
 When manually creating the program headers, the symbol would not necessarily need to be named `_``start` - it could be anything, and the name will be stripped out anyway. However, this is a known convention.
 
-=== What are `environ` and `__progname`? ===
+==== What are `environ` and `__progname`? ====
 
 You you looked into the generated header, you might have seen something like this:
 
@@ -963,7 +963,7 @@ Symbol table '.dynsym' contains 3079 entries:
 
 We do not need these symbols, but libc expects them to be present in the binary. In practice, the dynamic linking procedure will fail if the program symbol table does not contain them.
 
-=== Why is there an attribute `externally_visible` specified for some symbols? ===
+==== Why is there an attribute `externally_visible` specified for some symbols? ====
 
 The suffix `__attribute__((externally_visible))` is present in some symbols defined, most notable in `_start`. This is due to Gnu C Compiler semantics.
 
