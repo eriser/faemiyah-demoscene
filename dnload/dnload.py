@@ -397,11 +397,9 @@ class AssemblerSection:
     ii = lst[0] + 1
     jj = ii
     reinstated_lines = []
-    stack_offset = 0
     while True:
       match = re.match(r'\s*(push\S).*', self.content[jj], re.IGNORECASE)
       if match:
-        stack_offset += asm_get_push_width(match.group(1))
         jj += 1
         continue;
       # xor (zeroing) seems to be only stuff inserted in the 'middle' of pushing.
@@ -410,14 +408,6 @@ class AssemblerSection:
         reinstated_lines += [self.content[jj]]
         jj += 1
         continue
-      match = re.match(r'(\s*sub\S*\s+)(\$?\S+)(\s*,\s*\S*[er]sp.*)', self.content[jj], re.IGNORECASE)
-      if match:
-        addition = match.group(2)
-        if "$" == addition[:1]:
-          addition = "$" + str(int(addition[1:]) + stack_offset)
-        else:
-          addition = str(int(addition) + stack_offset)
-        self.content[jj] = match.group(1) + addition + match.group(3) + "\n"
       if verbose:
         print("Erasing function header from '%s': %i lines." % (lst[1], jj - ii - len(reinstated_lines)))
       self.erase(ii, jj)
@@ -673,18 +663,9 @@ class AssemblerVariable:
     ret = chr(self.value)
     for ii in range(original_size - 1):
       op = lst[ii]
-      if op.name:
+      if not op.reconstructable((original_size - 2) == ii):
         return False
-      if op.label_pre:
-        return False
-      if op.label_post:
-        if (original_size - 2) != ii:
-          return False
-        self.label_post = listify(self.label_post, op.label_post)
-      if "" != op.desc:
-        return False
-      if -1 != op.original_size:
-        return False
+      self.label_post = listify(self.label_post, op.label_post)
       ret += chr(op.value)
     bom = str(PlatformVar("bom"))
     if 2 == original_size:
@@ -695,6 +676,19 @@ class AssemblerVariable:
       self.value = struct.unpack(bom + "Q", ret)[0]
     self.size = original_size
     return original_size - 1
+
+  def reconstructable(self, accept_label_post):
+    """Tell if this is reconstructable."""
+    if self.name:
+      return False
+    if self.label_pre:
+      return False
+    if self.label_post and not accept_label_post:
+      return False
+    if "" != self.desc:
+      return False
+    if -1 != self.original_size:
+      return False
 
   def remove_label_pre(self, op):
     """Remove a pre-label."""
@@ -845,7 +839,6 @@ class AssemblerSegment:
     highest_mergable = 0
     (head_src, bytestream_src) = self.deconstruct_tail()
     (bytestream_dst, tail_dst) = op.deconstruct_head()
-    print("me(%s): %i, other: %i" % (self.name, len(bytestream_src), len(bytestream_dst)))
     for ii in range(min(len(bytestream_src), len(bytestream_dst))):
       mergable = True
       for jj in range(ii + 1):
@@ -870,8 +863,6 @@ class AssemblerSegment:
     self.data = []
     while 0 < len(bytestream):
       front = bytestream[0]
-      if self.name == "phdr_interp":
-        print("%s: %s (%s)" % (front.desc, str(front.value), str(front.original_size)))
       bytestream = bytestream[1:]
       constructed = front.reconstruct(bytestream)
       if constructed:
@@ -914,15 +905,28 @@ assembler_ehdr = (
     ("e_machine, EM_386 = 3, EM_X86_64 = 62", 2, PlatformVar("e_machine")),
     ("e_version, EV_CURRENT = 1", 4, 1),
     ("e_entry, execution starting point", PlatformVar("addr"), "_start"),
-    ("e_phoff, offset from start to program headers", PlatformVar("addr"), "ehdr_end - ehdr"),
+    ("e_phoff, offset from start to program headers", PlatformVar("addr"), "phdr_interp - ehdr"),
     ("e_shoff, start of section headers", PlatformVar("addr"), 0),
     ("e_flags, unused", 4, 0),
     ("e_ehsize, Elf32_Ehdr size", 2, "ehdr_end - ehdr"),
-    ("e_phentsize, Elf32_Phdr size", 2, "phdr_load_end - phdr_load"),
+    ("e_phentsize, Elf32_Phdr size", 2, "phdr_interp_end - phdr_interp"),
     ("e_phnum, Elf32_Phdr count, PT_LOAD, [PT_LOAD (bss)], PT_INTERP, PT_DYNAMIC", 2, PlatformVar("phdr_count")),
     ("e_shentsize, Elf32_Shdr size", 2, 0),
     ("e_shnum, Elf32_Shdr count", 2, 0),
     ("e_shstrndx, index of section containing string table of section header names", 2, 0),
+    )
+
+assembler_phdr32_interp = (
+    "phdr_interp",
+    "Elf32_Phdr, PT_INTERP",
+    ("p_type, PT_INTERP = 3", 4, 3),
+    ("p_offset, offset of block", PlatformVar("addr"), "interp - ehdr"),
+    ("p_vaddr, address of block", PlatformVar("addr"), "interp"),
+    ("p_paddr, unused", PlatformVar("addr"), 0),
+    ("p_filesz, block size on disk", PlatformVar("addr"), "interp_end - interp"),
+    ("p_memsz, block size in memory", PlatformVar("addr"), "interp_end - interp"),
+    ("p_flags, ignored", 4, 0),
+    ("p_align, 1 for strtab", PlatformVar("addr"), 1),
     )
 
 assembler_phdr32_load_single = (
@@ -977,16 +981,16 @@ assembler_phdr32_dynamic = (
     ("p_align", PlatformVar("addr"), 1),
     )
 
-assembler_phdr32_interp = (
+assembler_phdr64_interp = (
     "phdr_interp",
-    "Elf32_Phdr, PT_INTERP",
+    "Elf64_Phdr, PT_INTERP",
     ("p_type, PT_INTERP = 3", 4, 3),
+    ("p_flags, ignored", 4, 0),
     ("p_offset, offset of block", PlatformVar("addr"), "interp - ehdr"),
     ("p_vaddr, address of block", PlatformVar("addr"), "interp"),
     ("p_paddr, unused", PlatformVar("addr"), 0),
     ("p_filesz, block size on disk", PlatformVar("addr"), "interp_end - interp"),
     ("p_memsz, block size in memory", PlatformVar("addr"), "interp_end - interp"),
-    ("p_flags, ignored", 4, 0),
     ("p_align, 1 for strtab", PlatformVar("addr"), 1),
     )
 
@@ -1003,6 +1007,32 @@ assembler_phdr64_load_single = (
     ("p_align, usually " + str(PlatformVar("memory_page")), PlatformVar("addr"), PlatformVar("memory_page")),
     )
 
+assembler_phdr64_load_double = (
+    "phdr_load",
+    "Elf64_Phdr, PT_LOAD",
+    ("p_type, PT_LOAD = 1", 4, 1),
+    ("p_flags, rwx = 7", 4, 7),
+    ("p_offset, offset of program start", PlatformVar("addr"), 0),
+    ("p_vaddr, program virtual address", PlatformVar("addr"), PlatformVar("entry")),
+    ("p_paddr, unused", PlatformVar("addr"), 0),
+    ("p_filesz, program size on disk", PlatformVar("addr"), "end - ehdr"),
+    ("p_memsz, program headers size in memory", PlatformVar("addr"), "end - ehdr"),
+    ("p_align, usually " + str(PlatformVar("memory_page")), PlatformVar("addr"), PlatformVar("memory_page")),
+    )
+
+assembler_phdr64_load_bss = (
+    "phdr_load_bss",
+    "Elf64_Phdr, PT_LOAD (.bss)",
+    ("p_type, PT_LOAD = 1", 4, 1),
+    ("p_flags, rw = 6", 4, 6),
+    ("p_offset, offset of fake .bss segment", PlatformVar("addr"), "end - ehdr"),
+    ("p_vaddr, program virtual address", PlatformVar("addr"), "bss_start"),
+    ("p_paddr, unused", PlatformVar("addr"), 0),
+    ("p_filesz, .bss size on disk", PlatformVar("addr"), 0),
+    ("p_memsz, .bss size in memory", PlatformVar("addr"), "bss_end - end"),
+    ("p_align, usually " + str(PlatformVar("memory_page")), PlatformVar("addr"), PlatformVar("memory_page")),
+    )
+
 assembler_phdr64_dynamic = (
     "phdr_dynamic",
     "Elf64_Phdr, PT_DYNAMIC",
@@ -1014,19 +1044,6 @@ assembler_phdr64_dynamic = (
     ("p_filesz, block size on disk", PlatformVar("addr"), "dynamic_end - dynamic"),
     ("p_memsz, block size in memory", PlatformVar("addr"), "dynamic_end - dynamic"),
     ("p_align", PlatformVar("addr"), 1),
-    )
-
-assembler_phdr64_interp = (
-    "phdr_interp",
-    "Elf64_Phdr, PT_INTERP",
-    ("p_type, PT_INTERP = 3", 4, 3),
-    ("p_flags, ignored", 4, 0),
-    ("p_offset, offset of block", PlatformVar("addr"), "interp - ehdr"),
-    ("p_vaddr, address of block", PlatformVar("addr"), "interp"),
-    ("p_paddr, unused", PlatformVar("addr"), 0),
-    ("p_filesz, block size on disk", PlatformVar("addr"), "interp_end - interp"),
-    ("p_memsz, block size in memory", PlatformVar("addr"), "interp_end - interp"),
-    ("p_align, 1 for strtab", PlatformVar("addr"), 1),
     )
 
 assembler_hash = (
@@ -1517,15 +1534,15 @@ template_header_begin = """#ifndef DNLOAD_H
 #if defined(__x86_64)
 #if defined(__FreeBSD__)
 /** Assembler exit syscall macro. */
-#define asm_exit() asm volatile("movq $1,%%rax\\nsyscall")
+#define asm_exit() asm("syscall" : /* no output */ : "a"(1))
 #elif defined(__linux__)
 /** Assembler exit syscall macro. */
-#define asm_exit() asm volatile("movq $60,%%rax\\nsyscall")
+#define asm_exit() asm("syscall" : /* no output */ : "a"(60))
 #endif
 #elif defined(__i386)
 #if defined(__FreeBSD__) || defined(__linux__)
 /** Assembler exit syscall macro. */
-#define asm_exit() asm volatile("movl $1,%%eax\\nint $128")
+#define asm_exit() asm("int $128" : /* no output */ : "a"(1))
 #endif
 #endif
 #if !defined(asm_exit)
@@ -1855,15 +1872,6 @@ def generate_symbol_struct(symbols):
 ########################################
 # Functions ############################
 ########################################
-
-def asm_get_push_width(op):
-  """Get width of push instruction."""
-  op = op.lower()
-  if "pushq" == op:
-    return 8
-  elif "pushl" == op:
-    return 4
-  raise RuntimeError("width of push instruction '%s' not known" % (op))
 
 def check_executable(op):
   """Check for existence of a single binary."""
@@ -2437,14 +2445,15 @@ def main():
         else:
           raise_unknown_address_size()
         load_segments = [segment_phdr_load_single]
-      segments = [segment_ehdr] + load_segments + [segment_phdr_dynamic, segment_phdr_interp]
+      segments_head = [segment_ehdr, segment_phdr_interp]
+      segments_tail = [segment_phdr_dynamic]
       if is_listing(und_symbols):
-        segments += [segment_hash]
-      segments += [segment_dynamic]
+        segments_tail += [segment_hash]
+      segments_tail += [segment_dynamic]
       if is_listing(und_symbols):
-        segments += [segment_symtab]
-      segments += [segment_interp, segment_strtab]
-      segments = merge_segments(segments)
+        segments_tail += [segment_symtab]
+      segments_tail += [segment_interp, segment_strtab]
+      segments = merge_segments(segments_head) + load_segments + merge_segments(segments_tail)
       fd = open(output_file + ".final.S", "w")
       for ii in segments:
         ii.write(fd, assembler)
