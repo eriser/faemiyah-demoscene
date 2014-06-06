@@ -25,7 +25,7 @@
 #define AUDIO_BYTERATE (AUDIO_CHANNELS * AUDIO_SAMPLERATE * sizeof(uint8_t))
 
 /** Intro length (in bytes of audio). */
-#define INTRO_LENGTH (16000 * AUDIO_BYTERATE)
+#define INTRO_LENGTH (16 * AUDIO_BYTERATE)
 
 //######################################
 // Include #############################
