@@ -1,3 +1,7 @@
+r112 (2014-06-06)
+  * Allow compiler to assign values for system calls.
+  * Better header crunching on 64-bit.
+
 r106 (2014-06-05)
   * Remove also unnecessary symbol definitions on non-FreeBSD platforms.
   * Properly crunch amd64 entry point.
