@@ -9,15 +9,32 @@
 
 == System requirements ==
 
-The bridging header file can be created on FreeBSD, Linux, Windows, and possibly various unmentioned `*`nix platforms with an up-to-date Python installation.
+The bridging header file can be created on any `*`nix or Windows platform with an up-to-date Python installation and a suitable compiler.
 
-Generating a final binary is supported on FreeBSD and Linux. Due to practical purposes (i.e. the OS of choice of the author), the primary target operating system is FreeBSD. Existence of binutils toolchain (`as`, `ld`, etc.) on the system is assumed.
+Generating a final binary is supported on `*`nix platforms only. Due to practical purposes (i.e. the OS of choice of the author), the primary target operating system is FreeBSD. Existence of binutils toolchain (`as`, `ld`, etc.) on the system is assumed.
 
 The script is self-contained, and should require no external python packages to be installed. Both Python versions 2.7.x and 3.x should work.
 
 For compiling without size optimizations, GLEW and SDL development files are needed. This is subject to change if/when other backends are added.
 
-*Note:* Cross-compilation is not (yet?) supported. Building of binaries must be done on the actual target system. As earlier mentioned, this currently only includes `FreeBSD-ia32` and `Linux-ia32`. If you want to develop 32-bit software on a 64-bit system, you will need to set up a chroot/jail environment or a virtual machine.
+*Note:* Cross-compilation is not (yet?) supported. Building of binaries must be done on the actual target system. If you want to develop 32-bit software on a 64-bit system, you will need to set up a chroot/jail environment or a virtual machine.
+
+==== Supported operating systems (for binary compilation) ====
+
+  * `FreeBSD`
+  * `Linux`
+  * `Windows` (for preprocessing only)
+
+==== Supported architectures ====
+
+  * `amd64` (x86_64)
+  * `ia32` (i386)
+
+==== Supported compilers ====
+
+  * `clang++`
+  * `cl.exe` (for preprocessing only)
+  * `g++`
 
 ----
 
@@ -136,6 +153,7 @@ Analyzing source file 'src/hello_world.cpp'.
 Executing command: g++49 src/hello_world.cpp -D_GNU_SOURCE=1 -D_REENTRANT -D_THREAD_SAFE -DDNLOAD_H -I/usr/local/include -I/usr/local/include/SDL -E
 Symbols found: ['puts']
 Wrote header file 'src/dnload.h'.
+Using output file 'src/hello_world' after source file 'src/hello_world.cpp'.
 Linking against libraries: ['c']
 Executing command: g++49 -S src/hello_world.cpp -o src/hello_world.S -Os -ffast-math -fno-asynchronous-unwind-tables -fno-exceptions -fno-rtti -fno-threadsafe-statics -fomit-frame-pointer -fsingle-precision-constant -fwhole-program -march=pentium4 -mpreferred-stack-boundary=2 -Wall -D_GNU_SOURCE=1 -D_REENTRANT -D_THREAD_SAFE -I/usr/local/include -I/usr/local/include/SDL
 Checking for required UND symbols... ['__progname', 'environ']
@@ -143,20 +161,21 @@ Using shared library 'libc.so.7' instead of 'libc.so'.
 Read 7 sections in 'src/hello_world.S': text, text, text, rodata, text, text, note
 Erasing function header from '_start': 4 lines.
 Erasing function footer after interrupt '128': 9 lines.
+Replacing 4-byte alignment with 1-byte alignment.
 Constructed fake .bss segement: 8 bytes, one PT_LOAD sufficient
-Merging headers phdr_interp and hash at point 1.
-Merging headers hash and dynamic at point 1.
-Merging headers dynamic and symtab at point 2.
-Merging headers interp and strtab at point 1.
+Merging headers phdr_dynamic and hash at 4 bytes.
+Merging headers hash and dynamic at 4 bytes.
+Merging headers dynamic and symtab at 15 bytes.
+Merging headers interp and strtab at 1 bytes.
 Wrote assembler source 'src/hello_world.final.S'.
 Executing command: /usr/local/bin/as src/hello_world.final.S -o src/hello_world.o
 Executing command: /usr/local/bin/ld --verbose
 Wrote linker script 'src/hello_world.ld'.
 Executing command: /usr/local/bin/ld --oformat=binary --entry=0x2000000 src/hello_world.o -o src/hello_world.unprocessed -T src/hello_world.ld
 Executing command: readelf --program-headers src/hello_world.unprocessed
-Executable size equals PT_LOAD size (528 bytes), no truncation necessary.
+Truncating file size to PT_LOAD size: 518 bytes
 Executing command: xz --format=lzma --lzma1=preset=9e,lc=1,lp=0,pb=0 --stdout src/hello_world.stripped
-Wrote 'src/hello_world': 418 bytes
+Wrote 'src/hello_world': 413 bytes
 }}}
 
 The actual program output should be:
@@ -256,7 +275,7 @@ Have fun!
 
 ----
 
-= The quest for minimal ELF32 binaries =
+= The quest for minimal ELF binaries =
 
 This section of the documentation explores both the current and historical methods of reducing executable file size on `*`nix systems. If you are only interested in the current 'best practice' operation of the script, you can [#Current_compression_procedure skip directly therein].
 
@@ -281,8 +300,8 @@ Using g++, the flags of the first type (just smaller) would be:
 These are all self-explanatory. In general, mere `-Os -ffast-math -fomit-frame-pointer` seems to do an excellent job.
 
 The following options are of the second type, seeming to consistently produce code that compresses better:
-  * `-march=pentium4`: After permutating through all available instruction sets with several different intros, Pentium 4 seems to usually yield the best results.
-  * `-mpreferred-stack-boundary=2`: Forces the compiler to attempt keeping the stack aligned at `2`^`2 = 4` bytes. This seems to consistently perform better than the default of `16` bytes.
+  * `-march=<arch>`: Some subsets of the instruction set seem to yield better results. As an example, on i386 architecture, after permutating through all available instruction sets with several different intros, Pentium 4 was usually the best choice.
+  * `-mpreferred-stack-boundary=<align>`: Forces the compiler to attempt keeping the stack aligned at `2`^`<align>` bytes. It seems it's advantageous to keep this at the smallest possible value for any given architecture.
 
 Some flags of the third type, which disable fancy language features, are:
   * `-fno-threadsafe-statics`: By default some code is generated to ensure thread-safe initialization of local static variables. This code seems to get generated even if no statics actually exist.
@@ -337,6 +356,8 @@ For academic interest, the script can create its output using nothing besides th
 'src/quad.stripped': 3496 bytes
 'src/quad': 1507 bytes
 }}}
+
+*Note:* Unless otherwise mentioned, all sizes, code excerpts and implementation details in this chapter refer to `FreeBSD-ia32`, which was the original supported platform.
 
 The `stripped` binaries listed above are generated by just stripping all non-needed sections from output binaries. These include `.comment`, `.eh_frame`, `.eh_frame_hdr`, `.fini`, `.gnu.hash`, `.gnu.version`, `.jcr`, `.note`, `.note.ABI-tag` and `.note.tag`. Using the compiler/linker `-s` flag seems to leave some of these in, so `strip` is called manually afterwards.
 
@@ -440,7 +461,7 @@ Recompiling with *-m dlfcn*, we get new sizes:
 
 Interestingly, even though the size of hello world example is reduced, its compressed size is increased due to additional program logic in the function loading system. On any nontrivial program the tradeoff should still be worth it, however.
 
-== Import by hash - scouring ELF32 headers ==
+== Import by hash - scouring ELF headers ==
 
 Even if the cost of function name only is rather little, it still adds up for a large block of data, especially as using `dlopen` and `dlsym` requires us to have symbol definitions and all the PLT/GOT information required for them in the binary.
 
@@ -448,7 +469,7 @@ Fortunately, there is a better way. In 2008, Pouet users *parcelshit* [#Referenc
 
 The technique essentially takes advantage of the `DT_DEBUG` element in the `.dynamic` section (when present) that will contain information about linked shared libraries. We simply need to gain access to it.
 
-Programs using ELF will have access to their own headers directly at the program load address `0x8048000`. The ELF header is 52 bytes long, and is immediately followed by an array of program headers. Each program header looks like this (all source code definitions are taken from FreeBSD system headers):
+Programs using ELF will have access to their own headers directly at the program load address `0x8048000`. The ELF32 header is 52 bytes long, and is immediately followed by an array of program headers. Each program header looks like this (from FreeBSD system headers):
 
 {{{
 typedef struct {
@@ -774,7 +795,7 @@ The file size will use `end` while the memory size will use 'bss_end`.
 
 === Entry into and exit from `_start` ===
 
-As described [#Example_program earlier], we take care from entry and exit from the `_start` procedure ourselves. The compiler will happily push registers at the beginning and subtract the stack at the end of the function. On IA-32, this looks like the following (from `hello_world.cpp` example):
+As described [#Example_program earlier], we take care from entry and exit from the `_start` procedure ourselves. The compiler will happily push registers at the beginning and subtract the stack at the end of the function. On i386, this looks like the following (from `hello_world.cpp` example):
 
 {{{
 _start:
@@ -802,30 +823,32 @@ None of the push operations at the beginning or any operations after the system 
 
 === Alignment ===
 
-Compilers seem to generate alignment directives rather arbitrarily. This is necessary on some architectures, but unnecessarily high alignments are irrelevant on 32-bit architectures.
+Compilers seem to generate alignment directives rather arbitrarily. This is necessary on some architectures, but unnecessarily high alignments are irrelevant.
 
-All alignment takes space on disk. To prevent this, all alignment directives greater than 32 bits in the generated assembler source are converted to explicit `.balign` directives for 4 bytes.
+All alignment takes space on disk. To prevent this, all alignment directives greater than the register width (32 or 64-bit) in the generated assembler source are converted to explicit `.balign` directives for 4 or 8 bytes.
+
+*Note:* It turns out that on alignment can sometimes be completely removed by effectively aligning one byte. This is not possible on any architectures where instruction pointer is assumed to be aligned to instruction size, but works at least on `amd64` and on `ia32`.
 
 === Merging headers === 
 
 As Brian Raiter already noted in _A Whirlwind Tutorial on Creating Really Teensy ELF Executables for Linux_ [#References [2]], it does not really seem to matter if the ELF headers overlap. The structures will be assigned addresses exactly based on the offsets given, and they can freely overlap with other structs in memory.
 
-The process of interleaving the structs is automated. At the time of writing, it produces the following:
+The process of interleaving the structs is automated. This produces, for example, the following:
 
 {{{
-Merging headers phdr_interp and hash at point 1.
-Merging headers hash and dynamic at point 1.
-Merging headers dynamic and symtab at point 2.
-Merging headers interp and strtab at point 1.
+Merging headers phdr_dynamic and hash at 4 bytes.
+Merging headers hash and dynamic at 4 bytes.
+Merging headers dynamic and symtab at 15 bytes.
+Merging headers interp and strtab at 1 bytes.
 }}}
 
-This takes advantage of:
+In this particular case, the merging takes advantage of:
   * `.interp` section is aligned at one-byte boundary. This alignment is the last value of `PT_INTERP` phdr. Hash table containing only the symbols required by `libc` starts with number 1 (one chain).
   * `.dynamic` section can start with many numbers. We put the `PT_NEEDED` library requirements at the top so it can correctly interleave with the last value of the hash table.
-  * `.dynamic` section ends with the `PT_NULL` terminator. Symbol table starts with the null symbol. Size of null terminator is 8 bytes, and the size of null symbol is 16 bytes. These can be partially interleaved.
+  * `.dynamic` section ends with the `PT_NULL` terminator. Symbol table starts with the null symbol. Size of null terminator is 8 bytes plus varying amount (depends on byte order) of remaining null bytes from the earlier `DT_DEBUG` dynamic structure. These can be partially interleaved.
   * `.interp` section ends with terminating zero for the interpreter string, and `.strtab` always starts with a zero as per specification.
 
-*Note:* It might seem that `.dynamic` and `.dynsym` could be interleaved at 12 bytes instead, since the previous value in the symbol table is `DT_DEBUG`, that always takes a null value afterwards. However, as seen in [#Import_by_hash_-_scouring_ELF32 headers an earlier section], this field will be filled in runtime. In practice, interleaving at 12 bytes would crash.
+*Note:* Interleaving with `DT_DEBUG` is dangerous, as the structure will be filled on runtime as seen in [#Import_by_hash_-_scouring_ELF headers an earlier section]. In practice, it seems to not cause problems currently.
 
 === Entry point ===
 
@@ -872,17 +895,17 @@ The total cost of adding symbols would thus be *`8`* (for dynamic structure refe
 
 Linux `libc` does not require the user program to define `environ` and `__progname`. I was initially just leaving the `hash` and `symtab` segments blank. A blank `symtab` consists of just one empty (`NULL`) symbol, which already saves quite a lot of space.
 
-However, as Amand Tihon [#References [23]] points in his own similar project [#References [24]], on Linux the whole of symbol table can be omitted. This is done by having the `DT_SYMTAB` dynamic structure entry point to address value `0` and omitting `DT_HASH` completely. All in all, this means that size-optimized binaries on Linux are [#Minimal_DT_HASH 99 bytes] smaller than on FreeBSD (~30 compressed bytes).
+However, as Amand Tihon [#References [23]] points in his own similar project [#References [24]], on Linux the whole of symbol table can be omitted. This is done by having the `DT_SYMTAB` dynamic structure entry point to address value `0` and omitting `DT_HASH` completely. All in all, this means that size-optimized binaries on Linux are [#Minimal_DT_HASH 99 bytes] smaller than on FreeBSD. Interleaving of headers takes away some of this advantage, in practice it seems to be about 30 compressed bytes.
 
 === Final sizes ===
 
 Compiling with all the tricks listed above (using *-m maximum* or just omitting the option) gives us:
 
 {{{
-'hello_world.stripped': 528 bytes
-'hello_world': 418 bytes
-'quad.stripped': 1312 bytes
-'quad': 988 bytes
+'hello_world.stripped': 518 bytes
+'hello_world': 413 bytes
+'quad.stripped': 1303 bytes
+'quad': 985 bytes
 }}}
 
 *Note:* Numbers subject to change.
