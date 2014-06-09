@@ -8,7 +8,9 @@ namespace gfx
 {
   /** \brief Tell if given bit depth allowed by PNG format.
    *
-   * @param op Bit depth. */
+   * \param op Bit depth.
+   * \return True if PNG supports given bit depth, false if no.
+   */
   inline bool image_png_supports_bpp(unsigned op)
   {
     return ((op == 8) || (op == 16) || (op == 24) || (op == 32));
@@ -16,9 +18,9 @@ namespace gfx
 
   /** \brief Probe PNG file.
    *
-   * @param pfname Filename to probe.
-   * @param Required to be a volume?
-   * @return Bit depth found.
+   * \param pfname Filename to probe.
+   * \param Required to be a volume?
+   * \return Bit depth found.
    */
   extern unsigned image_png_probe(const std::string &filename, bool require_volume = false);
 
@@ -29,12 +31,12 @@ namespace gfx
    *
    * Throws an error on failure.
    *
-   * @param pw Destination width.
-   * @param ph Destination height.
-   * @param pb Destiantion bit depth.
-   * @param pdata Destination data.
-   * @param filename Source filename.
-   * @param required_bpp If set, require this bit depth.
+   * \param pw Destination width.
+   * \param ph Destination height.
+   * \param pb Destiantion bit depth.
+   * \param pdata Destination data.
+   * \param filename Source filename.
+   * \param required_bpp If set, require this bit depth.
    */
   extern void image_png_load(unsigned &pw, unsigned &ph, unsigned &pb, uint8_t *&pdata,
       const std::string &filename, unsigned required_bpp = 0);
@@ -46,13 +48,13 @@ namespace gfx
    *
    * Throws an error on failure.
    *
-   * @param pw Destination width.
-   * @param ph Destination height.
-   * @param pd Destination depth.
-   * @param pb Destiantion bit depth.
-   * @param pdata Destination data.
-   * @param filename Source filename.
-   * @param required_bpp If set, require this bit depth.
+   * \param pw Destination width.
+   * \param ph Destination height.
+   * \param pd Destination depth.
+   * \param pb Destiantion bit depth.
+   * \param pdata Destination data.
+   * \param filename Source filename.
+   * \param required_bpp If set, require this bit depth.
    */
   extern void image_png_load_extended(unsigned &pw, unsigned &ph, unsigned &pd, unsigned &pb, uint8_t *&pdata,
       const std::string &filename, unsigned required_bpp = 0);
@@ -61,11 +63,11 @@ namespace gfx
    *
    * Throws an error on failure.
    *
-   * @param filename Destination filename.
-   * @param pw Source width.
-   * @param ph Source height.
-   * @param pb Source bit depth.
-   * @param pdata Source data.
+   * \param filename Destination filename.
+   * \param pw Source width.
+   * \param ph Source height.
+   * \param pb Source bit depth.
+   * \param pdata Source data.
    */
   extern void image_png_save(const std::string &filename, unsigned pw, unsigned ph, unsigned pb,
       uint8_t *pdata);
@@ -74,12 +76,12 @@ namespace gfx
    *
    * Throws an error on failure.
    *
-   * @param filename Destination filename.
-   * @param pw Source width.
-   * @param ph Source height.
-   * @param pd Source depth.
-   * @param pb Source bit depth.
-   * @param pdata Source data.
+   * \param filename Destination filename.
+   * \param pw Source width.
+   * \param ph Source height.
+   * \param pd Source depth.
+   * \param pb Source bit depth.
+   * \param pdata Source data.
    */
   extern void image_png_save_extended(const std::string &filename, unsigned pw, unsigned ph, unsigned pd,
       unsigned pb, uint8_t *pdata);

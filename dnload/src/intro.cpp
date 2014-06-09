@@ -81,8 +81,8 @@ static uint8_t g_flag_developer = 0;
 
 /** Random number -op to op.
  *
- * @param op Limit.
- * @return Random number [-op, op[
+ * \param op Limit.
+ * \return Random number [-op, op[
  */
 static float frand(float op)
 {
@@ -96,9 +96,9 @@ static float frand(float op)
 
 /** \brief Update audio stream.
  *
- * @param userdata Not used.
- * @param stream Target stream.
- * @param len Number of bytes to write.
+ * \param userdata Not used.
+ * \param stream Target stream.
+ * \param len Number of bytes to write.
  */
 static void audio_callback(void *userdata, Uint8 *stream, int len)
 {
@@ -194,7 +194,7 @@ GLint g_attribute_quad_a;
 
 /** \brief Prints an indent.
  *
- * @param indent Number of characters to draw.
+ * \param indent Number of characters to draw.
  */
 static void print_indent(unsigned indent)
 {
@@ -205,19 +205,60 @@ static void print_indent(unsigned indent)
   }
 }
 
+/** \brief Perform a set regex on a string.
+ *
+ * \return True if matches, false if not.
+ */
+static bool regex_space_plus_alpha_plus_semicolon(const char *op)
+{
+  for(;;)
+  {
+    if(' ' != *op)
+    {
+      for(;;)
+      {
+        if(!isalpha(*op))
+        {
+          for(;;)
+          {
+            char cc = *op;
+
+            if(' ' != cc)
+            {
+              return (';' == cc);
+            }
+
+            ++op;
+          }
+        }
+
+        ++op;
+      }
+    }
+
+    ++op;
+  }
+}
+
 /** \brief Print a shader and make the output neater.
  *
- * @param shader Shader to print.
+ * \param shader Shader to print.
+ * \param indent Indent to use.
+ * \return Indent after print operation.
  */
 static unsigned print_shader(const char *shader, unsigned indent)
 {
   char *iter = const_cast<char*>(shader);
-  char cc = *iter;
 
-  while(cc)
+  for(;;)
   {		
+    char cc = *iter;
+
     switch(cc)
     {
+      case '\0':
+        return indent;
+
       case ';':
         {
           puts(";");
@@ -226,7 +267,7 @@ static unsigned print_shader(const char *shader, unsigned indent)
         break;
 
       case '{':
-        putc('\n', stdout);
+        puts("");
         print_indent(indent);
         puts("{");
         indent += 2;
@@ -237,8 +278,12 @@ static unsigned print_shader(const char *shader, unsigned indent)
         putc('\r', stdout);
         indent -= 2;
         print_indent(indent);
-        puts("}");
-        print_indent(indent);
+        putc('}', stdout);
+        if(!regex_space_plus_alpha_plus_semicolon(iter + 1))
+        {
+          puts("");
+          print_indent(indent);
+        }
         break;
 
       default:
@@ -247,7 +292,6 @@ static unsigned print_shader(const char *shader, unsigned indent)
     }
 
     ++iter;
-    cc = *iter;
   }
 
   return indent;
@@ -257,9 +301,9 @@ static unsigned print_shader(const char *shader, unsigned indent)
 
 /** \brief Create a shader.
  *
- * @param sh Shader content.
- * @param st Shader type.
- * @return Compiled shader.
+ * \param sh Shader content.
+ * \param st Shader type.
+ * \return Compiled shader.
  */
 static GLuint shader_create(const char *source, GLenum st)
 {
@@ -300,9 +344,9 @@ static GLuint shader_create(const char *source, GLenum st)
  *
  * Create a shader program using one vertex shader and one fragment shader.
  *
- * @param vs Vertex shader.
- * @param fs Fragement shader.
- * @return The compiled and linked program.
+ * \param vs Vertex shader.
+ * \param fs Fragement shader.
+ * \return The compiled and linked program.
  */
 static GLuint program_create(const char *vertex, const char* fragment)
 {
@@ -362,8 +406,8 @@ static float g_uniform_array[11] =
 
 /** \brief Draw the world.
  *
- * @param ticks Tick count.
- * @param aspec Screen aspect.
+ * \param ticks Tick count.
+ * \param aspec Screen aspect.
  */
 static void draw(unsigned ticks, float aspect)
 {

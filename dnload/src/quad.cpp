@@ -49,9 +49,9 @@ static uint8_t *g_audio_position = reinterpret_cast<uint8_t*>(&g_audio_buffer);
 
 /** \brief Update audio stream.
  *
- * @param userdata Not used.
- * @param stream Target stream.
- * @param len Number of bytes to write.
+ * \param userdata Not used.
+ * \param stream Target stream.
+ * \param len Number of bytes to write.
  */
 static void audio_callback(void *userdata, Uint8 *stream, int len)
 {
@@ -108,9 +108,9 @@ GLint g_attribute_quad_a;
 
 /** \brief Create a shader.
  *
- * @param sh Shader content.
- * @param st Shader type.
- * @return Compiled shader.
+ * \param sh Shader content.
+ * \param st Shader type.
+ * \return Compiled shader.
  */
 static GLuint shader_create(const char *source, GLenum st)
 {
@@ -126,9 +126,9 @@ static GLuint shader_create(const char *source, GLenum st)
  *
  * Create a shader program using one vertex shader and one fragment shader.
  *
- * @param vs Vertex shader.
- * @param fs Fragement shader.
- * @return The compiled and linked program.
+ * \param vs Vertex shader.
+ * \param fs Fragement shader.
+ * \return The compiled and linked program.
  */
 static GLuint program_create(const char *vertex, const char* fragment)
 {
@@ -147,8 +147,8 @@ static GLuint program_create(const char *vertex, const char* fragment)
 
 /** \brief Draw the world.
  *
- * @param ticks Milliseconds.
- * @param aspec Screen aspect.
+ * \param ticks Milliseconds.
+ * \param aspec Screen aspect.
  */
 static void draw(unsigned ticks)
 {
