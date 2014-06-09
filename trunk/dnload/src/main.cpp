@@ -25,15 +25,15 @@ namespace po = boost::program_options;
 
 /** Console output content. */
 static const char *usage = ""
-"Usage: tdf <options>\n"
-"Intro for Tokyo Demo Fest 2014 64k intro competition.\n"
+"Usage: stub <options>\n"
+"Main function wrapper for intro stub.\n"
 "Release version does not pertain to any size limitations.\n"
 "\n";
 
 /** \brief Audio writing callback.
  *
- * @param data Raw audio data.
- * @param size Audio data size (in samples).
+ * \param data Raw audio data.
+ * \param size Audio data size (in samples).
  */
 void write_audio_callback(void *data, unsigned size)
 {
@@ -50,9 +50,9 @@ void write_audio_callback(void *data, unsigned size)
 
 /** \brief Image writing callback.
  *
- * @param screen_w Screen width.
- * @param screen_h Screen height.
- * @param idx Frame index to write.
+ * \param screen_w Screen width.
+ * \param screen_h Screen height.
+ * \param idx Frame index to write.
  */
 void write_frame_callback(unsigned screen_w, unsigned screen_h, unsigned idx)
 {
@@ -70,8 +70,8 @@ void write_frame_callback(unsigned screen_w, unsigned screen_h, unsigned idx)
 
 /** \brief Parse resolution from string input.
  *
- * @param op Resolution string.
- * @return Tuple of width and height.
+ * \param op Resolution string.
+ * \return Tuple of width and height.
  */
 boost::tuple<int, int> parse_resolution(const std::string &op)
 {

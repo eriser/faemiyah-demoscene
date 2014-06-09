@@ -16,8 +16,8 @@ static const std::string PNG_TEXT_DEPTH_KEYWORD("depth");
 
 /** \brief Transform a bpp value into a PNG color type.
  *
- * @param bpp Bit depth.
- * @return Corresponding color type.
+ * \param bpp Bit depth.
+ * \return Corresponding color type.
  */
 static uint8_t bpp_to_png_color_type(unsigned bpp)
 {
@@ -49,8 +49,8 @@ static uint8_t bpp_to_png_color_type(unsigned bpp)
 
 /** \brief Read PNG header.
  *
- * @param filename Filename to open.
- * @return File stream to after the header.
+ * \param filename Filename to open.
+ * \return File stream to after the header.
  */
 static FILE* png_read_header(const std::string &filename)
 {
@@ -79,9 +79,9 @@ static FILE* png_read_header(const std::string &filename)
 
 /** Wrapper for png_set_text.
  *
- * @param png_ptr PNG pointer.
- * @param info_ptr PNG info pointer.
- * @param ptext Text map.
+ * \param png_ptr PNG pointer.
+ * \param info_ptr PNG info pointer.
+ * \param ptext Text map.
  */
 static void png_set_text_map(png_structp png_ptr, png_infop info_ptr,
     const std::map<std::string, std::string> &ptext)
@@ -137,8 +137,8 @@ class PngReader
   public:
     /** \brief Constructor.
      *
-     * @param fd File handle to adapt.
-     * @param skip How many bytes of file have already been read
+     * \param fd File handle to adapt.
+     * \param skip How many bytes of file have already been read
      */
     PngReader(FILE *fd, unsigned skip) :
       m_fd(fd),
@@ -191,7 +191,7 @@ class PngReader
      *
      * On unacceptable color type, 0 is returned.
      *
-     * @return Color depth dependant on actual color depth and model.
+     * \return Color depth dependant on actual color depth and model.
      */
     unsigned getBpp() const
     {
@@ -223,7 +223,7 @@ class PngReader
      *
      * Note that this function is expensive as depth is stored in comments.
      *
-     * @return Depth as unsigned or 0.
+     * \return Depth as unsigned or 0.
      */
     unsigned getDepth() const
     {
@@ -248,7 +248,7 @@ class PngReader
 
     /** \brief Read actual file contents.
      *
-     * @param row_pointers Row pointer input.
+     * \param row_pointers Row pointer input.
      */
     void read(uint8_t **row_pointers)
     {
@@ -266,7 +266,7 @@ class PngReader
   public:
     /** \brief Get data block.
      *
-     * @return Data pointer.
+     * \return Data pointer.
      */
     inline uint8_t* getBlock()
     {
@@ -275,7 +275,7 @@ class PngReader
 
     /** \brief Get height.
      *
-     * @return Height as unsigned.
+     * \return Height as unsigned.
      */
     inline unsigned getHeight() const
     {
@@ -284,7 +284,7 @@ class PngReader
 
     /** \brief Get the PNG object..
      *
-     * @return PNG object.
+     * \return PNG object.
      */
     inline png_struct* getPng()
     {
@@ -293,7 +293,7 @@ class PngReader
 
     /** \brief Get width.
      *
-     * @return Width as unsigned.
+     * \return Width as unsigned.
      */
     inline unsigned getWidth() const
     {
@@ -302,7 +302,7 @@ class PngReader
 
     /** \brief Set the contents of the block.
      *
-     * @param op New block pointer.
+     * \param op New block pointer.
      */
     inline void setBlock(uint8_t *op)
     {
@@ -326,8 +326,8 @@ class PngWriter
   public:
     /** \brief Constructor.
      *
-     * @param fd File handle to adapt.
-     * @param skip How many bytes of file have already been read
+     * \param fd File handle to adapt.
+     * \param skip How many bytes of file have already been read
      */
     PngWriter(FILE *fd) :
       m_fd(fd),
@@ -366,11 +366,11 @@ class PngWriter
   public:
     /** \brief Write actual file contents.
      *
-     * @param pw Width.
-     * @param ph Height.
-     * @param pd Depth.
-     * @param color_type PNG color type.
-     * @param row_pointers Row pointer input.
+     * \param pw Width.
+     * \param ph Height.
+     * \param pd Depth.
+     * \param color_type PNG color type.
+     * \param row_pointers Row pointer input.
      */
     void write(unsigned pw, unsigned ph, unsigned pd, uint8_t color_type, uint8_t **row_pointers)
     {
@@ -394,7 +394,7 @@ class PngWriter
   public:
     /** \brief Get the PNG object..
      *
-     * @return PNG object.
+     * \return PNG object.
      */
     inline png_struct* getPng()
     {
