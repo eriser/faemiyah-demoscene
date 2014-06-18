@@ -1416,7 +1416,9 @@ library_definition_gl.add_symbols((
   ("void", "glLineWidth", "GLfloat"),
   ("void", "glLinkProgram", "GLuint"),
   ("void", "glRectf", "GLfloat", "GLfloat", "GLfloat", "GLfloat"),
+  ("void", "glRecti", "GLint", "GLint", "GLint", "GLint"),
   ("void", "glRects", "GLshort", "GLshort", "GLshort", "GLshort"),
+  ("void", "glRotatef", "GLfloat", "GLfloat", "GLfloat", "GLfloat"),
   ("void", "glShaderSource", "GLuint", "GLsizei", "const GLchar**", "const GLint*"),
   ("void", "glTexImage2D", "GLenum", "GLint", "GLint", "GLsizei", "GLsizei", "GLint", "GLenum", "GLenum", "const GLvoid*"),
   ("void", "glTexImage2DMultisample", "GLenum", "GLsizei", "GLint", "GLsizei", "GLsizei", "GLboolean"),
@@ -1931,7 +1933,7 @@ def find_symbol(op):
     ret = ii.find_symbol(op)
     if ret:
       return ret
-  raise RuntimeError("symbol '%s' not known, please add it to the script" % (symbol))
+  raise RuntimeError("symbol '%s' not known, please add it to the script" % (op))
 
 def find_symbols(lst):
   """Find symbol object(s) corresponding to symbol string(s)."""
