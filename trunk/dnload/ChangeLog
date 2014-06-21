@@ -1,3 +1,8 @@
+r115 (2014-06-21)
+  * Additional GL function definitions (can now compile flow2).
+  * Better handling of GLAPIENTRY.
+  * Add NOMINMAX define so windows.h does not clobber std namespace max/min.
+
 r112 (2014-06-06)
   * Allow compiler to assign values for system calls.
   * Better header crunching on 64-bit.
