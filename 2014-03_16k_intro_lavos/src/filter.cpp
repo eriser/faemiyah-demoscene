@@ -79,7 +79,6 @@ float Filter::process(float in)
 
   //"clamping" with tanh
   in = ctanhf(in);
-  //	in = common::clampFloat2Unit(in);
 
   //svf process implementation
   float yL, yB, yH;
@@ -129,7 +128,8 @@ void Filter::calculateCoefficients()
 
       //		case BANDPASS_PEAK:
     case k_filter_bandpass_peak:
-      m_r2 = 2.0f * bandwidthToR(40.001f - 0.9654f * m_bandwidth);
+	  //tweaked by ear, hence magic numbers
+	  m_r2 = 2.0f * bandwidthToR(40.001f - 0.9654f * m_bandwidth);
       m_c_low = 0.0f;
       m_c_band = m_r2;
       m_c_high = 0.0f;
@@ -212,13 +212,7 @@ void Filter::getOutputs(float in, float &yL, float &yB, float &yH)
 float Filter::bandwidthToR(float bandwidth)
 {
   float fl = m_cutoff * cpowf(2.0f, bandwidth * - 0.5f);	// lower bandedge frequency (in Hz)
-#if defined(USE_OVERSAMPLING)
-  float gl = tanf(PII * fl / (SAMPLERATE * 0.25f));	// warped radian lower bandedge frequency /(2*fs)
-#else
-  float gl = tanf(PII * fl / SAMPLERATE);
-#endif
-  //	float fl = (m_cutoff*(0.5f*44100.0f)) * pow(2, -bandwidth/2.0f);	// lower bandedge frequency (in Hz)
-  //	float gl = static_cast<float>(tan(PII * fl/44100.0f));	// warped radian lower bandedge frequency /(2*fs)
+  float gl = tanf(PII * fl / SAMPLERATE); // warped radian lower bandedge frequency /(2*fs)
   float r  = gl / m_g;			// ratio between warped lower bandedge- and center-frequencies
   // unwarped: r = pow(2, -bandwidth/2) -> approximation for low
   // center-frequencies

@@ -62,6 +62,7 @@ Oscillator::Oscillator(void)
      128th note					= BPM / 1.875
      Triplet-128th note			= BPM / 1.25 => speed g_num_bpm_synced_lfo_speeds-1
      */
+//TODO: less hardcoding
   m_bpm_denominators[0]=960.0f;
   m_bpm_denominators[1]=720.0f;
   m_bpm_denominators[2]=640.0f;
@@ -91,14 +92,6 @@ Oscillator::Oscillator(void)
   m_bpm_denominators[26]=2.5f;
   m_bpm_denominators[27]=1.875f;
   m_bpm_denominators[28]=1.25f;
-
-  /*		m_bpm_denominators[0]=960.0f;
-                for(int i=1;i<g_num_bpm_synced_lfo_speeds;i++)
-                {
-                m_bpm_denominators[i]=960.0f;
-                m_bpm_denominators[i]=m_bpm_denominators[i/3]*static_cast<float>(4-(i%3))/static_cast<float>(5-(i%3));
-                }
-                */
 }
 
 // Used Martin Finke's modified version from http://martin-finke.de/blog/articles/audio-plugins-018-polyblep-oscillator/
@@ -137,6 +130,7 @@ float Oscillator::getSample()
       ret_val = static_cast<float>(sin (m_phase));
       break;
 
+//note: only bleps are used here to conserve space, raw forms were not generally used at all
     case k_blepsaw:
     case k_rawsaw:
       ret_val = static_cast<float>(m_phase/PII) - 1.0f;
@@ -159,7 +153,6 @@ float Oscillator::getSample()
       ret_val -= getPolyBLEP(m_phase/(TAU));
       tempval = static_cast<float>((TAU-fmod(m_phase+m_pw+m_pw_mod,TAU))/PII) - 1.0f;
       //TODO: figure out the other edge. probably need to modify the blep function
-      //			tempval += getPolyBLEP(((2.0*PII)-fmod(m_phase+m_pw,2.0*PII))/2*PII);
       ret_val += tempval;
       break;
 
@@ -187,6 +180,7 @@ float Oscillator::getSample()
       m_sampleandhold_counter--;
       break;
 
+//original raw implementations, commented out to conserve space
 /*
     case k_rawsaw:
       ret_val = static_cast<float>(m_phase/PII) - 1.0f;
@@ -264,7 +258,8 @@ void Oscillator::stop()
 
 void Oscillator::setDetune(float detune)
 {
-  //horrible implementation, there's gotta be a smart and accurate way to do this
+  //horrible implementation, there's gotta be a smart and accurate way to do this. works for now.
+  //TODO: make pretty
   if(detune >= 0.5f)
   {
     detune *= 2.0f;
@@ -311,13 +306,11 @@ void Oscillator::setPW(float pw)
 
 void Oscillator::setPWM(float pwm)
 {
-  //TODO: implement
   m_pwm=pwm;
 }
 
 void Oscillator::setPWMod(float value)
 {
-  //TODO: implement
   m_pw_mod=TAU*m_pwm*value;
   if(m_pw_mod>TAU)
     m_pw_mod-=TAU;
@@ -369,31 +362,17 @@ void Oscillator::setPitch(float pitch)
         m_pitch=g_lfo_max_frequency*common::cclampf(m_pitch,0.0f,1.0f);
       }
 
-      /*
-         if(m_pitch<0.0f)
-         m_pitch=0.0f;
-         else if (m_pitch>g_lfo_max_frequency)
-         m_pitch=g_lfo_max_frequency;
-         */
       m_sampleandhold_period = static_cast<int>(g_lfo_max_frequency/(m_pitch+1.0f));
       break;
 
     default:
       m_pitch=common::cclampf(m_pitch,20.0f,19500.0f);
-      /*	
-                if(m_pitch<20.0f)
-                m_pitch=20.0f;
-                else if (m_pitch>19500.0f)
-                m_pitch=19500.0f;
-                */
       break;
   }
-  //	m_phase_increment = m_pitch * m_detune * m_semi * ((2.0*PII)/44100.0f);
   if(m_oscillator_mode==k_oscmode_lfo)
     m_phase_increment = m_pitch * (TAU/SAMPLERATE);		
   else
     m_phase_increment = m_pitch*(1.0f+m_pitch_mod) * m_detune * m_semi * (TAU/SAMPLERATE);
-  //	m_phase_increment = fmin(fmax(m_pitch*m_detune*m_semi, 0), 19500.0f) * ((2.0*PII)/m_samplerate);
 
   if(m_phase_increment<0.0)
     m_phase_increment=0.0;
@@ -402,7 +381,6 @@ void Oscillator::setPitch(float pitch)
 void Oscillator::setPitchMod (float value)
 {
   m_pitch_mod = common::cclamp1f(value);
-  //	setPitch(m_pitch);
 }
 
 void Oscillator::setWaveform (float value)
