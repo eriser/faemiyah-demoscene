@@ -41,7 +41,7 @@ class Voice
     ///	this voice.
     bool getIsActive() {return isActive;};
 
-    ///	Called whenever the plugin gets a call to it's setParameter() method.
+    ///	Called whenever the plugin gets a call to its setParameter() method.
     /*!
       We use this to set our attack, decay and release times, and the
       sustain level.
@@ -91,7 +91,7 @@ class Voice
       We store this because it won't necessarily be 0 when a noteOn message
       is received, in which case we need to set the increment accordingly.
       */
-    float m_pitchBend;
+    float m_pitch_bend;
 
     ///	Whether or not the voice is currently active or not.
     /*!
@@ -101,10 +101,10 @@ class Voice
       */
     bool isActive;
 
-    EnvGen m_amp_env;
+	//The envelope generators for amp, filter and pitch
+	EnvGen m_amp_env;
     EnvGen m_filter_env;
     EnvGen m_pitch_env;
-    float m_pitch_bend;
     float m_filter1_env_mod;
     float m_filter1_vel_mod;
     float m_filter2_env_mod;

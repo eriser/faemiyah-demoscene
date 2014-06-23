@@ -13,12 +13,12 @@ void PolyHandler::init(int params[], int num_params)
   m_delay.setMode(0.0f);
   m_delay.setLowpassCutoff(1.0f);
   m_delay.setHighpassCutoff(0.0f);
-  //Does this really need to be allocated here, or could we use an array
-  //instead?
 
+//setting all available notes/voices to inactive
   for(i=0;i<NUM_VOICES;i++)
     m_notes[i] = -1;
 
+//setting all instrument parameters as defined in the input array
   for(i=0;i<num_params;i++)
     setParameter(i,static_cast<float>(params[i])/65535.0f);
 }
@@ -53,6 +53,7 @@ void PolyHandler::getSample(float &leftsample, float &rightsample)
       m_notes[i]=-1;
   }
 
+//handle channel panning and process delay
   leftsample=retval*m_volume * sqrtf(1.0f - m_pan);
   rightsample=retval*m_volume * sqrtf(m_pan);
   m_delay.process(leftsample,rightsample,templeft,tempright);
@@ -79,7 +80,6 @@ void PolyHandler::noteOn(int note, float velocity)
       m_voices[i].noteOn(note, velocity);
       return;
     }
-    //			return;
   }
 
   for(i=0;i<NUM_VOICES;i++)
@@ -105,7 +105,6 @@ void PolyHandler::noteOff(int note)
     if(m_notes[i] == note)
     {
       m_voices[i].noteOff();
-      //			m_notes[i] = -1;
       //Note that voices[i] will still be active here (envelope release).
       break;
     }
@@ -128,6 +127,7 @@ void PolyHandler::allNotesOff()
 //----------------------------------------------------------------------------
 void PolyHandler::setParameter(int parameter, float value)
 {
+//handle channel volume, panning and delay related parameters here and pass the rest to each voice for handling
   switch(parameter)
   {
     case k_volume:

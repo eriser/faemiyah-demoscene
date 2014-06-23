@@ -19,7 +19,18 @@
  * http://www.niallmoody.com/ndcplugs/programming.htm
  * 
  * See MIDI2Freq.h for the required copyright notice.
+ *
+ * NOTE:
+ * This is essentially the interface class for the synth, all controls go via this.
+ * As the roots of the synth lie in a VSTi plugin, the implementation is not as efficient
+ * as one might expect from a synth used in a size-coded intro. Will probably be rewritten eventually.
+ * The VSTi plugin is to be released eventually as well once all planned features are implemented.
+ *
+ * The synth itself is inspired by Waldorf MicroQ and some of the idiosyncracies are based on the way
+ * MicroQ operates even though the implementation and feature sets differ.
+ *
  */
+
 class PolyHandler
 {
   public:
@@ -53,16 +64,6 @@ class PolyHandler
       All calls just get passed on to the voices in this case.
       */
     void setParameter(int parameter, float value);
-
-    /*obsolete,remove
-      void setPitchBend(float val);
-    ///	Called whenever the plugin checks the samplerate, usually in resume().
-    void setSamplerate(float samplerate);
-    void setADSR(float attack, float decay, float sustain, float release);
-    void setEnvLength(float envlength);
-    void setOsc1(int waveform, float detune, float volume);
-    void setOsc2(int waveform, float detune, float volume);
-    */
 
     ///	Called for every sample in the plugin's process/processReplacing loop.
     /*!

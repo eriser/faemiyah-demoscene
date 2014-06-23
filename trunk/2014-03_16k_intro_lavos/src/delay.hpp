@@ -23,8 +23,6 @@ class Delay
     int m_mode;
     int m_input_index;
     int m_delay_index;
-    //	Filter m_lowpass_filter;
-    //	Filter m_highpass_filter;
     Filter m_lowpass_filter_l;
     Filter m_highpass_filter_l;
     Filter m_lowpass_filter_r;

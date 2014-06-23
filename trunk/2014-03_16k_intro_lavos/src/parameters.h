@@ -99,10 +99,10 @@ enum global_params
 
   k_volume,
 
-  k_env_length,
+  k_env_length, //envelope length (up to 10 seconds)
   k_filter_routing, //filter routing: serial or parallel
-  k_polymode,
-  k_glide,
+  k_polymode, //polyphony mode
+  k_glide, //glide,portamento etc.
   k_gliderate,
 
   k_amp_attack,
@@ -114,7 +114,7 @@ enum global_params
   k_pan,
 
   //might as well move these here since they work for sound sculpting anyway
-  k_delay_mode,
+  k_delay_mode, 
   k_delay_send_level,
   k_delay_time,
   k_delay_feedback,
@@ -124,7 +124,7 @@ enum global_params
   k_filter1_output_level,
   k_filter2_output_level,
   /*
-  //maybe add these eventually, would be a 8 slot mod matrix
+  //maybe add these eventually, would be an 8 slot mod matrix
   k_mod1_src,
   k_mod1_trg,
   k_mod1_amt,
@@ -221,6 +221,7 @@ enum delay_modes
 
 enum event_nums
 {
+//numeric event codes, not all of them used at the moment
   k_event_num_standard_note_on = 0,
   k_event_num_standard_note_off = 1,
   k_event_num_standard_pitch_bend = 2,

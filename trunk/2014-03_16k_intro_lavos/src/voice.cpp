@@ -10,7 +10,7 @@ Voice::Voice():
   m_frequency(440.0f),
   m_note(-1),
   m_velocity(0.0f),
-  m_pitchBend(0.5f),
+  m_pitch_bend(0.5f),
   isActive(false),
   m_filter1_env_mod(0.75f),
   m_filter1_vel_mod(0.75f),
@@ -97,8 +97,6 @@ void Voice::noteOff()
 //----------------------------------------------------------------------------
 void Voice::setPitchBend(float val)
 {
-  m_pitchBend = val;
-
   if(val>1.0f)
     val=1.0f;
   else if(val<0.0f)
@@ -127,44 +125,18 @@ void Voice::setPitchEnvMod(float val)
     val -= 0.5f;
     val *= 2.0f;
     m_pitch_env_mod = val*(MIDI2Freq[m_note]*cpowf(1.05946309436f,static_cast<float>(g_pitch_env_range)));
-    /*
-       pitchval = m_note+g_pitch_env_range;
-       if(pitchval>127)
-       pitchval=127;
-       m_pitch_env_mod = MIDI2Freq[pitchval] * val;
-       */
   }
   else if(val < 0.5f)
   {
     val -= 0.5f;
     val *= 2.0f;
     m_pitch_env_mod = val*(MIDI2Freq[m_note]*cpowf(0.94387431268f,static_cast<float>(g_pitch_env_range))+MIDI2Freq[m_note]);
-    //		m_pitch_env_mod = val*MIDI2Freq[m_note]*pow(1.05946309436f,g_pitch_env_range);
-    /*
-       pitchval = m_note-g_pitch_env_range;
-       if(pitchval<0)
-       pitchval=0;
-       m_pitch_env_mod = MIDI2Freq[pitchval] * val;
-       */
   }
 }
 
 //----------------------------------------------------------------------------
 void Voice::setPitchModMinMax()
 {
-  /*
-     int pitchval;
-  //use g_pitch_env_range just like in setPitchEnvMod
-  pitchval = m_note+g_pitch_env_range;
-  if(pitchval>127)
-  pitchval=127;
-  m_pitchmod_max = MIDI2Freq[pitchval];
-
-  pitchval = m_note-g_pitch_env_range;
-  if(pitchval<0)
-  pitchval=0;
-  m_pitchmod_min = MIDI2Freq[pitchval];
-  */
   m_pitchmod_max = MIDI2Freq[m_note]*cpowf(1.05946309436f,static_cast<float>(g_pitch_env_range))-MIDI2Freq[m_note];
   m_pitchmod_min = -1.0f*(MIDI2Freq[m_note]*cpowf(0.94387431268f,static_cast<float>(g_pitch_env_range))-MIDI2Freq[m_note]);
 }
@@ -179,6 +151,8 @@ void Voice::setFilterRouting(float val)
 //----------------------------------------------------------------------------
 void Voice::setParameter(int parameter, float value)
 {
+//pass parameters to components affected
+//TODO: refactor
   switch(parameter)
   {
     case k_pitchbend:
@@ -277,7 +251,6 @@ void Voice::setParameter(int parameter, float value)
       break;
 
     case k_lfo1_speed:
-      //			m_lfo1->setPitch(value*g_lfo_max_frequency);
       m_lfo1.setPitch(value);
       break;
 
@@ -303,7 +276,6 @@ void Voice::setParameter(int parameter, float value)
       break;
 
     case k_lfo2_speed:
-      //			m_lfo2->setPitch(value*g_lfo_max_frequency);
       m_lfo2.setPitch(value);
       break;
 
@@ -329,7 +301,6 @@ void Voice::setParameter(int parameter, float value)
       break;
 
     case k_lfo3_speed:
-      //			m_lfo3->setPitch(value*g_lfo_max_frequency);
       m_lfo3.setPitch(value);
       break;
 
@@ -601,18 +572,14 @@ float Voice::getSample()
   m_osc3.setPitch(m_frequency+pitch_mod+lfopitch_mod_osc3);
 
   retVal = 0.33f*(m_osc1.getSample() + m_osc2.getSample() + m_osc3.getSample());
-  //	retVal = common::rationalTanh(retVal);
 
   float filter_keytrack_mod = m_filter_keytrack_offset_freq/(0.5f*SAMPLERATE);
-  //	float filter_keytrack_mod = m_filter_keytrack_offset_freq/(0.5f*44100.0f);
 
 
   //filter
   m_filter1.setMod(m_filter1_env_mod, m_filter_env.getSample());
   m_filter2.setMod(m_filter2_env_mod, m_filter_env.getSample());
-  //velmod: ok
-  //keytrack: ok
-  //envmod: ok
+
   m_filter1.setStaticMod(m_filter1_vel_mod*(m_velocity)+filter_keytrack_mod*2.0f*m_filter1_keytrack+filter1_mod);
   m_filter2.setStaticMod(m_filter2_vel_mod*(m_velocity)+filter_keytrack_mod*2.0f*m_filter2_keytrack+filter2_mod);
 
@@ -640,8 +607,6 @@ float Voice::getSample()
   }
 
   //Scale according to velocity and return.
-  //	return retVal * m_velocity * m_amp_env->getSample() * (1+amp_mod);
-  //	return common::clampFloat2Unit(retVal * m_velocity * m_amp_env->getSample() * (1+amp_mod));
   return ctanhf(retVal * m_velocity * m_amp_env.getSample() * (1+amp_mod));
 }
 

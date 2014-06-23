@@ -68,8 +68,6 @@ void Delay::process(float inputl, float inputr, float &output_l, float& output_r
 {
   float inl = m_level*inputl;
   float inr = m_level*inputr;
-  //	output_l=m_delay_buffer_l[m_delay_index];
-  //	output_r=m_delay_buffer_r[m_delay_index];
   output_l=m_highpass_filter_l.process(m_lowpass_filter_l.process(m_delay_buffer_l[m_delay_index]));
   output_r=m_highpass_filter_r.process(m_lowpass_filter_r.process(m_delay_buffer_r[m_delay_index]));
   switch(m_mode)
