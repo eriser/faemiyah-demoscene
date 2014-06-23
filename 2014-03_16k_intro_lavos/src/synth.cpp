@@ -14,7 +14,6 @@ void synth::generate_audio(int16_t* audio_buffer, unsigned buffer_length)
 {
   int16_t* out = audio_buffer;
   uint32_t i,j,k;
-  uint32_t jj = 0;
   float out_l=0.0f;
   float out_r=0.0f;
   float temp_l=0.0f;
