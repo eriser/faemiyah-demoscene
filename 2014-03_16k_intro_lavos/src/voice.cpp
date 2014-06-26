@@ -7,6 +7,7 @@
 
 //----------------------------------------------------------------------------
 Voice::Voice():
+  m_samplerate(44100.0f),
   m_frequency(440.0f),
   m_note(-1),
   m_velocity(0.0f),
@@ -18,6 +19,20 @@ Voice::Voice():
   m_filter2_vel_mod(0.75f),
   m_filter1_keytrack(0.75f),
   m_filter2_keytrack(0.75f),
+  m_filter_keytrack_offset_freq(0.0f),
+  m_pitch_env_mod(0.0f),
+  m_pitchmod_min(0.0f),
+  m_pitchmod_max(0.0f),
+  m_lfo1_keytrack(0.0f),
+  m_lfo2_keytrack(0.0f),
+  m_lfo3_keytrack(0.0f),
+  m_lfo_keytrack_offset(0.0f),
+  m_lfo1_mod_dest(0),
+  m_lfo2_mod_dest(0),
+  m_lfo3_mod_dest(0),
+  m_lfo1_mod_amount(0.0f),
+  m_lfo2_mod_amount(0.0f),
+  m_lfo3_mod_amount(0.0f),
   m_filter_routing(k_filter_route_serial)
 {
   m_lfo1.setOscMode(k_oscmode_lfo);

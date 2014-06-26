@@ -82,16 +82,16 @@ void synth::generate_audio(int16_t* audio_buffer, unsigned buffer_length)
     out_l=0.0f;
     out_r=0.0f;
 
-	// to avoid overflowing or wrapping or just plain nasty clipping,
+    // to avoid overflowing or wrapping or just plain nasty clipping,
     // running through tanh for tamer clipping.
     for(k=0;k<NUM_CHANNELS;k++)
     {
       if(g_channel[k].getIsActive())
       {
-		//last minute quick hack to lower the level of channels that were too hot to begin with
-		//should not have been necessary but with this we get acceptable audio levels without crazy distortion
-		//this was tuned by ear hence the magic numbers
-		g_channel[k].getSample(temp_l, temp_r);
+        //last minute quick hack to lower the level of channels that were too hot to begin with
+        //should not have been necessary but with this we get acceptable audio levels without crazy distortion
+        //this was tuned by ear hence the magic numbers
+        g_channel[k].getSample(temp_l, temp_r);
         out_l += (0.9f-(0.015f*(float)k))*ctanhf(0.69f*temp_l);
         out_r += (0.9f-(0.015f*(float)k))*ctanhf(0.69f*temp_r);
       }
