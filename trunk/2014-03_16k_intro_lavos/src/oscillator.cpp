@@ -9,19 +9,17 @@ Oscillator::Oscillator(void)
 
   m_sync = true;
 
-  setOscMode(k_oscmode_oscillator);
-  setDetune(0.5f);
-  setSemi(0.5f);
-  setVolume(1.0f);
-  setPW(0.5f);
-  setPWM(0.0f);
-
   m_waveform = k_sine;
 
   m_startphase = 0.0;
   m_phase=m_startphase;
   m_pitch = 0.0f;
-  setPitch(440.0f);
+  m_detune = 0.0f;
+  m_semi = 0.0f;
+  m_pw = 0.0f;
+  m_pwm = 0.0f;
+  m_pw_mod = 0.0f;
+  m_pitch_mod = 0.0f;
 
   //noise generation
   m_gaussian_noise_constant_a = 0x67452301;
@@ -30,6 +28,16 @@ Oscillator::Oscillator(void)
   m_sampleandhold_counter=0;
   m_sample = 0.0f;
   m_fintmax = static_cast<float>(std::numeric_limits<int>::max());
+
+  isActive=false;
+
+  setOscMode(k_oscmode_oscillator);
+  setDetune(0.5f);
+  setSemi(0.5f);
+  setVolume(1.0f);
+  setPW(0.5f);
+  setPWM(0.0f);
+  setPitch(440.0f);
 
   /* populate bpm denominators
      4 full notes				= BPM / 960 => speed 0

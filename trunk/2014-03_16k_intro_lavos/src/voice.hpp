@@ -101,8 +101,8 @@ class Voice
       */
     bool isActive;
 
-	//The envelope generators for amp, filter and pitch
-	EnvGen m_amp_env;
+    //The envelope generators for amp, filter and pitch
+    EnvGen m_amp_env;
     EnvGen m_filter_env;
     EnvGen m_pitch_env;
     float m_filter1_env_mod;

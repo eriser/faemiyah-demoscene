@@ -8,6 +8,10 @@ Filter::Filter(void)
   m_r2 = 1/m_resonance;
   m_h = 0.5f;
   m_c_low=m_c_band=m_c_high=0.0f;
+  m_base_freq=0.0f;
+  m_mod=0.0f;
+  m_staticmod=0.0f;
+  m_bandwidth=2.0f;
   setMode(0.0f);
   setCutoff(0.5f);
   setMod(0.0f,0.0f);
@@ -128,8 +132,8 @@ void Filter::calculateCoefficients()
 
       //		case BANDPASS_PEAK:
     case k_filter_bandpass_peak:
-	  //tweaked by ear, hence magic numbers
-	  m_r2 = 2.0f * bandwidthToR(40.001f - 0.9654f * m_bandwidth);
+      //tweaked by ear, hence magic numbers
+      m_r2 = 2.0f * bandwidthToR(40.001f - 0.9654f * m_bandwidth);
       m_c_low = 0.0f;
       m_c_band = m_r2;
       m_c_high = 0.0f;
