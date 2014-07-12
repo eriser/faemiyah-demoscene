@@ -40,7 +40,7 @@ Last but not least, one of the better decisions I've made in a long time was to 
 
 <wiki:video url="http://www.youtube.com/watch?v=rqdrtzCaSHw"/>
 
-Make your transition.
+^Make your transition.^
 
 At the risk of sounding like a bad self help book I'm still going to say if you want to try coding a synth or a cool effect or whatever but are unsure about it, go for it.
 
@@ -70,7 +70,7 @@ Another oversight on my part was the need for a user interface for the VST plugi
 
 [http://faemiyah.fi/pui/muri/opsv1ss.png http://faemiyah.fi/pui/muri/opsv1sss.png]
 
-Such was the rush that some last minute additions don't even have labels.]
+^Such was the rush that some last minute additions don't even have labels.^
 
 === Getting Obsessed With Details ===
 
@@ -88,7 +88,7 @@ Another issue related to failed scheduling and enterprise-y solutions was that I
 
 [http://faemiyah.fi/pui/muri/lavos_sonar_ss.png http://faemiyah.fi/pui/muri/lavos_sonar_sss.png]
 
-Sparse and simple.
+^Sparse and simple.^
 
 Boy, was I WRONG. Getting online after arriving at Tokyo and checking IRC I found Trilkk furious: my code was crap and crashing, precalc took forever and the sound was too quiet and worst of all the executable was 1K too big. I was in no shape to fix anything and it all seemed rather bleak, Trilkk soldiering on while I went to sleep. The next morning I somehow woke up early and checked IRC again to find that Trilkk had fixed most of the issues but the sound was all wrong. The dynamic range was fine now but the sound was distorting like hell and was a bloody mess. Unfortunately I had no way to fix the control data itself since I had no tools, just a Nokia N900 phone and ssh access to a server that had nano and vim installed. I started looking for unnecessary code that could be cut out to save some space and fiddling with the sound level to make it less of a mess, changing, compiling and running the code on the server and exporting the audio as raw audio, compressing it, downloading it to my phone and listening the end result.
 
