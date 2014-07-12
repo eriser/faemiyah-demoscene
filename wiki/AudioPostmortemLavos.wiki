@@ -1,4 +1,3 @@
-
 = Audio Postmortem: Faemiyah - Lavos or: How Was Bäbby's First Softsynth Formed =
 
 We released our 16K FreeBSD intro [http://www.pouet.net/prod.php?which=62833 "Lavos"] as an entry to the wild compo at [http://tokyodemofest.jp/2014/ Tokyo Demo Fest 2014]. After the party I started to think about doing a write-up of the experience, a closure of sorts.
@@ -69,9 +68,9 @@ Not very elegant but it worked and there was no need to do this all that often s
 
 Another oversight on my part was the need for a user interface for the VST plugin. When I started working on the plugin, I was overjoyed to notice that the VST host provided bare bone slider controls for the defined parameters quite like the default controls in Buzz Tracker. Unfortunately I later found out that (in Sonar at least) the number of controls available this was is quite limited as they are all organized vertically in a single column and you can only fit so many controls in a window with no scroll bars. So, I needed to implement a GUI somehow. I'd read about VSTGUI being a mess so I decided to look for something else and first tried out [http://www.juce.com/ JUCE] library but soon grew to dislike the fact that JUCE is a full-blown toolkit/framework and was getting in my way more than I liked. Searching on, I finally stumbled upon [https://github.com/olilarkin/wdl-ol IPlug/WDL-OL] which provided all I needed and didn't get in the way much. While fiddling around with GUI stuff can be fun, having to work on one out of necessity and on a deadline is a bit of a bummer. That said, it was very necessary and ultimately a good thing. I will probably release the VST plugin once all the features I want are there and it's given a bit of polish.
 
-http://faemiyah.fi/pui/muri/opsv1sss.png
+[http://faemiyah.fi/pui/muri/opsv1ss.png http://faemiyah.fi/pui/muri/opsv1sss.png]
 
-[http://faemiyah.fi/pui/muri/opsv1ss.png Such was the rush that some last minute additions don't even have labels.]
+Such was the rush that some last minute additions don't even have labels.]
 
 === Getting Obsessed With Details ===
 
