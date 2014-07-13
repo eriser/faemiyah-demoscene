@@ -6,7 +6,7 @@ We released our 16K FreeBSD intro [http://www.pouet.net/prod.php?which=62833 "La
 
 <wiki:video url="http://www.youtube.com/watch?v=kZ14px7JKUA"/>
 
-^If you think you should watch the real thing itself, you'd be right. Fea^H^H^HYouTube is the detail killer.^
+^If you think you should watch the real thing instead, you'd be right. YouTube is the detail killer.^
 
 I've often found postmortems and other anecdotal notes of people making things fascinating even if not familiar with the subject or field in question. Therefore postmortem is the format I've decided to use for telling about the making of the synth and the music for the intro and the related experiences. The things I'm going to describe in this postmortem are the things I've found noteworthy or somehow memorable and while probably not too in depth, will contain some technical details of some of the features implemented and the circumstances leading to their inclusion or certain way to implementation.
 
