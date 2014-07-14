@@ -1,6 +1,6 @@
 #summary Audio Postmortem of the 16K intro, Lavos
 
-= Audio Postmortem: Faemiyah - Lavos or: How Was Bäbby's First Softsynth Formed =
+= Audio Postmortem: Lavos or: How Was Bäbby's First Softsynth Formed =
 
 We released our 16K FreeBSD intro [http://www.pouet.net/prod.php?which=62833 "Lavos"] as an entry to the wild compo at [http://tokyodemofest.jp/2014/ Tokyo Demo Fest 2014]. After the party I started to think about doing a write-up of the experience, a closure of sorts.
 
