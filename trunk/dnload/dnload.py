@@ -1387,6 +1387,7 @@ class LibraryDefinition:
 library_definition_c = LibraryDefinition("c")
 library_definition_c.add_symbols((
   ("void*", "malloc", "size_t"),
+  ("void*", "memset", "void*", "int", "size_t"),
   ("int", "puts", "const char*"),
   ("int", ("rand", "bsd_rand")),
   ("void", ("srand", "bsd_srand"), "unsigned int"),
