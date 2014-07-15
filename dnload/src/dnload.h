@@ -284,6 +284,12 @@ static const void* elf_get_dynamic_address_by_tag(const void *dyn, dnload_elf_ta
   const dnload_elf_dyn_t *dynamic = (const dnload_elf_dyn_t*)dyn;
   for(;;)
   {
+#if defined(__linux__)
+    if(0 == dynamic->d_tag)
+    {
+      return NULL;
+    }
+#endif
     if(dynamic->d_tag == tag)
     {
       return (const void*)dynamic->d_un.d_ptr;
@@ -318,7 +324,11 @@ static const void* elf_get_library_dynamic_section(const struct link_map *lmap, 
 {
   const void *ret = elf_get_dynamic_address_by_tag(lmap->l_ld, tag);
   // Sometimes the value is an offset instead of a naked pointer.
+#if defined(__linux__)
+  if((NULL != ret) && (ret < (const void*)lmap->l_addr))
+#else
   if(ret < (const void*)lmap->l_addr)
+#endif
   {
     return (uint8_t*)ret + (size_t)lmap->l_addr;
   }
@@ -347,9 +357,40 @@ static void* dnload_find_symbol(uint32_t hash)
     const char* strtab = (const char*)elf_get_library_dynamic_section(lmap, DT_STRTAB);
     const dnload_elf_sym_t* symtab = (const dnload_elf_sym_t*)elf_get_library_dynamic_section(lmap, DT_SYMTAB);
     const uint32_t* hashtable = (const uint32_t*)elf_get_library_dynamic_section(lmap, DT_HASH);
-    unsigned numchains = hashtable[1]; /* Number of symbols. */
+    unsigned dynsymcount;
     unsigned ii;
-    for(ii = 0; (ii < numchains); ++ii)
+#if defined(__linux__)
+    if(NULL == hashtable)
+    {
+      hashtable = (const uint32_t*)elf_get_library_dynamic_section(lmap, DT_GNU_HASH);
+      dynsymcount = 0;
+      {
+        unsigned nbuckets = hashtable[0];
+        unsigned bloom_size = (sizeof(void*) / 4) * hashtable[2];
+        const uint32_t* buckets = hashtable + 4 + bloom_size;
+        const uint32_t* chain_zero = buckets + nbuckets + hashtable[1];
+        unsigned bkt;
+        for(bkt = 0; (bkt < nbuckets); bkt++)
+        {
+          if(buckets[bkt] == 0)
+          {
+            continue;
+          }
+          {
+            const uint32_t* hashval = &chain_zero[buckets[bkt]];
+            do {
+              dynsymcount++;
+            } while((*hashval++ & 1u) == 0);
+          }
+        }
+      }
+    }
+    else
+#endif
+    {
+      dynsymcount = hashtable[1];
+    }
+    for(ii = 0; (ii < dynsymcount); ++ii)
     {
       const dnload_elf_sym_t* sym = &symtab[ii];
       const char *name = &strtab[sym->st_name];
