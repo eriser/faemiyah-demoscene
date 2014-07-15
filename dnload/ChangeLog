@@ -1,3 +1,7 @@
+r??? (2014-??-??)
+  * Support DT_GNU_HASH in addition to DT_HASH on Linux.
+  * Add symbol definitions.
+
 r115 (2014-06-21)
   * Additional GL function definitions (can now compile flow2).
   * Better handling of GLAPIENTRY.
