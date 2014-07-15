@@ -1,4 +1,5 @@
 #summary Audio Postmortem of the 16K intro, Lavos
+#labels Featured
 
 = Audio Postmortem: Lavos or: How Was Bäbby's First Softsynth Formed =
 
