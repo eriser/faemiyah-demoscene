@@ -1764,7 +1764,7 @@ static void* dnload_find_symbol(uint32_t hash)
         const uint32_t* chain_zero = buckets + bucket_count + hashtable[1];
         for(ii = 0; (ii < bucket_count); ++ii)
         {
-          unsigned bkt = buckets[ii]
+          unsigned bkt = buckets[ii];
           if(bkt == 0)
           {
             continue;
