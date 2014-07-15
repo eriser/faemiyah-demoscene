@@ -1756,24 +1756,24 @@ static void* dnload_find_symbol(uint32_t hash)
     if(NULL == hashtable)
     {
       hashtable = (const uint32_t*)elf_get_library_dynamic_section(lmap, DT_GNU_HASH);
+      // DT_GNU_HASH symbol counter borrows from FreeBSD rtld-elf implementation.
       dynsymcount = 0;
       {
-        unsigned nbuckets = hashtable[0];
-        unsigned bloom_size = (sizeof(void*) / 4) * hashtable[2];
-        const uint32_t* buckets = hashtable + 4 + bloom_size;
-        const uint32_t* chain_zero = buckets + nbuckets + hashtable[1];
-        unsigned bkt;
-        for(bkt = 0; (bkt < nbuckets); bkt++)
+        unsigned bucket_count = hashtable[0];
+        const uint32_t* buckets = hashtable + 4 + ((sizeof(void*) / 4) * hashtable[2]);
+        const uint32_t* chain_zero = buckets + bucket_count + hashtable[1];
+        for(ii = 0; (ii < bucket_count); ++ii)
         {
-          if(buckets[bkt] == 0)
+          unsigned bkt = buckets[ii]
+          if(bkt == 0)
           {
             continue;
           }
           {
-            const uint32_t* hashval = &chain_zero[buckets[bkt]];
+            const uint32_t* hashval = chain_zero + bkt;
             do {
-              dynsymcount++;
-            } while((*hashval++ & 1u) == 0);
+              ++dynsymcount;
+            } while(0 == (*hashval++ & 1u));
           }
         }
       }
