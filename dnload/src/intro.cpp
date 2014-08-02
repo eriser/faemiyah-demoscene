@@ -432,7 +432,7 @@ static void draw(unsigned ticks, float aspect)
     g_uniform_array[8] = g_up_z;
   }
 #endif
-  g_uniform_array[9] = ticks;
+  g_uniform_array[9] = static_cast<float>(ticks);
   g_uniform_array[10] = aspect;
   dnload_glUniform3fv(dnload_glGetUniformLocation(g_program_quad, "p"), 1, g_uniform_array + 0);
   dnload_glUniform3fv(dnload_glGetUniformLocation(g_program_quad, "f"), 1, g_uniform_array + 3);

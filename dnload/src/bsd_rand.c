@@ -3,16 +3,14 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#define BSD_RAND_MAX 0x7FFFFFFF
-
 /** BSD random var. */
-static bsd_u_long bsd_rand_next = 1;
+static bsd_u_long bsd_rand_next = 2;
 
 int bsd_rand(void)
 {
   /*
    * Compute x = (7^5 * x) mod (2^31 - 1)
-   * wihout overflowing 31 bits:
+   * without overflowing 31 bits:
    *      (2^31 - 1) = 127773 * (7^5) + 2836
    * From "Random number generators: good ones are hard to find",
    * Park and Miller, Communications of the ACM, vol. 31, no. 10,
@@ -20,22 +18,21 @@ int bsd_rand(void)
    */
   long hi, lo, x;
 
-  /* Can't be initialized with 0, so use another value. */
-  if(bsd_rand_next == 0)
-  {
-    bsd_rand_next = 123459876;
-  }
+  /* Must be in [1, 0x7ffffffe] range at this point. */
   hi = (long)(bsd_rand_next / 127773);
   lo = (long)(bsd_rand_next % 127773);
   x = 16807 * lo - 2836 * hi;
   if (x < 0)
     x += 0x7fffffff;
-  return (int)((bsd_rand_next = (bsd_u_long)x) % ((bsd_u_long)BSD_RAND_MAX + 1));
+  bsd_rand_next = (bsd_u_long)x;
+  /* Transform to [0, 0x7ffffffd] range. */
+  return (int)(x - 1);
 }
 
 void bsd_srand(bsd_u_int seed)
 {
-  bsd_rand_next = seed;
+  /* Transform to [1, 0x7ffffffe] range. */
+  bsd_rand_next = (seed % 0x7ffffffe) + 1;
 }
 
 int bsd_rand_wrapper(void)
