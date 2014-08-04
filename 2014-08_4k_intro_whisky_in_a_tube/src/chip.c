@@ -357,7 +357,7 @@ void render(sample_t *buf, unsigned int len) {
 	for (uint i = 0; i < len; i++) {
 		int sample = 0;
 
-		for (int c = 0; c < 4; c++) {
+		for (unsigned c = 0; c < 4; c++) {
 
 			uint subtick = g_audio_position / TEMPO;
 			uint tick = subtick / 4;
@@ -365,11 +365,11 @@ void render(sample_t *buf, unsigned int len) {
 			uint ppos = (tick % PATTLEN) + c * PATTLEN;
 			if (c + (subtick & 0x01) >= 3) ppos += PATTLEN;
 
-			uint s = song[spos];
+			uint s = (uint)song[spos];
 			uint d = pattern[ppos + (s & 0x3f) * (PATTLEN * TRACKS)];
 			uint note = notetable[d & 0x0f];
 			static const char shifts[] = {0, 2, 3, 4};
-			uint shift = shifts[(d >> 4) & 0x03];
+			uint shift = (uint)(shifts[(d >> 4) & 0x03]);
 
 			static float bd = 0.0f;
 			uint add = (g_audio_position * note << shift) + (uint)bd;
@@ -416,7 +416,7 @@ void render(sample_t *buf, unsigned int len) {
 				if (bd < -200) {
 					static uint sd = 0;
  					if (!(g_audio_position & 0x15)) {
-						sd = (((int)(frand(0.0006) * bd)) *
+						sd = (((int)(frand(0.0006f) * bd)) *
 						      ((g_audio_position & 0x400)));
 					}
 					sample += sd;
