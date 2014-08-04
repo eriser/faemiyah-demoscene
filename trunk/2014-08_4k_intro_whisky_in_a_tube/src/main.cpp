@@ -38,7 +38,7 @@ static const char *usage = ""
  */
 void write_audio_callback(void *data, unsigned size)
 {
-  FILE *fd = fopen("tdf.raw", "wb");
+  FILE *fd = fopen("whisky_in_a_tube.raw", "wb");
 
   if(fd != NULL)
   {
@@ -58,12 +58,12 @@ void write_audio_callback(void *data, unsigned size)
 void write_frame_callback(unsigned screen_w, unsigned screen_h, unsigned idx)
 {
   boost::scoped_array<uint8_t> image(new uint8_t[screen_w * screen_h * 3]);
-  char filename[19];
+  char filename[25];
 
   glReadPixels(0, 0, static_cast<GLsizei>(screen_w), static_cast<GLsizei>(screen_h), GL_RGB, GL_UNSIGNED_BYTE,
       image.get());
 
-  sprintf(filename, "tdf_%04u.png", idx);
+  sprintf(filename, "whisky_in_a_tube_%04u.png", idx);
 
   gfx::image_png_save(std::string(filename), screen_w, screen_h, 24, image.get());
   return;

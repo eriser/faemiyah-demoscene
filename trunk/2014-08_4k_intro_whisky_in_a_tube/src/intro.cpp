@@ -46,6 +46,9 @@
 /** Audio update rate. */
 #define AUDIO_RATE (AUDIO_CHANNELS * AUDIO_SAMPLERATE)
 
+/* Audio tick rate, ~172.3Hz, lower values seem to cause underruns. */
+#define AUDIO_TICK 256
+
 /** Intro length (in bytes of audio). */
 #define INTRO_LENGTH (71 * AUDIO_RATE)
 
@@ -121,7 +124,7 @@ static unsigned int g_audio_position;
 
 /** Audio buffer for output (in record mode only). */
 #if defined(USE_LD)
-static int16_t g_audio_buffer[INTRO_LENGTH * 9 / 8 / sizeof(int16_t)];
+static int16_t g_audio_buffer[INTRO_LENGTH * 9 / 8];
 #endif
 
 /** Ellipsoid texture. */
@@ -932,7 +935,7 @@ extern "C"
 static void audio_callback(void *userdata, Uint8 *stream, int len)
 {
   (void)userdata;
-  render(reinterpret_cast<sample_t*>(stream), static_cast<unsigned>(len/sizeof(sample_t)));
+  render(reinterpret_cast<sample_t*>(stream), static_cast<unsigned>(len)/sizeof(sample_t));
 }
 
 /** SDL audio specification struct. */
@@ -942,7 +945,7 @@ static SDL_AudioSpec audio_spec =
   AUDIO_S16,
   AUDIO_CHANNELS,
   0,
-  256, // ~172.3Hz, lower values seem to cause underruns
+  AUDIO_TICK,
   0,
   0,
   audio_callback,
@@ -957,6 +960,7 @@ static SDL_AudioSpec audio_spec =
 int intro(unsigned screen_w, unsigned screen_h, uint8_t flag_developer, uint8_t flag_fullscreen,
     uint8_t flag_record)
 {
+  g_flag_developer = flag_developer;
 #else
 /** \cond */
 #define screen_h SCREEN_H
@@ -989,6 +993,11 @@ void _start()
   std::cout << "Quad program: " << g_program_quad << "\nAttributes:\na: " <<
     glGetAttribLocation(g_program_quad, "a") << "\nu: " << glGetUniformLocation(g_program_quad, "u") <<
     std::endl;
+#endif
+
+#if defined(USE_LD)
+  g_uniform_array[4] = static_cast<float>(screen_w) / static_cast<float>(screen_h);
+  g_uniform_array[5] = static_cast<float>(flag_developer);
 #endif
 
   {
@@ -1042,39 +1051,46 @@ void _start()
   dnload_glTexImage3D(GL_TEXTURE_3D, 0, GL_RED, WHISKY_SIDE, WHISKY_SIDE, WHISKY_HEIGHT, 0, GL_RED,
       GL_UNSIGNED_BYTE, g_texture_whisky_data);
 
+  unsigned cumulative = INTRO_START;
+
 #if defined(USE_LD)
   if(flag_record)
   {
+    sample_t *stream = reinterpret_cast<sample_t*>(g_audio_buffer);
     SDL_Event event;
     unsigned frame_idx = 0;
 
-    // audio
-    SDL_PauseAudio(1);
-
-    write_audio_callback(g_audio_buffer, static_cast<unsigned>(INTRO_LENGTH * sizeof(uint16_t) * AUDIO_CHANNELS));
-
-    // video
+    // combined audio / video
     for(;;)
     {
-      unsigned ticks = static_cast<unsigned>(static_cast<float>(frame_idx) / 60.0f *
-          static_cast<float>(AUDIO_RATE));
-
-      if(ticks > INTRO_LENGTH)
-      {
-        break;
-      }
-
       if(SDL_PollEvent(&event) && (event.type == SDL_KEYDOWN) && (event.key.keysym.sym == SDLK_ESCAPE))
       {
         break;
       }
 
-      calc(ticks);
-      draw();
-      write_frame_callback(screen_w, screen_h, frame_idx);
-      SDL_GL_SwapBuffers();
-      ++frame_idx;
+      render(stream, AUDIO_TICK);
+
+      unsigned currtick = g_audio_position - cumulative;
+
+      while(TICKS_PER_FRAME <= currtick)
+      {
+        currtick -= TICKS_PER_FRAME;
+        cumulative += TICKS_PER_FRAME;
+        calc(cumulative);
+        draw();
+        SDL_GL_SwapBuffers();
+        write_frame_callback(screen_w, screen_h, frame_idx);
+        ++frame_idx;
+      }
+      
+      if(cumulative >= INTRO_LENGTH)
+      {
+        break;
+      }
+      stream += AUDIO_TICK;
     }
+
+    write_audio_callback(g_audio_buffer, static_cast<unsigned>(INTRO_LENGTH * sizeof(uint16_t)));
 
     SDL_Quit();
     return 0;
@@ -1089,9 +1105,6 @@ void _start()
     }
     SDL_PauseAudio(0);
   }
-  g_flag_developer = flag_developer;
-  g_uniform_array[4] = static_cast<float>(screen_w) / static_cast<float>(screen_h);
-  g_uniform_array[5] = static_cast<float>(flag_developer);
 #else
   dnload_SDL_OpenAudio(&audio_spec, NULL);
   dnload_SDL_PauseAudio(0);
@@ -1100,7 +1113,6 @@ void _start()
 #if defined(USE_LD)
   unsigned starttick = SDL_GetTicks();	
 #endif
-  unsigned cumulative = INTRO_START;
 
   for(;;)
   {
@@ -1132,7 +1144,7 @@ void _start()
     unsigned currtick;
 
 #if defined(USE_LD)
-    if(g_flag_developer)
+    if(flag_developer)
     {
       currtick = static_cast<unsigned>(static_cast<float>(SDL_GetTicks() - starttick) / 1000.0f *
           static_cast<float>(AUDIO_RATE)) + INTRO_START - cumulative;
@@ -1142,7 +1154,7 @@ void _start()
       currtick = g_audio_position - cumulative;
     }
 
-    if(((cumulative >= INTRO_LENGTH) && !g_flag_developer) || quit)
+    if(((cumulative >= INTRO_LENGTH) && !flag_developer) || quit)
     {
       break;
     }
@@ -1480,7 +1492,7 @@ void _start()
       }
     }
 
-    if(g_flag_developer)
+    if(flag_developer)
     {
       float uplen = sqrtf(g_up_x * g_up_x + g_up_y * g_up_y + g_up_z * g_up_z);
       float fwlen = sqrtf(g_fw_x * g_fw_x + g_fw_y * g_fw_y + g_fw_z * g_fw_z);
