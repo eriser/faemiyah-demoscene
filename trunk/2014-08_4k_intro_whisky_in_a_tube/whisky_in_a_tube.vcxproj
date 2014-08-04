@@ -76,6 +76,7 @@
     <ClInclude Include="src\dnload.h" />
     <ClInclude Include="src\image_png.hpp" />
     <ClInclude Include="src\intro.hpp" />
+    <ClInclude Include="src\notetable.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

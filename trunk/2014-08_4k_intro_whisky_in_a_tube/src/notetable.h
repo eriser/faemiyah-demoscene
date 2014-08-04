@@ -1,6 +1,6 @@
 #ifndef __NOTETABLE_H__
 #define __NOTETABLE_H__
-static const uint notetable[] = {
+static const unsigned notetable[] = {
 0, 
 0x1b9000, 
 0x1d3300, 

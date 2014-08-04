@@ -1,6 +1,5 @@
 #include <stdint.h>
 
-typedef unsigned int uint;
 #include "notetable.h"
 
 typedef int16_t sample_t;
@@ -271,8 +270,8 @@ const char song[] = {
 	12, 5, 12, 5,
 };
 
-const uint vol[] = {6200, 3000, 2600, 2600};
-const uint pwm[] = {0x80000000, 0x80000000, 0xc0000000, 0xc0000000};
+const unsigned vol[] = {6200, 3000, 2600, 2600};
+const unsigned pwm[] = {0x80000000, 0x80000000, 0xc0000000, 0xc0000000};
 
 #if 1
 /* gray, flash, hue, count, str */
@@ -345,35 +344,35 @@ float frand(float op)
 #if defined(STANDALONE)
 unsigned int g_audio_position = 0;
 float g_uniform_array[4];
-uint g_mover_queue;
+unsigned g_mover_queue;
 float g_mover_strength;
 int g_mode_control;
 #endif
 int x = 1;
 
 void render(sample_t *buf, unsigned int len) {
-  const uint fadestart = 44100 * 65 * 2;
+  const unsigned fadestart = 44100 * 65 * 2;
 	static int f = 0;
-	for (uint i = 0; i < len; i++) {
+	for (unsigned i = 0; i < len; i++) {
 		int sample = 0;
 
 		for (unsigned c = 0; c < 4; c++) {
 
-			uint subtick = g_audio_position / TEMPO;
-			uint tick = subtick / 4;
-			uint spos = tick / PATTLEN;
-			uint ppos = (tick % PATTLEN) + c * PATTLEN;
+			unsigned subtick = g_audio_position / TEMPO;
+			unsigned tick = subtick / 4;
+			unsigned spos = tick / PATTLEN;
+			unsigned ppos = (tick % PATTLEN) + c * PATTLEN;
 			if (c + (subtick & 0x01) >= 3) ppos += PATTLEN;
 
-			uint s = (uint)song[spos];
-			uint d = pattern[ppos + (s & 0x3f) * (PATTLEN * TRACKS)];
-			uint note = notetable[d & 0x0f];
+			unsigned s = (unsigned)song[spos];
+			unsigned d = pattern[ppos + (s & 0x3f) * (PATTLEN * TRACKS)];
+			unsigned note = notetable[d & 0x0f];
 			static const char shifts[] = {0, 2, 3, 4};
-			uint shift = (uint)(shifts[(d >> 4) & 0x03]);
+			unsigned shift = (unsigned)(shifts[(d >> 4) & 0x03]);
 
 			static float bd = 0.0f;
-			uint add = (g_audio_position * note << shift) + (uint)bd;
-			uint v = vol[c];
+			unsigned add = (g_audio_position * note << shift) + (unsigned)bd;
+			unsigned v = vol[c];
 			if ((d & Q) && (subtick & 0x02)) {
 				v >>= 3;
 			}
@@ -390,7 +389,7 @@ void render(sample_t *buf, unsigned int len) {
 				  g_uniform_array[3] = effects[d+2];
 				}
 				if (!(g_audio_position % (TEMPO * 4))) {
-				  g_mover_queue += (uint)effects[d+3];
+				  g_mover_queue += (unsigned)effects[d+3];
 				  g_mover_strength = effects[d+4];
 				}
 				continue;
@@ -414,7 +413,7 @@ void render(sample_t *buf, unsigned int len) {
 					bd *= 0.9997f;
 				}
 				if (bd < -200) {
-					static uint sd = 0;
+					static unsigned sd = 0;
  					if (!(g_audio_position & 0x15)) {
 						sd = (((int)(frand(0.0006f) * bd)) *
 						      ((g_audio_position & 0x400)));
