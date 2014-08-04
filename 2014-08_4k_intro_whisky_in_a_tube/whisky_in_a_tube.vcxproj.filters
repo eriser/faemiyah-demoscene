@@ -11,5 +11,6 @@
     <ClInclude Include="src\dnload.h" />
     <ClInclude Include="src\image_png.hpp" />
     <ClInclude Include="src\intro.hpp" />
+    <ClInclude Include="src\notetable.h" />
   </ItemGroup>
 </Project>

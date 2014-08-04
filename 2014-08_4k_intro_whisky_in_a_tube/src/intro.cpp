@@ -46,8 +46,13 @@
 /** Audio update rate. */
 #define AUDIO_RATE (AUDIO_CHANNELS * AUDIO_SAMPLERATE)
 
+#if defined(WIN32)
+/* Audio tick rate, ~86.1Hz, maximum on Windows. */
+#define AUDIO_TICK 512
+#else
 /* Audio tick rate, ~172.3Hz, lower values seem to cause underruns. */
 #define AUDIO_TICK 256
+#endif
 
 /** Intro length (in bytes of audio). */
 #define INTRO_LENGTH (71 * AUDIO_RATE)
@@ -922,7 +927,6 @@ static void draw()
 
 extern "C"
 {
-#include "notetable.h"
 #include "chip.c"
 }
 
