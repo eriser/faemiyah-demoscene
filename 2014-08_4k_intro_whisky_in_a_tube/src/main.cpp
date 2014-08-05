@@ -10,11 +10,7 @@
 #include <boost/scoped_array.hpp>
 #include <boost/tuple/tuple.hpp>
 
-#ifdef __APPLE__
-#include "SDL/SDL_opengl.h"
-#else
-#include "SDL_opengl.h"
-#endif
+#include "GL/glew.h"
 
 #if defined(__APPLE__)
 #define MAINPROG SDL_main
