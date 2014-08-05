@@ -67,6 +67,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="src\bsd_rand.c" />
+    <ClCompile Include="src\glsl_shader_source.cpp" />
     <ClCompile Include="src\image_png.cpp" />
     <ClCompile Include="src\intro.cpp" />
     <ClCompile Include="src\main.cpp" />
@@ -74,6 +75,7 @@
   <ItemGroup>
     <ClInclude Include="src\bsd_rand.h" />
     <ClInclude Include="src\dnload.h" />
+    <ClInclude Include="src\glsl_shader_source.hpp" />
     <ClInclude Include="src\image_png.hpp" />
     <ClInclude Include="src\intro.hpp" />
     <ClInclude Include="src\notetable.h" />
