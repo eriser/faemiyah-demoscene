@@ -1,6 +1,6 @@
 include_directories("${PROJECT_SOURCE_DIR}")
 
-set(SOURCE_FILES bsd_rand.c image_png.cpp intro.cpp main.cpp)
+set(SOURCE_FILES bsd_rand.c glsl_shader_source.cpp image_png.cpp intro.cpp main.cpp)
 
 if (APPLE)
     list(APPEND SOURCE_FILES SDLMain.m)
