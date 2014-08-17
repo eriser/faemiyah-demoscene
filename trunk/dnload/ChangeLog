@@ -1,4 +1,4 @@
-r137 (2014-08-17)
+r152 (2014-08-17)
   * Support DT_GNU_HASH in addition to DT_HASH on Linux.
   * Add symbol definitions.
   * New bsd_rand from up-to-date FreeBSD.

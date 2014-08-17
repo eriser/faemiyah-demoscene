@@ -19,7 +19,7 @@ compilation_mode = "maximum"
 definition_ld = "USE_LD"
 symbol_prefix = "dnload_"
 verbose = False
-version = "r137"
+version = "r152"
 
 ########################################
 # PlatformVar ##########################
