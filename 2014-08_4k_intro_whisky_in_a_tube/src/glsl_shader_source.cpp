@@ -48,8 +48,8 @@ static bool regex_space_plus_alpha_plus_semicolon(std::string::const_iterator ii
 }
 
 GlslShaderSource::GlslShaderSource(const char *str1) :
-    m_indent(0),
-    m_string(NULL)
+    m_string(NULL),
+    m_indent(0)
 {
   this->add(str1);
 }
