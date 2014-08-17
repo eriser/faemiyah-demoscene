@@ -19,6 +19,7 @@ compilation_mode = "maximum"
 definition_ld = "USE_LD"
 symbol_prefix = "dnload_"
 verbose = False
+version = "r137"
 
 ########################################
 # PlatformVar ##########################
@@ -2228,7 +2229,6 @@ def main():
   source_files = []
   strip = None
   target_search_path = []
-  version = "r115"
 
   parser = argparse.ArgumentParser(usage = "%s [args] <source file(s)> [-o output]" % (sys.argv[0]), description = "Size-optimized executable generator for *nix platforms.\nPreprocesses given source file(s) looking for specifically marked function calls, then generates a dynamic loader header file that can be used within these same source files to decrease executable size.\nOptionally also perform the actual compilation of a size-optimized binary after generating the header.", formatter_class = CustomHelpFormatter, add_help = False)
   parser.add_argument("-A", "--assembler", help = "Try to use given assembler executable as opposed to autodetect.")

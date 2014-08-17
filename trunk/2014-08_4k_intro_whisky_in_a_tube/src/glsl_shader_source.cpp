@@ -1,5 +1,7 @@
 #include "glsl_shader_source.hpp"
 
+#include <cstring>
+
 /** \brief Generate an indent.
  *
  * \param op Indent length.
