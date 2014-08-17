@@ -15,6 +15,9 @@ class GlslShaderSource
     /** String stream containing the actual shader source. */
     std::ostringstream m_source;
 
+    /** Container for C string. (if present). */
+    char *m_string;
+
     /** Current indent. */
     unsigned m_indent;
 
@@ -22,17 +25,24 @@ class GlslShaderSource
     /** \brief Empty constructor.
      */
     GlslShaderSource() :
-      m_indent(0) { }
+      m_indent(0),
+      m_string(0) { }
 
     /** \brief Constructor.
      *
      * \param str1 First source string.
      */
-    GlslShaderSource(const char *str1) :
-      m_indent(0)
-    {
-      this->add(str1);
-    }
+    GlslShaderSource(const char *str1);
+
+    /** \brief Destructor. */
+    ~GlslShaderSource();
+
+  public:
+    /** \brief Get human-readable output.
+     *
+     * \return C string.
+     */
+    const char* c_str();
 
   private:
     /** \brief Add a string element.
@@ -42,16 +52,6 @@ class GlslShaderSource
      * \param op String to add.
      */
     void add(const std::string &op);
-
-  private:
-    /** \brief Add a string element wrapper.
-     *
-     * \param op String to add.
-     */
-    void add(const char *op)
-    {
-      this->add(std::string(op));
-    }
 
   public:
     /** \brief Get program info log.
@@ -78,13 +78,14 @@ class GlslShaderSource
       return m_source.str();
     }
 
-    /** \brief Get human-readable output.
+  private:
+    /** \brief Add a string element wrapper.
      *
-     * \return C string.
+     * \param op String to add.
      */
-    const char* c_str() const
+    void add(const char *op)
     {
-      return m_source.str().c_str();
+      this->add(std::string(op));
     }
 };
 
