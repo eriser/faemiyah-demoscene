@@ -25,8 +25,8 @@ class GlslShaderSource
     /** \brief Empty constructor.
      */
     GlslShaderSource() :
-      m_indent(0),
-      m_string(0) { }
+      m_string(NULL),
+      m_indent(0) { }
 
     /** \brief Constructor.
      *
