@@ -47,6 +47,18 @@ static bool regex_space_plus_alpha_plus_semicolon(std::string::const_iterator ii
   return false;
 }
 
+GlslShaderSource::GlslShaderSource(const char *str1) :
+    m_indent(0),
+    m_string(NULL)
+{
+  this->add(str1);
+}
+
+GlslShaderSource::~GlslShaderSource()
+{
+  delete[] m_string;
+}
+
 void GlslShaderSource::add(const std::string &op)
 {
   for(std::string::const_iterator ii = op.begin(), ee = op.end(); (ii != ee); ++ii)
@@ -79,6 +91,19 @@ void GlslShaderSource::add(const std::string &op)
         break;
     }
   }
+}
+
+const char* GlslShaderSource::c_str()
+{
+  std::string intermediate = m_source.str();
+  size_t len = intermediate.length() + 1;
+
+  delete[] m_string;
+  m_string = new char[len];
+
+  memcpy(m_string, intermediate.c_str(), len);
+
+  return m_string;
 }
 
 std::string GlslShaderSource::get_program_info_log(GLuint op)
