@@ -46,6 +46,11 @@
 #include "dnload.h"
 #include "intro.hpp"
 
+#if defined(USE_LD)
+#include "glsl_shader_source.hpp"
+#include <iostream>
+#endif
+
 //######################################
 // Global data #########################
 //######################################
@@ -190,143 +195,32 @@ GLuint g_program_quad;
 GLint g_attribute_quad_a;
 /** \endcond */
 
-#if defined(USE_LD)
-
-/** \brief Prints an indent.
- *
- * \param indent Number of characters to draw.
- */
-static void print_indent(unsigned indent)
-{
-  unsigned ii;
-  for(ii = 0; (ii < indent); ++ii)
-  {
-    putc(' ', stdout);
-  }
-}
-
-/** \brief Perform a set regex on a string.
- *
- * \return True if matches, false if not.
- */
-static bool regex_space_plus_alpha_plus_semicolon(const char *op)
-{
-  for(;;)
-  {
-    if(' ' != *op)
-    {
-      for(;;)
-      {
-        if(!isalpha(*op))
-        {
-          for(;;)
-          {
-            char cc = *op;
-
-            if(' ' != cc)
-            {
-              return (';' == cc);
-            }
-
-            ++op;
-          }
-        }
-
-        ++op;
-      }
-    }
-
-    ++op;
-  }
-}
-
-/** \brief Print a shader and make the output neater.
- *
- * \param shader Shader to print.
- * \param indent Indent to use.
- * \return Indent after print operation.
- */
-static unsigned print_shader(const char *shader, unsigned indent)
-{
-  char *iter = const_cast<char*>(shader);
-
-  for(;;)
-  {		
-    char cc = *iter;
-
-    switch(cc)
-    {
-      case '\0':
-        return indent;
-
-      case ';':
-        {
-          puts(";");
-          print_indent(indent);
-        }
-        break;
-
-      case '{':
-        puts("");
-        print_indent(indent);
-        puts("{");
-        indent += 2;
-        print_indent(indent);
-        break;
-
-      case '}':
-        putc('\r', stdout);
-        indent -= 2;
-        print_indent(indent);
-        putc('}', stdout);
-        if(!regex_space_plus_alpha_plus_semicolon(iter + 1))
-        {
-          puts("");
-          print_indent(indent);
-        }
-        break;
-
-      default:
-        putc(cc, stdout);
-        break;
-    }
-
-    ++iter;
-  }
-
-  return indent;
-}			
-
-#endif
-
 /** \brief Create a shader.
  *
- * \param sh Shader content.
- * \param st Shader type.
+ * \param source Shader content.
+ * \param type Shader type.
  * \return Compiled shader.
  */
-static GLuint shader_create(const char *source, GLenum st)
+static GLuint shader_create(const char *source, GLenum type)
 {
-  GLuint ret = dnload_glCreateShader(st);
+  GLuint ret = dnload_glCreateShader(type);
+#if defined(USE_LD)
+  GlslShaderSource glsl_source(source);
+  const GLchar *pretty_source = glsl_source.c_str();
+  dnload_glShaderSource(ret, 1, &pretty_source, NULL);
+#else
   dnload_glShaderSource(ret, 1, static_cast<const GLchar**>(&source), NULL);
+#endif
   dnload_glCompileShader(ret);
 #if defined(USE_LD)
   {
-    unsigned ii;
-    unsigned indent;
-    char slog[4096];
-    GLsizei len;
+    std::string log = GlslShaderSource::get_shader_info_log(ret);
     GLint status;
 
-    for(ii = 0, indent = 0; (ii < 1); ++ii)
+    std::cout << pretty_source << std::endl;
+    if(0 < log.length())
     {
-      indent = print_shader(&source[ii], indent);
-    }
-
-    glGetShaderInfoLog(ret, 4096, &len, slog);
-    if(strlen(slog) > 0)
-    {
-      puts(slog);
+      std::cout << log << std::endl;
     }
 
     glGetShaderiv(ret, GL_COMPILE_STATUS, &status);
@@ -357,13 +251,12 @@ static GLuint program_create(const char *vertex, const char* fragment)
   dnload_glLinkProgram(ret);
 #if defined(USE_LD)
   {
-    char slog[4096];
-    GLsizei len;
+    std::string log = GlslShaderSource::get_program_info_log(ret);
     GLint status;
-    glGetProgramInfoLog(ret, 4096, &len, slog);
-    if(strlen(slog) > 0)
+
+    if(0 < log.length())
     {
-      puts(slog);
+      std::cout << log << std::endl;
     }
 
     glGetProgramiv(ret, GL_LINK_STATUS, &status);
@@ -372,7 +265,7 @@ static GLuint program_create(const char *vertex, const char* fragment)
       SDL_Quit();
       exit(1);
     }
-    printf("GLSL program compiles to: %u\n", ret);
+    std::cout << "GLSL program compiles to: " << ret << std::endl;
   }
 #endif
   return ret;
@@ -472,7 +365,7 @@ void _start()
     if(GLEW_OK != err)
     {
       SDL_Quit();
-      fprintf(stderr, "glewInit(): %s", glewGetErrorString(err));
+      std::cerr  << "glewInit(): " << glewGetErrorString(err) << std::endl;
       exit(1);
     }
   }
@@ -481,8 +374,8 @@ void _start()
   g_program_quad = program_create(g_shader_vertex_quad, g_shader_fragment_quad);
   g_attribute_quad_a = dnload_glGetAttribLocation(g_program_quad, "a");
 #if defined(USE_LD)
-  printf("Quad program: %u\nAttributes:\na: %i\n",
-      g_program_quad, g_attribute_quad_a);
+  std::cerr << "Quad program: " << g_program_quad << "\nAttributes:\na: " <<
+    g_attribute_quad_a << std::endl;
 #endif
 
 #if defined(USE_LD)
