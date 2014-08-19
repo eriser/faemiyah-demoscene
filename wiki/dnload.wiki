@@ -65,7 +65,7 @@ If the script was invoked to additionally generate the binary:
 
 == Example program ==
 
-To understand how to use the script, a simple example will clarify the operation with more ease than any lengthy explanation would. The tutorial will cover a traditional hello world program.
+To understand how to use the script, a simple example will clarify the operation with more ease than any lengthy explanation would. This tutorial will cover a traditional hello world program.
 
 Use this command to clone the repository:
 
@@ -114,7 +114,7 @@ Symbols found: ['puts']
 Wrote header file 'src/dnload.h'.
 }}}
 
-You should now have an up-to date header file, which can be used to build the program. You may take a look at the contents of the header, but it will be explained in detail [#The_quest_for_minimal_ELF32_binaries later on].
+You should now have an up-to date header file, which can be used to build the program. You may take a look at the contents of the header, but it will be explained in detail [#The_quest_for_minimal_ELF_binaries later on].
 
 == Building the example without size optimizations ==
 
@@ -286,7 +286,7 @@ We can alter the compiler output to produce smaller binaries both by making it a
   * Options that (either randomly or unintentionally) produce a smaller or better compressable binary.
   * Options that disable language features, making output smaller.
 
-Despite Clang being all the rage nowadays, gcc seems to still produce binaries that size-optimize better. In particular, the script will attempt to use g++49 (latest available in FreeBSD at the time of writing) whenever possible.
+Despite Clang being all the rage nowadays, gcc seems to still produce binaries that size-optimize better. In particular, the script will attempt to use whichever `g++` is currently the latest available on FreeBSD (`g++49` at the time of writing).
 
 *Note:* Any compiler may be specified with the `-C` or `--compiler` command line option, but compilation is currently only supported with `gcc` or `clang`. `cl.exe` may be used to generate the header in Windows.
 
@@ -369,12 +369,12 @@ This is relevant, because the symbol tables consume quite a lot of space. Taking
 
 {{{
 typedef struct {
-  Elf32_Word st_name; /* String table index of name. */
-  Elf32_Addr st_value; /* Symbol value. */
-  Elf32_Word st_size; /* Size of associated object. */
-  unsigned char st_info; /* Type and binding information. */
-  unsigned char st_other; /* Reserved (not used). */
-  Elf32_Half st_shndx; /* Section index of symbol. */
+  Elf32_Word st_name;      /* String table index of name. */
+  Elf32_Addr st_value;     /* Symbol value. */
+  Elf32_Word st_size;      /* Size of associated object. */
+  unsigned char st_info;   /* Type and binding information. */
+  unsigned char st_other;  /* Reserved (not used). */
+  Elf32_Half st_shndx;     /* Section index of symbol. */
 } Elf32_Sym;
 }}}
 
@@ -448,9 +448,9 @@ static struct SymbolTableStruct
 #endif
 }}}
 
-To gain access to these functions, we need to link against the standard C library with *-lc* flag. On Linux, use *-ldl* instead. Additionally on FreeBSD, when using SDL, user must manually link against `libthr`. Since SDL is not explicitly linked against, it is not pulling the thread library as consequence. It seems threading is not properly initialized unless the dynamic linker gets to load `libthr`.
+To gain access to these functions, we need to link against the standard C library with `-lc` flag. On Linux, use `-ldl` instead. Additionally on FreeBSD, when using SDL, user must manually link against `libthr`. Since SDL is not explicitly linked against, it is not pulling the thread library as consequence. It seems threading is not properly initialized unless the dynamic linker gets to load `libthr`.
 
-Recompiling with *-m dlfcn*, we get new sizes:
+Recompiling with `-m dlfcn`, we get new sizes:
 
 {{{
 'hello_world.stripped': 1568 bytes
@@ -469,18 +469,18 @@ Fortunately, there is a better way. In 2008, Pouet users *parcelshit* [#Referenc
 
 The technique essentially takes advantage of the `DT_DEBUG` element in the `.dynamic` section (when present) that will contain information about linked shared libraries. We simply need to gain access to it.
 
-Programs using ELF will have access to their own headers directly at the program load address `0x8048000`. The ELF32 header is 52 bytes long, and is immediately followed by an array of program headers. Each program header looks like this (from FreeBSD system headers):
+Programs using ELF will have access to their own headers directly at the program load address (`0x8048000` by default). The ELF32 header is 52 bytes long, and is immediately followed by an array of program headers. Each program header looks like this (from FreeBSD system headers):
 
 {{{
 typedef struct {
-	Elf32_Word	p_type;		/* Entry type. */
-	Elf32_Off	p_offset;	/* File offset of contents. */
-	Elf32_Addr	p_vaddr;	/* Virtual address in memory image. */
-	Elf32_Addr	p_paddr;	/* Physical address (not used). */
-	Elf32_Word	p_filesz;	/* Size of contents in file. */
-	Elf32_Word	p_memsz;	/* Size of contents in memory. */
-	Elf32_Word	p_flags;	/* Access permission flags. */
-	Elf32_Word	p_align;	/* Alignment in memory and file. */
+  Elf32_Word  p_type;    /* Entry type. */
+  Elf32_Off   p_offset;  /* File offset of contents. */
+  Elf32_Addr  p_vaddr;   /* Virtual address in memory image. */
+  Elf32_Addr  p_paddr;   /* Physical address (not used). */
+  Elf32_Word  p_filesz;  /* Size of contents in file. */
+  Elf32_Word  p_memsz;   /* Size of contents in memory. */
+  Elf32_Word  p_flags;   /* Access permission flags. */
+  Elf32_Word  p_align;   /* Alignment in memory and file. */
 } Elf32_Phdr;
 }}}
 
@@ -488,11 +488,11 @@ For examining the dynamically loaded elements, we need to look for a program hea
 
 {{{
 typedef struct {
-	Elf32_Sword	d_tag;		/* Entry type. */
-	union {
-		Elf32_Word	d_val;	/* Integer value. */
-		Elf32_Addr	d_ptr;	/* Address value. */
-	} d_un;
+  Elf32_Sword  d_tag;   /* Entry type. */
+  union {
+    Elf32_Word  d_val;  /* Integer value. */
+    Elf32_Addr  d_ptr;  /* Address value. */
+  } d_un;
 } Elf32_Dyn;
 }}}
 
@@ -500,15 +500,15 @@ When the dynamic linker passes control to your program, the `Elf32_Dyn` structur
 
 {{{
 struct r_debug {
-	int		r_version;		/* not used */
-	struct link_map *r_map;			/* list of loaded images */
-	void		(*r_brk)(struct r_debug *, struct link_map *);
-						/* pointer to break point */
-	enum {
-		RT_CONSISTENT,			/* things are stable */
-		RT_ADD,				/* adding a shared library */
-		RT_DELETE			/* removing a shared library */
-	}		r_state;
+  int             r_version;  /* not used */
+  struct link_map *r_map;     /* list of loaded images */
+  void            (*r_brk)(struct r_debug *, struct link_map *);
+                              /* pointer to break point */
+  enum {
+    RT_CONSISTENT,            /* things are stable */
+    RT_ADD,                   /* adding a shared library */
+    RT_DELETE                 /* removing a shared library */
+}                 r_state;
 };
 }}}
 
@@ -516,13 +516,13 @@ In here, the element `r_map` will contain a pointer to a linked list of structur
 
 {{{
 typedef struct link_map {
-	caddr_t		l_addr;			/* Base Address of library */
+  caddr_t          l_addr;            /* Base Address of library */
 #ifdef __mips__
-	caddr_t		l_offs;			/* Load Offset of library */
+  caddr_t          l_offs;            /* Load Offset of library */
 #endif
-	const char	*l_name;		/* Absolute Path to Library */
-	const void	*l_ld;			/* Pointer to .dynamic in memory */
-	struct link_map	*l_next, *l_prev;	/* linked list of of mapped libs */
+  const char       *l_name;           /* Absolute Path to Library */
+  const void       *l_ld;             /* Pointer to .dynamic in memory */
+  struct link_map  *l_next, *l_prev;  /* linked list of of mapped libs */
 } Link_map;
 }}}
 
@@ -536,7 +536,7 @@ Using this information, we can simply go through the shared objects, one by one,
 
 Fortunately, this has been done for us already [#References [20]]. There are many good candidates where collisions are improbable enough to be nonexistent. We simply pick the one that produces smallest code. Parcelshit's original code used the DJB hash, which is already good, but in my testing, using SDBM hash produced a smaller binary.
 
-Combining all this, and improving on the proof-of-concept implementation gives us the following algorithm:
+Combining all this, gives us the following proof-of-concept implementation:
 
 {{{
 #include <stdint.h>
@@ -628,7 +628,7 @@ static void dnload(void)
 }
 }}}
 
-Compiling with *-m hash* and linking against normal libraries (as opposed to what was needed with the dlfcn method) gives us new sizes:
+Compiling with `-m hash` and linking against normal libraries (as opposed to what was needed with the dlfcn method) gives us new sizes:
 
 {{{
 'hello_world.stripped': 1180 bytes
@@ -639,17 +639,17 @@ Compiling with *-m hash* and linking against normal libraries (as opposed to wha
 
 Significantly better.
 
-The command line option *-m hash* additionally does some low-hanging optimizations such as removing all known unneeded symbols (`_end`, `_edata` and `__bss_start`) and combining `.rodata` and `.text` into one section to free 40 bytes that would be consumed by a section header. This kind of hacking is, however, ultimately uninteresting as the only real way to further reduce the size is to construct all the ELF headers manually.
+The command line option `-m hash` additionally does some low-hanging optimizations such as removing all known unneeded symbols (`_end`, `_edata` and `__bss_start`) and combining `.rodata` and `.text` into one section to free 40 bytes that would be consumed by a section header. This kind of hacking is, however, ultimately uninteresting as the only real way to further reduce the size is to construct all the ELF headers manually.
 
 == Crafting headers manually ==
 
-There are earlier examples, on manually writing ELF32 headers byte [#References [21]] by byte [#References [22]]. These are easily executable with 32-bit Linux emulation. The also come complete with source code, so one would assume converting them to run in FreeBSD would be as easy as changing 8th byte of the ELF header into `ELFOSABI_FREEBSD` (i.e. `9`) and recompiling with `nasm`. Unfortunately, things are not quite so easy, and binaries constructed  thus will just crash.
+There are earlier examples, on manually writing Linux ELF32 headers byte [#References [21]] by byte [#References [22]]. These are easily executable even on FreeBSD 32-bit Linux emulation. The also come complete with source code, so one would assume switching between operating systems would be as easy as changing 8th byte of the ELF header into `ELFOSABI_FREEBSD` (i.e. `9`) and recompiling with `nasm`. Unfortunately, things are not quite so easy, and binaries constructed  thus will just crash.
 
 However, even if the examples themselves are not usable, they prove that manual hacks are least possible. What we need to do is, have some kind of access into the process of dynamic loading itself, and see what we can do to decrease space. This is all done for us already, quoting manpages of `ld-elf.so`:
 
-  The *ld-elf.so.1* utility is a self-contained shared object providing run-time support for loading and link-editing shared objects into a process' address space. It is also commonly known as the dynamic linker.
+  The `ld-elf.so.1` utility is a self-contained shared object providing run-time support for loading and link-editing shared objects into a process' address space. It is also commonly known as the dynamic linker.
 
-Full operating system sources have already been provided in `/usr/src`. Recompiling the dynamic linker is as easy as going there and building (but not installing) the `world` by issuing:
+Full operating system sources have already been provided in `/usr/src`. Recompiling the dynamic linker is as easy as going there and building (but not installing) `world` by issuing:
 
 {{{
 cd /usr/src && make buildworld
@@ -887,7 +887,7 @@ The obvious solution is to only have one bucket and point it at the end of the c
   * Write a zero, for padding.
   * Write an increasing list of integers, starting from 0, ending at index of last symbol minus one (last symbol index was already at the only bucket we had).
 
-The total cost of adding symbols would thus be *`8`* (for dynamic structure referencing `DT_HASH`) *`+ (4 + numsymbols) * 4`* (for hash itself) *`+ (1 + numsymbols) * 16`* (for symbol structs plus one empty symbol struct) *`+ strlen(symnames)`* bytes.
+The total cost of adding symbols would thus be `8` (for dynamic structure referencing `DT_HASH`) `+ (4 + numsymbols) * 4` (for hash itself) `+ (1 + numsymbols) * 16` (for symbol structs plus one empty symbol struct) `+ strlen(symnames)` bytes.
 
 *Note*: In FreeBSD, where `libc` requires symbols `environ` and `__progname` this would be 99 bytes exactly.
 
@@ -899,7 +899,7 @@ However, as Amand Tihon [#References [23]] points in his own similar project [#R
 
 === Final sizes ===
 
-Compiling with all the tricks listed above (using *-m maximum* or just omitting the option) gives us:
+Compiling with all the tricks listed above (using `-m maximum` or just omitting the option) gives us:
 
 {{{
 'hello_world.stripped': 518 bytes
@@ -946,6 +946,12 @@ Even on a 64-bit system, you should be able to execute the result file if the co
 
 There are probably easy ways to do the same on Linux, but they are out of the scope of this document.
 
+==== What about ELF64? ====
+
+It turns out the techniques described in this document are suitable for 64-bit ELF with minor or no changes. No specific new tricks are required.
+
+The script supports ELF64 just the same way it supports ELF32, the description is kept in 32-bit particulars for simplicity of explanation.
+
 ==== What does `USE_LD` stand for? ====
 
 The name `USE``_``LD` is legacy, which has preserved unchanged from earlier Faemiyah prods. You may change the definition with the `-d` or `--definition` command line argument when invoking the script.
@@ -970,7 +976,7 @@ void *__progname __attribute__((externally_visible));
 #endif
 }}}
 
-These symbols might seem nonsensical, as they are not used anywhere in the program or the generated code. Taking a look into the standard C library (`/lib/libc.so.7` on FreeBSD) will clarify their purpose.
+These symbols might seem nonsensical, as they are not used anywhere in the program or the generated code. Taking a look into the standard C library (i.e. `/lib/libc.so.7`) will clarify their purpose.
 
 {{{
 > readelf -a /lib/libc.so.7
@@ -986,13 +992,17 @@ Symbol table '.dynsym' contains 3079 entries:
 
 We do not need these symbols, but libc expects them to be present in the binary. In practice, the dynamic linking procedure will fail if the program symbol table does not contain them.
 
+*Note:* These symbols seem to be not needed on Linux.
+
 ==== Why is there an attribute `externally_visible` specified for some symbols? ====
 
 The suffix `__attribute__((externally_visible))` is present in some symbols defined, most notable in `_start`. This is due to Gnu C Compiler semantics.
 
 When compiling for binary size, it is necessary to use the `-fwhole-program` flag to make g++ discard all irrelevant code. Unfortunately, unless the compiler finds something it needs, this will actually cause it to discard _everything_ within the source file as there is no `main()` present to start building a dependency graph from.
 
-This attribute explicitly marks functions as symbols to be externally visible, so the dependency graph build shall include them. Note, that Clang does not seem to either require or support this attribute.
+This attribute explicitly marks functions as symbols to be externally visible, so the dependency graph build shall include them.
+
+*Note:* Clang does not seem to either require or support this attribute.
 
 ----
 
@@ -1000,8 +1010,7 @@ This attribute explicitly marks functions as symbols to be externally visible, s
   * Should probably create the header file in a smart(er) manner if it is not found.
   * Add cross-compilation support, at the very least between `*`nix systems at the "maximum" operation mode.
   * Only SDL/OpenGL supported right now. Should probably also support GLFW.
-  * IA-32 does not seem to care that much about alignment. Perhaps alignment directives could be completely removed on some platforms?
-  * Perhaps there are more efficient ways to interleave the header structs?
+  * Perhaps there are more efficient ways to interleave the header structs? Perhaps this can be permutated?
 
 ----
 
