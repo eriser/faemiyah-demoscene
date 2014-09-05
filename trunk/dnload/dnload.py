@@ -79,6 +79,7 @@ platform_variables = {
   "addr" : { "32-bit" : 4, "64-bit" : 8 },
   "align" : { "32-bit" : 4, "64-bit" : 8, "amd64" : 1, "ia32" : 1 },
   "bom" : { "amd64" : "<", "ia32" : "<" },
+  "compression" : { "FreeBSD" : "lzma", "Linux" : "xz" },
   "e_machine" : { "amd64" : 62, "ia32" : 3 },
   "ei_class" : { "32-bit" : 1, "64-bit" : 2 },
   "ei_osabi" : { "FreeBSD" : 9, "Linux" : 3 },
@@ -1390,6 +1391,7 @@ library_definition_c.add_symbols((
   ("void*", "malloc", "size_t"),
   ("void*", "memset", "void*", "int", "size_t"),
   ("int", "puts", "const char*"),
+  ("unsigned", "sleep", "unsigned"),
   ("int", ("rand", "bsd_rand")),
   ("void", ("srand", "bsd_srand"), "unsigned int"),
   ))
@@ -2216,7 +2218,7 @@ def main():
   assembler = None
   cross_compile = False
   compiler = None
-  compression = "lzma"
+  compression = str(PlatformVar("compression"))
   default_assembler_list = ["/usr/local/bin/as", "as"]
   default_compiler_list = ["g++49", "g++-4.9", "g++", "clang++"]
   default_linker_list = ["/usr/local/bin/ld", "ld"]
@@ -2247,7 +2249,7 @@ def main():
   parser.add_argument("-s", "--search-path", action = "append", help = "Directory to search for the header file to generate. May be specified multiple times. If not given, searches paths of source files to compile. If not given and no source files to compile, current path will be used.")
   parser.add_argument("-S", "--strip-binary", help = "Try to use given strip executable as opposed to autodetect.")
   parser.add_argument("-t", "--target", default = "dnload.h", help = "Target header file to look for.\n(default: %(default)s)")
-  parser.add_argument("-u", "--unpack-header", choices = ("lzma", "xz"), default = "lzma", help = "Unpack header to use.\n(default: %(default)s)")
+  parser.add_argument("-u", "--unpack-header", choices = ("lzma", "xz"), default = compression, help = "Unpack header to use.\n(default: %(default)s)")
   parser.add_argument("-v", "--verbose", action = "store_true", help = "Print more about what is being done.")
   parser.add_argument("-V", "--version", action = "store_true", help = "Print version and exit.")
   parser.add_argument("source", nargs = "*", help = "Source file(s) to preprocess and/or compile.")
@@ -2281,6 +2283,8 @@ def main():
     target_search_path += args.search_path
   if args.strip_binary:
     strip = args.strip_binary
+  if args.unpack_header:
+    compression = args.unpack_header
   if args.verbose:
     verbose = True
   if args.version:
@@ -2291,7 +2295,6 @@ def main():
 
   definition_ld = args.define
   compilation_mode = args.method
-  compression = args.unpack_header
   symbol_prefix = args.call_prefix
   target = args.target
 
