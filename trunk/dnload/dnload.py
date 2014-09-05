@@ -2114,7 +2114,8 @@ def readelf_truncate(src, dst):
       print("Executable size equals PT_LOAD size (%u bytes), no truncation necessary." % (size))
     shutil.copy(src, dst)
   else:
-    print("Truncating file size to PT_LOAD size: %u bytes" % (truncate_size))
+    if verbose:
+      print("Truncating file size to PT_LOAD size: %u bytes" % (truncate_size))
     rfd = open(src, "r")
     wfd = open(dst, "w")
     wfd.write(rfd.read(truncate_size))

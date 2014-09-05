@@ -268,7 +268,7 @@ class PngReader
      *
      * \return Data pointer.
      */
-    inline uint8_t* getBlock()
+    uint8_t* getBlock()
     {
       return m_block;
     }
@@ -277,7 +277,7 @@ class PngReader
      *
      * \return Height as unsigned.
      */
-    inline unsigned getHeight() const
+    unsigned getHeight() const
     {
       return static_cast<unsigned>(png_get_image_height(m_png, m_info));
     }
@@ -286,7 +286,7 @@ class PngReader
      *
      * \return PNG object.
      */
-    inline png_struct* getPng()
+    png_struct* getPng()
     {
       return m_png;
     }
@@ -295,7 +295,7 @@ class PngReader
      *
      * \return Width as unsigned.
      */
-    inline unsigned getWidth() const
+    unsigned getWidth() const
     {
       return static_cast<unsigned>(png_get_image_width(m_png, m_info));
     }
@@ -304,7 +304,7 @@ class PngReader
      *
      * \param op New block pointer.
      */
-    inline void setBlock(uint8_t *op)
+    void setBlock(uint8_t *op)
     {
       m_block = op;
     }
@@ -396,7 +396,7 @@ class PngWriter
      *
      * \return PNG object.
      */
-    inline png_struct* getPng()
+    png_struct* getPng()
     {
       return m_png;
     }
@@ -472,7 +472,7 @@ namespace gfx
       unsigned iter_sub = (width * bpp / 8);
 
       // PNG and OpenGL scanlines are in different order
-      for(unsigned ii = 0; (ii < height); ++ii)
+      for(ptrdiff_t ii = 0; (ii < static_cast<ptrdiff_t>(height)); ++ii)
       {
         iter -= iter_sub;
         row_pointers[ii] = iter;
@@ -541,7 +541,7 @@ namespace gfx
       unsigned iter_sub = (pw * pb / 8);
 
       // PNG and OpenGL scanlines are in different order
-      for(unsigned ii = 0; (ii < ph); ++ii)
+      for(ptrdiff_t ii = 0; (ii < static_cast<ptrdiff_t>(ph)); ++ii)
       {
         iter -= iter_sub;
         row_pointers[ii] = iter;
