@@ -581,7 +581,7 @@ class AssemblerVariable:
         for ii in self.value:
           lst += self.deconstruct_single(int(ii))
       else:
-        lst = self.deconstruct_single(int(self.value))
+        lst = [self.deconstruct_single(int(self.value))]
     except ValueError:
       return False
     if 1 >= len(lst):
@@ -1665,7 +1665,7 @@ typedef Elf32_Dyn dnload_elf_dyn_t;
 /** Elf symbol table entry type. */
 typedef Elf32_Sym dnload_elf_sym_t;
 /** Elf dynamic structure tag type. */
-typedef Elf_Sword dnload_elf_tag_t;
+typedef Elf32_Sword dnload_elf_tag_t;
 #endif
 /** \\brief ELF base address. */
 #define ELF_BASE_ADDRESS %s
@@ -1942,9 +1942,9 @@ def compress_file(compression, src, dst):
     unpack_header = "i=/tmp/i;tail -n+2 $0|xzcat>$i;chmod +x $i;$i;rm $i;exit"
   else:
     raise 
-  (compressed, se) = run_command(command + [src])
-  wfd = open(dst, "w")
-  wfd.write(unpack_header + "\n")
+  (compressed, se) = run_command(command + [src], False)
+  wfd = open(dst, "wb")
+  wfd.write((unpack_header + "\n").encode())
   wfd.write(compressed)
   wfd.close()
   make_executable(dst)
@@ -1954,7 +1954,7 @@ def file_is_ascii_text(op):
   """Check if given file contains nothing but ASCII7 text."""
   if not os.path.isfile(op):
     return False
-  fd = open(op)
+  fd = open(op, "rb")
   while True:
     line = fd.readline()
     if 0 >= len(line):
@@ -2116,22 +2116,26 @@ def readelf_truncate(src, dst):
   else:
     if verbose:
       print("Truncating file size to PT_LOAD size: %u bytes" % (truncate_size))
-    rfd = open(src, "r")
-    wfd = open(dst, "w")
+    rfd = open(src, "rb")
+    wfd = open(dst, "wb")
     wfd.write(rfd.read(truncate_size))
     rfd.close()
     wfd.close()
 
-def run_command(lst):
+def run_command(lst, decode_output = True):
   """Run program identified by list of command line parameters."""
   if verbose:
     print("Executing command: %s" % (" ".join(lst)))
   proc = subprocess.Popen(lst, stdout = subprocess.PIPE, stderr = subprocess.PIPE)
-  ret = proc.communicate()
+  (proc_stdout, proc_stderr) = proc.communicate()
+  if decode_output and not isinstance(proc_stdout, str):
+    proc_stdout = proc_stdout.decode()
+  if decode_output and not isinstance(proc_stderr, str):
+    proc_stderr = proc_stderr.decode()
   returncode = proc.returncode
   if 0 != proc.returncode:
-    raise RuntimeError("command failed: %i, stderr output:\n%s" % (proc.returncode, ret[1]))
-  return ret
+    raise RuntimeError("command failed: %i, stderr output:\n%s" % (proc.returncode, proc_stderr))
+  return (proc_stdout, proc_stderr)
 
 def sdbm_hash(name):
   """Calculate SDBM hash over a string."""

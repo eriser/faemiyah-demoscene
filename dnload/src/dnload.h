@@ -269,7 +269,7 @@ typedef Elf32_Dyn dnload_elf_dyn_t;
 /** Elf symbol table entry type. */
 typedef Elf32_Sym dnload_elf_sym_t;
 /** Elf dynamic structure tag type. */
-typedef Elf_Sword dnload_elf_tag_t;
+typedef Elf32_Sword dnload_elf_tag_t;
 #endif
 /** \brief ELF base address. */
 #define ELF_BASE_ADDRESS 0x2000000
