@@ -109,11 +109,10 @@ static void audio_callback(void *userdata, Uint8 *stream, int len)
 {
   (void)userdata;
 
-  do {
-    *stream = *g_audio_position;
-    ++stream;
-    ++g_audio_position;
-  } while(len--);
+  while(len--)
+  {
+    *stream++ = *g_audio_position++;
+  }
 }
 
 /** SDL audio specification struct. */
