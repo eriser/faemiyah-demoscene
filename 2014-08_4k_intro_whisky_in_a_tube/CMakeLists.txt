@@ -7,9 +7,9 @@ enable_language(CXX)
 
 include("defaults.cmake")
 
-find_boost(TRUE program_options)
-find_gl(TRUE)
+find_boost_program_options(TRUE)
 find_glew(TRUE STATIC)
+find_opengl(TRUE)
 find_png(TRUE)
 find_sdl(TRUE)
 
