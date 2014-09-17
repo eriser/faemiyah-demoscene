@@ -54,6 +54,13 @@ class GlslShaderSource
     void add(const std::string &op);
 
   public:
+    /** \brief Get program pipeline info log.
+     *
+     * \param op Program pipeline id.
+     * \return Program pipeline info log.
+     */
+    static std::string get_pipeline_info_log(GLuint op);
+
     /** \brief Get program info log.
      *
      * \param op Program id.

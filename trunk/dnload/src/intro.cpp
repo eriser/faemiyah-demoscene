@@ -139,18 +139,19 @@ static SDL_AudioSpec audio_spec =
 
 /** Quad vertex shader. */
 static const char g_shader_vertex_quad[] = ""
-"attribute vec2 a;"
-"uniform vec3 f;"
-"uniform vec2 t;"
-"uniform vec3 u;"
-"varying vec3 b;"
+"#version 430\n"
+"layout(location=3)uniform vec2 t;"
+"layout(location=1)uniform vec3 f;"
+"layout(location=2)uniform vec3 u;"
+"in vec2 a;"
+"out vec3 b;"
 "void main()"
 "{"
 "vec3 g=normalize(f);"
 "vec3 r=normalize(cross(g,u));"
 "vec3 v=normalize(cross(r,g));"
 "vec2 m=a;"
-"if(t.y>1.) m.x*=t.y;"
+"if(t.y>1.)m.x*=t.y;"
 "else m.y/=t.y;"
 "b=m.x*r+m.y*v+f;"
 "gl_Position=vec4(a,0,1);"
@@ -158,9 +159,11 @@ static const char g_shader_vertex_quad[] = ""
 
 /** Quad fragment shader. */
 static const char g_shader_fragment_quad[] = ""
-"uniform vec3 p;"
-"uniform vec2 t;"
-"varying vec3 b;"
+"#version 430\n"
+"layout(location=3)uniform vec2 t;"
+"layout(location=0)uniform vec3 p;"
+"in vec3 b;"
+"out vec4 o;"
 "float f(vec3 p)"
 "{"
 "return dot(p,p)-1.+sin(t.x/44444.)*.1;"
@@ -172,7 +175,7 @@ static const char g_shader_fragment_quad[] = ""
 "}"
 "void main()"
 "{"
-"vec4 o=vec4(0,0,0,1);"
+"vec4 e=vec4(0,0,0,1);"
 "vec3 c=p;"
 "vec3 d=normalize(b)*.01;"
 "for(int i=0;i<555;++i)"
@@ -181,26 +184,20 @@ static const char g_shader_fragment_quad[] = ""
 "float N=f(n);"
 "if(0.>N)"
 "{"
-"o.xyz=vec3(1)*dot(g(n,N),normalize(vec3(1)));"
+"e.xyz=vec3(1)*dot(g(n,N),normalize(vec3(1)));"
 "break;"
 "}"
 "c=n;"
 "}"
-"gl_FragColor=o;"
+"o=e;"
 "}";
-
-/** \cond */
-GLuint g_program_quad;
-GLint g_attribute_quad_a;
-/** \endcond */
 
 /** \brief Create a shader.
  *
- * \param source Shader content.
  * \param type Shader type.
- * \return Compiled shader.
+ * \param source Shader content.
  */
-static GLuint shader_create(const char *source, GLenum type)
+static GLuint shader_create(GLenum type, const char *source)
 {
   GLuint ret = dnload_glCreateShader(type);
 #if defined(USE_LD)
@@ -208,7 +205,7 @@ static GLuint shader_create(const char *source, GLenum type)
   const GLchar *pretty_source = glsl_source.c_str();
   dnload_glShaderSource(ret, 1, &pretty_source, NULL);
 #else
-  dnload_glShaderSource(ret, 1, static_cast<const GLchar**>(&source), NULL);
+  dnload_glShaderSource(ret, 1, &source, NULL);
 #endif
   dnload_glCompileShader(ret);
 #if defined(USE_LD)
@@ -235,8 +232,6 @@ static GLuint shader_create(const char *source, GLenum type)
 
 /** \brief Create a program.
  *
- * Create a shader program using one vertex shader and one fragment shader.
- *
  * \param vs Vertex shader.
  * \param fs Fragement shader.
  * \return The compiled and linked program.
@@ -245,8 +240,8 @@ static GLuint program_create(const char *vertex, const char* fragment)
 {
   GLuint ret = dnload_glCreateProgram();
 
-  dnload_glAttachShader(ret, shader_create(vertex, GL_VERTEX_SHADER));
-  dnload_glAttachShader(ret, shader_create(fragment, GL_FRAGMENT_SHADER));
+  dnload_glAttachShader(ret, shader_create(GL_VERTEX_SHADER, vertex));
+  dnload_glAttachShader(ret, shader_create(GL_FRAGMENT_SHADER, fragment));
   dnload_glLinkProgram(ret);
 #if defined(USE_LD)
   {
@@ -264,14 +259,15 @@ static GLuint program_create(const char *vertex, const char* fragment)
       SDL_Quit();
       exit(1);
     }
-    std::cout << "GLSL program compiles to: " << ret << std::endl;
+
+    std::cout << "GLSL program id: " << ret << std::endl;
   }
 #endif
   return ret;
 }
 
 //######################################
-// Draw ################################
+// Uniform data ########################
 //######################################
 
 /** \brief Uniforms.
@@ -303,12 +299,7 @@ static float g_uniform_array[11] =
  */
 static void draw(unsigned ticks, float aspect)
 {
-  dnload_glDisable(GL_DEPTH_TEST);
-  dnload_glClear(GL_DEPTH_BUFFER_BIT);
-  dnload_glDisable(GL_BLEND);
-
-  dnload_glUseProgram(g_program_quad);
-  dnload_glEnableVertexAttribArray(static_cast<GLuint>(g_attribute_quad_a));
+  //dnload_glDisable(GL_DEPTH_TEST);
 
 #if defined(USE_LD)
   if(g_flag_developer)
@@ -326,10 +317,10 @@ static void draw(unsigned ticks, float aspect)
 #endif
   g_uniform_array[9] = static_cast<float>(ticks);
   g_uniform_array[10] = aspect;
-  dnload_glUniform3fv(dnload_glGetUniformLocation(g_program_quad, "p"), 1, g_uniform_array + 0);
-  dnload_glUniform3fv(dnload_glGetUniformLocation(g_program_quad, "f"), 1, g_uniform_array + 3);
-  dnload_glUniform3fv(dnload_glGetUniformLocation(g_program_quad, "u"), 1, g_uniform_array + 6);
-  dnload_glUniform2fv(dnload_glGetUniformLocation(g_program_quad, "t"), 1, g_uniform_array + 9);
+  dnload_glUniform3fv(0, 1, g_uniform_array + 0);
+  dnload_glUniform3fv(1, 1, g_uniform_array + 3);
+  dnload_glUniform3fv(2, 1, g_uniform_array + 6);
+  dnload_glUniform2fv(3, 1, g_uniform_array + 9);
 
   dnload_glRects(-1, -1, 1, 1);
 }
@@ -370,12 +361,7 @@ void _start()
   }
 #endif
 
-  g_program_quad = program_create(g_shader_vertex_quad, g_shader_fragment_quad);
-  g_attribute_quad_a = dnload_glGetAttribLocation(g_program_quad, "a");
-#if defined(USE_LD)
-  std::cerr << "Quad program: " << g_program_quad << "\nAttributes:\na: " <<
-    g_attribute_quad_a << std::endl;
-#endif
+  dnload_glUseProgram(program_create(g_shader_vertex_quad, g_shader_fragment_quad));
 
 #if defined(USE_LD)
   if(flag_record)

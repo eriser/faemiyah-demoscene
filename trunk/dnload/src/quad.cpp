@@ -83,39 +83,36 @@ static SDL_AudioSpec audio_spec =
 
 /** Quad vertex shader. */
 static const char g_shader_vertex_quad[] = ""
-"attribute vec2 a;"
-"varying vec2 b;"
+"#version 430\n"
+"in vec2 a;"
+"out vec2 b;"
 "void main()"
 "{"
-"gl_Position=vec4(a,0,1);"
 "b=a;"
+"gl_Position=vec4(a,0,1);"
 "}";
 
 /** Quad fragment shader. */
 static const char g_shader_fragment_quad[] = ""
-"uniform float t;"
-"varying vec2 b;"
+"#version 430\n"
+"layout(location=0)uniform float t;"
+"in vec2 b;"
+"out vec4 o;"
 "void main()"
 "{"
-"gl_FragColor=vec4(b.x,sin(t/7777)*.5+.5,b.y,0);"
+"o=vec4(b.x,sin(t/7777)*.5+.5,b.y,1);"
 "}";
-
-/** \cond */
-GLuint g_program_quad;
-GLint g_attribute_quad_a;
-/** \endcond */
 
 /** \brief Create a shader.
  *
- * \param sh Shader content.
- * \param st Shader type.
- * \return Compiled shader.
+ * \param source Shader source.
+ * \return Shader ID.
  */
-static GLuint shader_create(const char *source, GLenum st)
+static GLuint shader_create(GLenum type, const char *source)
 {
-  GLuint ret = dnload_glCreateShader(st);
+  GLuint ret = dnload_glCreateShader(type);
 
-  dnload_glShaderSource(ret, 1, static_cast<const GLchar**>(&source), NULL);
+  dnload_glShaderSource(ret, 1, &source, NULL);
   dnload_glCompileShader(ret);
 
   return ret;
@@ -127,14 +124,14 @@ static GLuint shader_create(const char *source, GLenum st)
  *
  * \param vs Vertex shader.
  * \param fs Fragement shader.
- * \return The compiled and linked program.
+ * \return Fragment program.
  */
 static GLuint program_create(const char *vertex, const char* fragment)
 {
   GLuint ret = dnload_glCreateProgram();
 
-  dnload_glAttachShader(ret, shader_create(vertex, GL_VERTEX_SHADER));
-  dnload_glAttachShader(ret, shader_create(fragment, GL_FRAGMENT_SHADER));
+  dnload_glAttachShader(ret, shader_create(GL_VERTEX_SHADER, vertex));
+  dnload_glAttachShader(ret, shader_create(GL_FRAGMENT_SHADER, fragment));
   dnload_glLinkProgram(ret);
 
   return ret;
@@ -151,13 +148,9 @@ static GLuint program_create(const char *vertex, const char* fragment)
  */
 static void draw(unsigned ticks)
 {
-  dnload_glDisable(GL_DEPTH_TEST);
-  dnload_glDisable(GL_BLEND);
+  dnload_glUniform1f(0, ticks);
 
-  dnload_glUseProgram(g_program_quad);
-  dnload_glUniform1f(dnload_glGetUniformLocation(g_program_quad, "t"), ticks);
-  dnload_glEnableVertexAttribArray(static_cast<GLuint>(g_attribute_quad_a));
-  dnload_glRectf(-1.0f, -1.0f, 1.0f, 1.0f);
+  dnload_glRects(-1, -1, 1, 1);
 }
 
 //######################################
@@ -178,8 +171,7 @@ void _start()
   glewInit();
 #endif
 
-  g_program_quad = program_create(g_shader_vertex_quad, g_shader_fragment_quad);
-  g_attribute_quad_a = dnload_glGetAttribLocation(g_program_quad, "a");
+  dnload_glUseProgram(program_create(g_shader_vertex_quad, g_shader_fragment_quad));
 
   {
     unsigned ii;
@@ -197,7 +189,7 @@ void _start()
   for(;;)
   {
     SDL_Event event;
-    unsigned currtick = g_audio_position - reinterpret_cast<uint8_t*>(g_audio_buffer);
+    unsigned currtick = static_cast<unsigned>(g_audio_position - reinterpret_cast<uint8_t*>(g_audio_buffer));
 
     if((currtick >= INTRO_LENGTH) || (dnload_SDL_PollEvent(&event) && (event.type == SDL_KEYDOWN)))
     {
