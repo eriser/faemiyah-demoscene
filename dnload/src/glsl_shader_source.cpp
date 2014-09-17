@@ -108,26 +108,41 @@ const char* GlslShaderSource::c_str()
   return m_string;
 }
 
+std::string GlslShaderSource::get_pipeline_info_log(GLuint op)
+{
+  std::string ret;
+  GLint len;
+
+  glGetProgramPipelineiv(op, GL_INFO_LOG_LENGTH, &len);
+  if(len)
+  {
+    GLchar *log = new GLchar[len];
+    GLsizei acquired;
+
+    glGetProgramPipelineInfoLog(op, len, &acquired, log);
+
+    ret.assign(log);
+    delete[] log;
+  }
+
+  return ret;
+}
+
 std::string GlslShaderSource::get_program_info_log(GLuint op)
 {
   std::string ret;
+  GLint len;
 
-  for(GLsizei len = 512;;)
+  glGetProgramiv(op, GL_INFO_LOG_LENGTH, &len);
+  if(len)
   {
     GLchar *log = new GLchar[len];
     GLsizei acquired;
 
     glGetProgramInfoLog(op, len, &acquired, log);
-    if(len - 1 <= acquired)
-    {
-      len *= 2;
-      delete[] log;
-      continue;
-    }
 
-    ret = std::string(log);
+    ret.assign(log);
     delete[] log;
-    break;
   }
 
   return ret;
@@ -136,23 +151,18 @@ std::string GlslShaderSource::get_program_info_log(GLuint op)
 std::string GlslShaderSource::get_shader_info_log(GLuint op)
 {
   std::string ret;
+  GLint len;
 
-  for(GLsizei len = 512;;)
+  glGetShaderiv(op, GL_INFO_LOG_LENGTH, &len);
+  if(len)
   {
     GLchar *log = new GLchar[len];
     GLsizei acquired;
 
     glGetShaderInfoLog(op, len, &acquired, log);
-    if(len - 1 <= acquired)
-    {
-      len *= 2;
-      delete[] log;
-      continue;
-    }
 
-    ret = std::string(log);
+    ret.assign(log);
     delete[] log;
-    break;
   }
 
   return ret;

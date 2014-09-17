@@ -1400,12 +1400,14 @@ library_definition_gl.add_symbols((
   ("void", "glActiveTexture", "GLenum"),
   ("void", "glAttachShader", "GLuint", "GLuint"),
   ("void", "glBindFramebuffer", "GLenum", "GLuint"),
+  ("void", "glBindProgramPipeline", "GLuint"),
   ("void", "glBindTexture", "GLenum", "GLuint"),
   ("void", "glClear", "GLbitfield"),
   ("void", "glClearColor", "GLclampf", "GLclampf", "GLclampf", "GLclampf"),
   ("void", "glCompileShader", "GLuint"),
   ("GLuint", "glCreateProgram"),
   ("GLuint", "glCreateShader", "GLenum"),
+  ("GLuint", "glCreateShaderProgramv", "GLenum", "GLsizei", "const char**"),
   ("void", "glDisable", "GLenum"),
   ("void", "glDisableVertexAttribArray", "GLuint"),
   ("void", "glDrawArrays", "GLenum", "GLint", "GLsizei"),
@@ -1414,11 +1416,16 @@ library_definition_gl.add_symbols((
   ("void", "glFramebufferTexture2D", "GLenum", "GLenum", "GLenum", "GLuint", "GLint"),
   ("void", "glGenerateMipmap", "GLenum"),
   ("void", "glGenFramebuffers", "GLsizei", "GLuint*"),
+  ("void", "glGenProgramPipelines", "GLsizei", "GLuint*"),
   ("void", "glGenTextures", "GLsizei", "GLuint*"),
   ("GLint", "glGetAttribLocation", "GLuint", "const GLchar*"),
   ("GLint", "glGetUniformLocation", "GLuint", "const GLchar*"),
   ("void", "glLineWidth", "GLfloat"),
   ("void", "glLinkProgram", "GLuint"),
+  ("void", "glProgramUniform1f", "GLuint", "GLint", "GLfloat"),
+  ("void", "glProgramUniform2fv", "GLuint", "GLint", "GLsizei", "const GLfloat*"),
+  ("void", "glProgramUniform3fv", "GLuint", "GLint", "GLsizei", "const GLfloat*"),
+  ("void", "glProgramUniform4fv", "GLuint", "GLint", "GLsizei", "const GLfloat*"),
   ("void", "glRectf", "GLfloat", "GLfloat", "GLfloat", "GLfloat"),
   ("void", "glRecti", "GLint", "GLint", "GLint", "GLint"),
   ("void", "glRects", "GLshort", "GLshort", "GLshort", "GLshort"),
@@ -1431,6 +1438,7 @@ library_definition_gl.add_symbols((
   ("void", "glTexSubImage3D", "GLenum", "GLint", "GLint", "GLint", "GLint", "GLsizei", "GLsizei", "GLsizei", "GLenum", "GLenum", "const GLvoid*"),
   ("void", "glTexParameteri", "GLenum", "GLenum", "GLint"),
   ("void", "glUseProgram", "GLuint"),
+  ("void", "glUseProgramStages", "GLuint", "GLbitfield", "GLuint"),
   ("void", "glUniform1i", "GLint", "GLint"),
   ("void", "glUniform1f", "GLint", "GLfloat"),
   ("void", "glUniform2i", "GLint", "GLint", "GLint"),
@@ -1919,12 +1927,17 @@ def check_executable(op):
   output_string = "Trying binary '%s'... " % (op)
   try:
     proc = subprocess.Popen([op], stdout = subprocess.PIPE, stderr = subprocess.PIPE)
-    if proc.poll():
-      proc.kill()
   except OSError:
     if verbose:
       print(output_string + "not found")
     return False
+  try:
+    if proc.poll():
+      proc.kill()
+  except OSError:
+    if verbose:
+      print(output_string + "killed")
+    return True
   if verbose:
     print(output_string + "found")
   return True
@@ -2161,11 +2174,6 @@ def search_executable(op):
       checked += [op]
   else:
     raise RuntimeError("weird argument given to executable search: %s" % (str(op)))
-  for ii in default_compiler_list:
-    if not ii in checked:
-      if check_executable(ii):
-        return ii
-      checked += [ii]
   return None
 
 def touch(op):
