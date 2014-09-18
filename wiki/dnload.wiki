@@ -353,8 +353,8 @@ For academic interest, the script can create its output using nothing besides th
 {{{
 'src/hello_world.stripped': 1940 bytes
 'src/hello_world': 637 bytes
-'src/quad.stripped': 3496 bytes
-'src/quad': 1507 bytes
+'src/quad.stripped': ~3500 bytes
+'src/quad': ~1500 bytes
 }}}
 
 *Note:* Unless otherwise mentioned, all sizes, code excerpts and implementation details in this chapter refer to `FreeBSD-ia32`, which was the original supported platform.
@@ -456,7 +456,7 @@ Recompiling with `-m dlfcn`, we get new sizes:
 'hello_world.stripped': 1568 bytes
 'hello_world': 752 bytes
 'quad.stripped': 2572 bytes
-'quad': 1332 bytes
+'quad': 1327 bytes
 }}}
 
 Interestingly, even though the size of hello world example is reduced, its compressed size is increased due to additional program logic in the function loading system. On any nontrivial program the tradeoff should still be worth it, however.
@@ -633,8 +633,8 @@ Compiling with `-m hash` and linking against normal libraries (as opposed to wha
 {{{
 'hello_world.stripped': 1180 bytes
 'hello_world': 637 bytes
-'quad.stripped': 1892 bytes
-'quad': 1129 bytes
+'quad.stripped': 1888 bytes
+'quad': 1122 bytes
 }}}
 
 Significantly better.
@@ -938,8 +938,8 @@ Compiling with all the tricks listed above (using `-m maximum` or just omitting 
 {{{
 'hello_world.stripped': 518 bytes
 'hello_world': 413 bytes
-'quad.stripped': 1222 bytes
-'quad': 898 bytes
+'quad.stripped': 1218 bytes
+'quad': 896 bytes
 }}}
 
 *Note:* Numbers subject to change.
