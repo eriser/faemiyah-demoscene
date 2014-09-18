@@ -51,6 +51,10 @@ class PlatformVar:
       return var["default"]
     raise RuntimeError("current platform %s not supported for variable '%s'" % (str(platform), self.name))
 
+  def deconstructable(self):
+    """Tell if this platform value can be deconstructed."""
+    return isinstance(self.get(), int)
+
   def __int__(self):
     """Convert to integer."""
     ret = self.get()
@@ -575,15 +579,16 @@ class AssemblerVariable:
 
   def deconstruct(self):
     """Deconstruct into byte stream."""
-    try:
-      if is_listing(self.value):
-        lst = []
-        for ii in self.value:
-          lst += self.deconstruct_single(int(ii))
-      else:
-        lst = [self.deconstruct_single(int(self.value))]
-    except ValueError:
-      return False
+    lst = []
+    if is_listing(self.value):
+      for ii in self.value:
+        if not is_deconstructable(ii):
+          break
+        lst += self.deconstruct_single(int(ii))
+    elif is_deconstructable(self.value):
+      lst = self.deconstruct_single(int(self.value))
+    if 0 >= len(lst):
+      return None
     if 1 >= len(lst):
       return [self]
     ret = []
@@ -701,6 +706,26 @@ class AssemblerVariable:
     """Remove a post-label."""
     if op in self.label_post:
       self.label_post.remove(op)
+
+  def __str__(self):
+    """String representation."""
+    int_size = int(self.size)
+    if 1 == int_size:
+      ret = 'byte:'
+    elif 2 == int_size:
+      ret = 'short'
+    elif 4 == int_size:
+      ret = 'long'
+    elif 8 == int_size:
+      ret = 'quad'
+    else:
+      raise RuntimeError("unknown size %i in an assembler variable" % (self.size))
+    ret += ': ' + str(self.value)
+    if self.name:
+      ret += " (%s)" % (self.name)
+    if self.desc:
+      ret += " '%s'" % (self.desc)
+    return ret
 
 ########################################
 # AssemblerSegment #####################
@@ -2019,6 +2044,10 @@ def get_indent(op):
     # Would tab be better?
     ret += "  "
   return ret
+
+def is_deconstructable(op):
+  """Tell if a variable can be deconstructed."""
+  return isinstance(op, int) or (isinstance(op, PlatformVar) and op.deconstructable())
 
 def is_listing(op):
   """Tell if given parameter is a listing."""
