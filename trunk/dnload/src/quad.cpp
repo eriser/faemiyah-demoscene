@@ -152,9 +152,9 @@ void _start()
     g_program_quad = dnload_glCreateShaderProgramv(GL_FRAGMENT_SHADER, 1, &g_shader_fragment_quad);
 
     dnload_glGenProgramPipelines(1, &pipeline);
+    dnload_glBindProgramPipeline(pipeline);
     dnload_glUseProgramStages(pipeline, 1, program_vert);
     dnload_glUseProgramStages(pipeline, 2, g_program_quad);
-    dnload_glBindProgramPipeline(pipeline);
   }
 
   {
