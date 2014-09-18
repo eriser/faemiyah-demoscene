@@ -140,10 +140,14 @@ static SDL_AudioSpec audio_spec =
 /** Quad vertex shader. */
 static const char g_shader_vertex_quad[] = ""
 "#version 430\n"
-"layout(location=3)uniform vec2 t;"
-"layout(location=1)uniform vec3 f;"
+"layout(location=1)uniform vec2 t;"
+"layout(location=0)uniform vec3 f;"
 "layout(location=2)uniform vec3 u;"
 "in vec2 a;"
+"out gl_PerVertex"
+"{"
+"vec4 gl_Position;"
+"};"
 "out vec3 b;"
 "void main()"
 "{"
@@ -160,7 +164,7 @@ static const char g_shader_vertex_quad[] = ""
 /** Quad fragment shader. */
 static const char g_shader_fragment_quad[] = ""
 "#version 430\n"
-"layout(location=3)uniform vec2 t;"
+"layout(location=1)uniform vec2 t;"
 "layout(location=0)uniform vec3 p;"
 "in vec3 b;"
 "out vec4 o;"
@@ -192,62 +196,33 @@ static const char g_shader_fragment_quad[] = ""
 "o=e;"
 "}";
 
+/** \cond */
+GLuint g_program_vertex_quad;
+GLuint g_program_fragment_quad;
+/** \endcond */
+
 /** \brief Create a shader.
  *
  * \param type Shader type.
  * \param source Shader content.
  */
-static GLuint shader_create(GLenum type, const char *source)
+static GLuint program_attach(GLenum type, const char *source, GLuint pipeline, GLbitfield mask)
 {
-  GLuint ret = dnload_glCreateShader(type);
+  GLuint ret;
 #if defined(USE_LD)
   GlslShaderSource glsl_source(source);
   const GLchar *pretty_source = glsl_source.c_str();
-  dnload_glShaderSource(ret, 1, &pretty_source, NULL);
+  ret = dnload_glCreateShaderProgramv(type, 1, &pretty_source);
 #else
-  dnload_glShaderSource(ret, 1, &source, NULL);
+  ret = dnload_glCreateShaderProgramv(type, 1, &source);
 #endif
-  dnload_glCompileShader(ret);
-#if defined(USE_LD)
-  {
-    std::string log = GlslShaderSource::get_shader_info_log(ret);
-    GLint status;
-
-    std::cout << pretty_source << std::endl;
-    if(0 < log.length())
-    {
-      std::cout << log << std::endl;
-    }
-
-    glGetShaderiv(ret, GL_COMPILE_STATUS, &status);
-    if(status != GL_TRUE)
-    {
-      SDL_Quit();
-      exit(1);
-    }
-  }
-#endif
-  return ret;
-}
-
-/** \brief Create a program.
- *
- * \param vs Vertex shader.
- * \param fs Fragement shader.
- * \return The compiled and linked program.
- */
-static GLuint program_create(const char *vertex, const char* fragment)
-{
-  GLuint ret = dnload_glCreateProgram();
-
-  dnload_glAttachShader(ret, shader_create(GL_VERTEX_SHADER, vertex));
-  dnload_glAttachShader(ret, shader_create(GL_FRAGMENT_SHADER, fragment));
-  dnload_glLinkProgram(ret);
+  dnload_glUseProgramStages(pipeline, mask, ret);
 #if defined(USE_LD)
   {
     std::string log = GlslShaderSource::get_program_info_log(ret);
     GLint status;
 
+    std::cout << pretty_source << std::endl;
     if(0 < log.length())
     {
       std::cout << log << std::endl;
@@ -259,10 +234,23 @@ static GLuint program_create(const char *vertex, const char* fragment)
       SDL_Quit();
       exit(1);
     }
-
-    std::cout << "GLSL program id: " << ret << std::endl;
+    std::cout << "GLSL separable program id: " << ret << std::endl;
   }
 #endif
+  return ret;
+}
+
+/** \brief Create a program pipeline.
+ *
+ * \return Program pipeline (already bound).
+ */
+static GLuint pipeline_create()
+{
+  GLuint ret;
+
+  dnload_glGenProgramPipelines(1, &ret);
+  dnload_glBindProgramPipeline(ret);
+
   return ret;
 }
 
@@ -317,10 +305,11 @@ static void draw(unsigned ticks, float aspect)
 #endif
   g_uniform_array[9] = static_cast<float>(ticks);
   g_uniform_array[10] = aspect;
-  dnload_glUniform3fv(0, 1, g_uniform_array + 0);
-  dnload_glUniform3fv(1, 1, g_uniform_array + 3);
-  dnload_glUniform3fv(2, 1, g_uniform_array + 6);
-  dnload_glUniform2fv(3, 1, g_uniform_array + 9);
+  dnload_glProgramUniform3fv(g_program_fragment_quad, 0, 1, g_uniform_array + 0);
+  dnload_glProgramUniform3fv(g_program_vertex_quad, 0, 1, g_uniform_array + 3);
+  dnload_glProgramUniform3fv(g_program_vertex_quad, 2, 1, g_uniform_array + 6);
+  dnload_glProgramUniform2fv(g_program_vertex_quad, 1, 1, g_uniform_array + 9);
+  dnload_glProgramUniform2fv(g_program_fragment_quad, 1, 1, g_uniform_array + 9);
 
   dnload_glRects(-1, -1, 1, 1);
 }
@@ -361,7 +350,12 @@ void _start()
   }
 #endif
 
-  dnload_glUseProgram(program_create(g_shader_vertex_quad, g_shader_fragment_quad));
+  {
+    GLuint pipeline = pipeline_create();
+
+    g_program_vertex_quad = program_attach(GL_VERTEX_SHADER, g_shader_vertex_quad, pipeline, 1);
+    g_program_fragment_quad = program_attach(GL_FRAGMENT_SHADER, g_shader_fragment_quad, pipeline, 2);
+  }
 
 #if defined(USE_LD)
   if(flag_record)
