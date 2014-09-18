@@ -1073,5 +1073,5 @@ This attribute explicitly marks functions as symbols to be externally visible, s
 `[`21`]` [http://www.pouet.net/prod.php?which=61753 Inconsistency by Hymy in Pouet]<br>
 `[`22`]` [http://www.pouet.net/prod.php?which=59264 tutorial2 by Ye Olde Laptops Posse in Pouet]<br>
 `[`23`]` [http://www.alrj.org/ Amand Tihon]<br>
-`[`24`]` [http://www.alrj.org/projects/bold/ BOLD - The Byte Optimized Linker]
+`[`24`]` [http://www.alrj.org/projects/bold/ BOLD - The Byte Optimized Linker]<br>
 `[`25`]` [https://blogs.oracle.com/ali/entry/gnu_hash_elf_sections GNU Hash ELF Sections by Ali Bahrami]
