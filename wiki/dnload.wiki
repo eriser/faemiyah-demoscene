@@ -455,8 +455,8 @@ Recompiling with `-m dlfcn`, we get new sizes:
 {{{
 'hello_world.stripped': 1568 bytes
 'hello_world': 752 bytes
-'quad.stripped': 2748 bytes
-'quad': 1408 bytes
+'quad.stripped': 2572 bytes
+'quad': 1332 bytes
 }}}
 
 Interestingly, even though the size of hello world example is reduced, its compressed size is increased due to additional program logic in the function loading system. On any nontrivial program the tradeoff should still be worth it, however.
@@ -633,8 +633,8 @@ Compiling with `-m hash` and linking against normal libraries (as opposed to wha
 {{{
 'hello_world.stripped': 1180 bytes
 'hello_world': 637 bytes
-'quad.stripped': 2152 bytes
-'quad': 1233 bytes
+'quad.stripped': 1892 bytes
+'quad': 1129 bytes
 }}}
 
 Significantly better.
@@ -897,6 +897,42 @@ Linux `libc` does not require the user program to define `environ` and `__progna
 
 However, as Amand Tihon [#References [23]] points in his own similar project [#References [24]], on Linux the whole of symbol table can be omitted. This is done by having the `DT_SYMTAB` dynamic structure entry point to address value `0` and omitting `DT_HASH` completely. All in all, this means that size-optimized binaries on Linux are [#Minimal_DT_HASH 99 bytes] smaller than on FreeBSD. Interleaving of headers takes away some of this advantage, in practice it seems to be about 30 compressed bytes.
 
+=== Interpreting `GNU_HASH` segment (Linux) ===
+
+For libraries using SYSV hash tables, there is no actual need to interpret the hash table at all, as the number of symbols within the object immediately. Unfortunately, on Linux, not all libraries provide a SYSV hash table at all. In these cases, a GNU hash table is provided.
+
+There is no need to actually modify the symbol finding algorithm, as the symbols themselves are still present in exactly the same manner. However, it is necessary to extract the number of symbols from a GNU hash table[#References [25]]. This is unfortunately less simple than would appear.
+
+Freely adopting from FreeBSD rtld-elf implementation, we get the following:
+
+{{{
+const uint32_t hashtable; // Locate DT_GNU_HASH section and store here.
+unsigned dynsymcount = 0;
+{
+  unsigned bucket_count = hashtable[0];
+  const uint32_t* buckets = hashtable + 4 + ((sizeof(void*) / 4) * hashtable[2]);
+  const uint32_t* chain_zero = buckets + bucket_count + hashtable[1];
+  for(unsigned ii = 0; (ii < bucket_count); ++ii)
+  {
+    unsigned bkt = buckets[ii];
+    if(bkt == 0)
+    {
+      continue;
+    }
+    {
+      const uint32_t* hashval = chain_zero + bkt;
+      do {
+        ++dynsymcount;
+      } while(0 == (*hashval++ & 1u));
+    }
+  }
+}
+}}}
+
+Essentially this algorighm goes through the `GNU_HASH` buckets one by one and then increases the symbol count whenever a valid hash is encountered. This is, of course, horribly inefficient. One could even argue that implementing a full symbol lookup would not take that much more space, especially as GNU hash values are calculated using DJB hash, the implementation of which is not significantly larger than that of SDBM hash. However, SYSV hash tables still need to be supported anyway.
+
+Unfortunately `GNU_HASH` more than eats away the size advantage [#Empty_DT_SYMTAB_(Linux) Linux would otherwise have].
+
 === Final sizes ===
 
 Compiling with all the tricks listed above (using `-m maximum` or just omitting the option) gives us:
@@ -904,8 +940,8 @@ Compiling with all the tricks listed above (using `-m maximum` or just omitting 
 {{{
 'hello_world.stripped': 518 bytes
 'hello_world': 413 bytes
-'quad.stripped': 1303 bytes
-'quad': 985 bytes
+'quad.stripped': 1222 bytes
+'quad': 898 bytes
 }}}
 
 *Note:* Numbers subject to change.
@@ -1040,3 +1076,4 @@ This attribute explicitly marks functions as symbols to be externally visible, s
 `[`22`]` [http://www.pouet.net/prod.php?which=59264 tutorial2 by Ye Olde Laptops Posse in Pouet]<br>
 `[`23`]` [http://www.alrj.org/ Amand Tihon]<br>
 `[`24`]` [http://www.alrj.org/projects/bold/ BOLD - The Byte Optimized Linker]
+`[`25`]` [https://blogs.oracle.com/ali/entry/gnu_hash_elf_sections GNU Hash ELF Sections by Ali Bahrami]
