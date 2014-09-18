@@ -640,7 +640,9 @@ void _start()
 #else
     currtick = g_audio_position - reinterpret_cast<uint8_t*>(g_audio_buffer);
 
-    if((currtick >= INTRO_LENGTH) || (dnload_SDL_PollEvent(&event) && (event.type == SDL_KEYDOWN)))
+    dnload_SDL_PollEvent(&event);
+    
+    if((currtick >= INTRO_LENGTH) || (event.type == SDL_KEYDOWN))
     {
       break;
     }
