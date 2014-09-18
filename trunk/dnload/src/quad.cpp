@@ -82,9 +82,13 @@ static SDL_AudioSpec audio_spec =
 //######################################
 
 /** Quad vertex shader. */
-static const char g_shader_vertex_quad[] = ""
+static const char *g_shader_vertex_quad = ""
 "#version 430\n"
 "in vec2 a;"
+"out gl_PerVertex"
+"{"
+"vec4 gl_Position;"
+"};"
 "out vec2 b;"
 "void main()"
 "{"
@@ -93,7 +97,7 @@ static const char g_shader_vertex_quad[] = ""
 "}";
 
 /** Quad fragment shader. */
-static const char g_shader_fragment_quad[] = ""
+static const char *g_shader_fragment_quad = ""
 "#version 430\n"
 "layout(location=0)uniform float t;"
 "in vec2 b;"
@@ -103,39 +107,9 @@ static const char g_shader_fragment_quad[] = ""
 "o=vec4(b.x,sin(t/7777)*.5+.5,b.y,1);"
 "}";
 
-/** \brief Create a shader.
- *
- * \param source Shader source.
- * \return Shader ID.
- */
-static GLuint shader_create(GLenum type, const char *source)
-{
-  GLuint ret = dnload_glCreateShader(type);
-
-  dnload_glShaderSource(ret, 1, &source, NULL);
-  dnload_glCompileShader(ret);
-
-  return ret;
-}
-
-/** \brief Create a program.
- *
- * Create a shader program using one vertex shader and one fragment shader.
- *
- * \param vs Vertex shader.
- * \param fs Fragement shader.
- * \return Fragment program.
- */
-static GLuint program_create(const char *vertex, const char* fragment)
-{
-  GLuint ret = dnload_glCreateProgram();
-
-  dnload_glAttachShader(ret, shader_create(GL_VERTEX_SHADER, vertex));
-  dnload_glAttachShader(ret, shader_create(GL_FRAGMENT_SHADER, fragment));
-  dnload_glLinkProgram(ret);
-
-  return ret;
-}
+/** \cond */
+static GLuint g_program_quad;
+/** \endcond */
 
 //######################################
 // Draw ################################
@@ -148,7 +122,7 @@ static GLuint program_create(const char *vertex, const char* fragment)
  */
 static void draw(unsigned ticks)
 {
-  dnload_glUniform1f(0, ticks);
+  dnload_glProgramUniform1f(g_program_quad, 0, ticks);
 
   dnload_glRects(-1, -1, 1, 1);
 }
@@ -171,7 +145,17 @@ void _start()
   glewInit();
 #endif
 
-  dnload_glUseProgram(program_create(g_shader_vertex_quad, g_shader_fragment_quad));
+  // Shader generation inline.
+  {
+    GLuint pipeline;
+    GLuint program_vert = dnload_glCreateShaderProgramv(GL_VERTEX_SHADER, 1, &g_shader_vertex_quad);
+    g_program_quad = dnload_glCreateShaderProgramv(GL_FRAGMENT_SHADER, 1, &g_shader_fragment_quad);
+
+    dnload_glGenProgramPipelines(1, &pipeline);
+    dnload_glUseProgramStages(pipeline, 1, program_vert);
+    dnload_glUseProgramStages(pipeline, 2, g_program_quad);
+    dnload_glBindProgramPipeline(pipeline);
+  }
 
   {
     unsigned ii;
