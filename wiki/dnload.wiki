@@ -901,9 +901,7 @@ However, as Amand Tihon [#References [23]] points in his own similar project [#R
 
 For libraries using SYSV hash tables, there is no actual need to interpret the hash table at all, as the number of symbols within the object immediately. Unfortunately, on Linux, not all libraries provide a SYSV hash table at all. In these cases, a GNU hash table is provided.
 
-There is no need to actually modify the symbol finding algorithm, as the symbols themselves are still present in exactly the same manner. However, it is necessary to extract the number of symbols from a GNU hash table[#References [25]]. This is unfortunately less simple than would appear.
-
-Freely adopting from FreeBSD rtld-elf implementation, we get the following:
+There is no need to actually modify the symbol finding algorithm, as the symbols themselves are still present in exactly the same manner. However, it is necessary to extract the number of symbols from a GNU hash table [#References [25]]. Freely adopting from FreeBSD rtld-elf implementation, we get the following:
 
 {{{
 const uint32_t hashtable; // Locate DT_GNU_HASH section and store here.
