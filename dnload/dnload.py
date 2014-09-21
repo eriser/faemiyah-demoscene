@@ -1491,6 +1491,7 @@ library_definition_m.add_symbols((
   ))
 library_definition_sdl = LibraryDefinition("SDL")
 library_definition_sdl.add_symbols((
+  ("uint32_t", "SDL_GetTicks"),
   ("void", "SDL_GL_SwapBuffers"),
   ("int", "SDL_Init", "Uint32"),
   ("int", "SDL_OpenAudio", "SDL_AudioSpec*", "SDL_AudioSpec*"),
