@@ -16,10 +16,10 @@
 #define AUDIO_CHANNELS 2
 
 /** Audio samplerate. */
-#define AUDIO_SAMPLERATE 44100
+#define AUDIO_SAMPLERATE 8000
 
 /** Audio byterate. */
-#define AUDIO_BYTERATE (AUDIO_CHANNELS * AUDIO_SAMPLERATE * sizeof(int16_t))
+#define AUDIO_BYTERATE (AUDIO_CHANNELS * AUDIO_SAMPLERATE * sizeof(uint8_t))
 
 /** Intro length (in bytes of audio). */
 #define INTRO_LENGTH (16 * AUDIO_BYTERATE)
@@ -56,7 +56,7 @@
 //######################################
 
 /** Audio buffer for output. */
-static int16_t g_audio_buffer[INTRO_LENGTH * 9 / 8 / sizeof(int16_t)];
+static int16_t g_audio_buffer[INTRO_LENGTH * 9 / 8 / sizeof(uint8_t)];
 
 /** Current audio position. */
 static uint8_t *g_audio_position = reinterpret_cast<uint8_t*>(&g_audio_buffer[INTRO_START]);
@@ -79,21 +79,6 @@ static float g_up_z = STARTING_UP_Z;
 static uint8_t g_flag_developer = 0;
 
 #endif
-
-//######################################
-// rand() ##############################
-//######################################
-
-/** Random number -op to op.
- *
- * \param op Limit.
- * \return Random number [-op, op[
- */
-static float frand(float op)
-{
-  uint16_t ret = static_cast<uint16_t>(dnload_rand() & 0xFFFF);
-  return static_cast<float>(*(reinterpret_cast<int16_t*>(&ret))) / 32768.0f * op;
-}
 
 //######################################
 // Music ###############################
@@ -119,7 +104,7 @@ static void audio_callback(void *userdata, Uint8 *stream, int len)
 static SDL_AudioSpec audio_spec =
 {
   AUDIO_SAMPLERATE,
-  AUDIO_S16,
+  AUDIO_U8,
   AUDIO_CHANNELS,
   0,
 #if defined(USE_LD)
@@ -138,39 +123,29 @@ static SDL_AudioSpec audio_spec =
 //######################################
 
 /** Quad vertex shader. */
-static const char g_shader_vertex_quad[] = ""
+static const char *g_shader_vertex_quad = ""
 "#version 430\n"
-"layout(location=1)uniform vec2 t;"
-"layout(location=0)uniform vec3 f;"
-"layout(location=2)uniform vec3 u;"
 "in vec2 a;"
+"out vec2 b;"
 "out gl_PerVertex"
 "{"
 "vec4 gl_Position;"
 "};"
-"out vec3 b;"
 "void main()"
 "{"
-"vec3 g=normalize(f);"
-"vec3 r=normalize(cross(g,u));"
-"vec3 v=normalize(cross(r,g));"
-"vec2 m=a;"
-"if(t.y>1.)m.x*=t.y;"
-"else m.y/=t.y;"
-"b=m.x*r+m.y*v+f;"
+"b=a;"
 "gl_Position=vec4(a,0,1);"
 "}";
 
 /** Quad fragment shader. */
-static const char g_shader_fragment_quad[] = ""
+static const char *g_shader_fragment_quad = ""
 "#version 430\n"
-"layout(location=1)uniform vec2 t;"
-"layout(location=0)uniform vec3 p;"
-"in vec3 b;"
+"layout(location=0)uniform vec3[4] u;"
+"in vec2 b;"
 "out vec4 o;"
 "float f(vec3 p)"
 "{"
-"return dot(p,p)-1.+sin(t.x/44444.)*.1;"
+"return dot(p,p)-1.+sin(u[3].x/4444.)*.1;"
 "}"
 "vec3 g(vec3 n,float N)"
 "{"
@@ -179,12 +154,14 @@ static const char g_shader_fragment_quad[] = ""
 "}"
 "void main()"
 "{"
+"vec2 m=b;"
+"if(u[3].y>1.)m.x*=u[3].y;"
+"else m.y/=u[3].y;"
+"vec3 c=u[0],h=normalize(u[1]),r=normalize(cross(h,u[2])),d=normalize(m.x*r+m.y*normalize(cross(r,h))+h)*.01,n;"
 "vec4 e=vec4(0,0,0,1);"
-"vec3 c=p;"
-"vec3 d=normalize(b)*.01;"
 "for(int i=0;i<555;++i)"
 "{"
-"vec3 n=c+d;"
+"n=c+d;"
 "float N=f(n);"
 "if(0.>N)"
 "{"
@@ -197,10 +174,10 @@ static const char g_shader_fragment_quad[] = ""
 "}";
 
 /** \cond */
-GLuint g_program_vertex_quad;
-GLuint g_program_fragment_quad;
+GLuint g_program_fragment;
 /** \endcond */
 
+#if defined(USE_LD)
 /** \brief Create a shader.
  *
  * \param type Shader type.
@@ -208,35 +185,29 @@ GLuint g_program_fragment_quad;
  */
 static GLuint program_attach(GLenum type, const char *source, GLuint pipeline, GLbitfield mask)
 {
-  GLuint ret;
-#if defined(USE_LD)
   GlslShaderSource glsl_source(source);
   const GLchar *pretty_source = glsl_source.c_str();
-  ret = dnload_glCreateShaderProgramv(type, 1, &pretty_source);
-#else
-  ret = dnload_glCreateShaderProgramv(type, 1, &source);
-#endif
+  GLuint ret = dnload_glCreateShaderProgramv(type, 1, &pretty_source);
+
   dnload_glUseProgramStages(pipeline, mask, ret);
-#if defined(USE_LD)
+
+  std::string log = GlslShaderSource::get_program_info_log(ret);
+  GLint status;
+
+  std::cout << pretty_source << std::endl;
+  if(0 < log.length())
   {
-    std::string log = GlslShaderSource::get_program_info_log(ret);
-    GLint status;
-
-    std::cout << pretty_source << std::endl;
-    if(0 < log.length())
-    {
-      std::cout << log << std::endl;
-    }
-
-    glGetProgramiv(ret, GL_LINK_STATUS, &status);
-    if(status != GL_TRUE)
-    {
-      SDL_Quit();
-      exit(1);
-    }
-    std::cout << "GLSL separable program id: " << ret << std::endl;
+    std::cout << log << std::endl;
   }
-#endif
+
+  glGetProgramiv(ret, GL_LINK_STATUS, &status);
+  if(status != GL_TRUE)
+  {
+    SDL_Quit();
+    exit(1);
+  }
+  std::cout << "GLSL separable program id: " << ret << std::endl;
+
   return ret;
 }
 
@@ -253,6 +224,7 @@ static GLuint pipeline_create()
 
   return ret;
 }
+#endif
 
 //######################################
 // Uniform data ########################
@@ -271,13 +243,14 @@ static GLuint pipeline_create()
  * 8: Z up.
  * 9: Time.
  * 10: Screen aspect ratio x/y.
+ * 11: Unused.
  */
-static float g_uniform_array[11] =
+static float g_uniform_array[12] =
 {
   STARTING_POS_X, STARTING_POS_Y, STARTING_POS_Z,
   STARTING_FW_X, STARTING_FW_Y, STARTING_FW_Z,
   STARTING_UP_X, STARTING_UP_Y, STARTING_UP_Z,
-  0.0f, 0.0f,
+  0.0f, 0.0f, 0.0f,
 };
 
 /** \brief Draw the world.
@@ -285,7 +258,7 @@ static float g_uniform_array[11] =
  * \param ticks Tick count.
  * \param aspec Screen aspect.
  */
-static void draw(unsigned ticks, float aspect)
+static void draw(unsigned ticks)
 {
   //dnload_glDisable(GL_DEPTH_TEST);
 
@@ -304,12 +277,7 @@ static void draw(unsigned ticks, float aspect)
   }
 #endif
   g_uniform_array[9] = static_cast<float>(ticks);
-  g_uniform_array[10] = aspect;
-  dnload_glProgramUniform3fv(g_program_fragment_quad, 0, 1, g_uniform_array + 0);
-  dnload_glProgramUniform3fv(g_program_vertex_quad, 0, 1, g_uniform_array + 3);
-  dnload_glProgramUniform3fv(g_program_vertex_quad, 2, 1, g_uniform_array + 6);
-  dnload_glProgramUniform2fv(g_program_vertex_quad, 1, 1, g_uniform_array + 9);
-  dnload_glProgramUniform2fv(g_program_fragment_quad, 1, 1, g_uniform_array + 9);
+  dnload_glProgramUniform3fv(g_program_fragment, 0, 4, g_uniform_array);
 
   dnload_glRects(-1, -1, 1, 1);
 }
@@ -350,11 +318,32 @@ void _start()
   }
 #endif
 
-  {
-    GLuint pipeline = pipeline_create();
+#if defined(USE_LD)
+  GLuint pipeline = pipeline_create();
+  program_attach(GL_VERTEX_SHADER, g_shader_vertex_quad, pipeline, 1);
+  g_program_fragment = program_attach(GL_FRAGMENT_SHADER, g_shader_fragment_quad, pipeline, 2);
+#else
+  // Shader generation inline.
+  GLuint pipeline;
+  GLuint program_vert = dnload_glCreateShaderProgramv(GL_VERTEX_SHADER, 1, &g_shader_vertex_quad);
+  g_program_fragment = dnload_glCreateShaderProgramv(GL_FRAGMENT_SHADER, 1, &g_shader_fragment_quad);
 
-    g_program_vertex_quad = program_attach(GL_VERTEX_SHADER, g_shader_vertex_quad, pipeline, 1);
-    g_program_fragment_quad = program_attach(GL_FRAGMENT_SHADER, g_shader_fragment_quad, pipeline, 2);
+  dnload_glGenProgramPipelines(1, &pipeline);
+  dnload_glBindProgramPipeline(pipeline);
+  dnload_glUseProgramStages(pipeline, 1, program_vert);
+  dnload_glUseProgramStages(pipeline, 2, g_program_fragment);
+#endif
+
+  g_uniform_array[10] = static_cast<float>(screen_w) / static_cast<float>(screen_h);
+
+  {
+    unsigned ii;
+
+    // Example by "bst", taken from "Music from very short programs - the 3rd iteration" by viznut.
+    for(ii = 0; (INTRO_LENGTH / sizeof(uint8_t) > ii); ++ii)
+    {
+      g_audio_buffer[ii] = (int)(ii / 70000000 * ii * ii + ii) % 127 | ii >> 4 | ii >> 5 | (ii % 127 + (ii >> 17)) | ii;
+    }
   }
 
 #if defined(USE_LD)
@@ -384,7 +373,7 @@ void _start()
         break;
       }
 
-      draw(ticks, static_cast<float>(screen_w) / static_cast<float>(screen_h));
+      draw(ticks);
       write_frame_callback(screen_w, screen_h, frame_idx);
       SDL_GL_SwapBuffers();
       ++frame_idx;
@@ -406,7 +395,7 @@ void _start()
 #endif
 
 #if defined(USE_LD)
-  uint32_t starttick = SDL_GetTicks();	
+  uint32_t start_ticks = SDL_GetTicks();	
 #endif
 
   for(;;)
@@ -427,7 +416,7 @@ void _start()
     bool quit = false;
 #endif
     SDL_Event event;
-    unsigned currtick;
+    unsigned curr_ticks;
 
 #if defined(USE_LD)
     while(SDL_PollEvent(&event))
@@ -624,31 +613,31 @@ void _start()
     {
       current_time += static_cast<float>(AUDIO_BYTERATE) / 60.0f * static_cast<float>(time_delta);
 
-      currtick = static_cast<unsigned>(current_time);
+      curr_ticks = static_cast<unsigned>(current_time);
     }
     else
     {
-      float seconds_elapsed = static_cast<float>(SDL_GetTicks() - starttick) / 1000.0f;
+      float seconds_elapsed = static_cast<float>(SDL_GetTicks() - start_ticks) / 1000.0f;
 
-      currtick = static_cast<unsigned>(seconds_elapsed * static_cast<float>(AUDIO_BYTERATE)) + INTRO_START;
+      curr_ticks = static_cast<unsigned>(seconds_elapsed * static_cast<float>(AUDIO_BYTERATE)) + INTRO_START;
     }
 
-    if((currtick >= INTRO_LENGTH) || quit)
+    if((curr_ticks >= INTRO_LENGTH) || quit)
     {
       break;
     }
 #else
-    currtick = g_audio_position - reinterpret_cast<uint8_t*>(g_audio_buffer);
+    curr_ticks = g_audio_position - reinterpret_cast<uint8_t*>(g_audio_buffer);
 
     dnload_SDL_PollEvent(&event);
     
-    if((currtick >= INTRO_LENGTH) || (event.type == SDL_KEYDOWN))
+    if((curr_ticks >= INTRO_LENGTH) || (event.type == SDL_KEYDOWN))
     {
       break;
     }
 #endif
 
-    draw(currtick, static_cast<float>(screen_w) / static_cast<float>(screen_h));
+    draw(curr_ticks);
     dnload_SDL_GL_SwapBuffers();
   }
 

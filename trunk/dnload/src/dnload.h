@@ -103,41 +103,35 @@ void _start() __attribute__((externally_visible));
 
 #if defined(USE_LD)
 /** \cond */
-#define dnload_rand bsd_rand
-#define dnload_glGenProgramPipelines glGenProgramPipelines
-#define dnload_SDL_GL_SwapBuffers SDL_GL_SwapBuffers
-#define dnload_glRects glRects
-#define dnload_SDL_SetVideoMode SDL_SetVideoMode
-#define dnload_glBindProgramPipeline glBindProgramPipeline
 #define dnload_SDL_ShowCursor SDL_ShowCursor
-#define dnload_glProgramUniform2fv glProgramUniform2fv
+#define dnload_SDL_GL_SwapBuffers SDL_GL_SwapBuffers
 #define dnload_glCreateShaderProgramv glCreateShaderProgramv
 #define dnload_SDL_PollEvent SDL_PollEvent
+#define dnload_glGenProgramPipelines glGenProgramPipelines
 #define dnload_SDL_Init SDL_Init
-#define dnload_SDL_PauseAudio SDL_PauseAudio
-#define dnload_glProgramUniform3fv glProgramUniform3fv
+#define dnload_glBindProgramPipeline glBindProgramPipeline
 #define dnload_SDL_Quit SDL_Quit
 #define dnload_glUseProgramStages glUseProgramStages
-#define dnload_SDL_OpenAudio SDL_OpenAudio
+#define dnload_glRects glRects
+#define dnload_glProgramUniform1f glProgramUniform1f
+#define dnload_SDL_GetTicks SDL_GetTicks
+#define dnload_SDL_SetVideoMode SDL_SetVideoMode
 /** \endcond */
 #else
 /** \cond */
-#define dnload_rand g_symbol_table.rand
-#define dnload_glGenProgramPipelines g_symbol_table.glGenProgramPipelines
-#define dnload_SDL_GL_SwapBuffers g_symbol_table.SDL_GL_SwapBuffers
-#define dnload_glRects g_symbol_table.glRects
-#define dnload_SDL_SetVideoMode g_symbol_table.SDL_SetVideoMode
-#define dnload_glBindProgramPipeline g_symbol_table.glBindProgramPipeline
 #define dnload_SDL_ShowCursor g_symbol_table.SDL_ShowCursor
-#define dnload_glProgramUniform2fv g_symbol_table.glProgramUniform2fv
+#define dnload_SDL_GL_SwapBuffers g_symbol_table.SDL_GL_SwapBuffers
 #define dnload_glCreateShaderProgramv g_symbol_table.glCreateShaderProgramv
 #define dnload_SDL_PollEvent g_symbol_table.SDL_PollEvent
+#define dnload_glGenProgramPipelines g_symbol_table.glGenProgramPipelines
 #define dnload_SDL_Init g_symbol_table.SDL_Init
-#define dnload_SDL_PauseAudio g_symbol_table.SDL_PauseAudio
-#define dnload_glProgramUniform3fv g_symbol_table.glProgramUniform3fv
+#define dnload_glBindProgramPipeline g_symbol_table.glBindProgramPipeline
 #define dnload_SDL_Quit g_symbol_table.SDL_Quit
 #define dnload_glUseProgramStages g_symbol_table.glUseProgramStages
-#define dnload_SDL_OpenAudio g_symbol_table.SDL_OpenAudio
+#define dnload_glRects g_symbol_table.glRects
+#define dnload_glProgramUniform1f g_symbol_table.glProgramUniform1f
+#define dnload_SDL_GetTicks g_symbol_table.SDL_GetTicks
+#define dnload_SDL_SetVideoMode g_symbol_table.SDL_SetVideoMode
 /** \endcond */
 #endif
 
@@ -148,40 +142,34 @@ void _start() __attribute__((externally_visible));
  */
 static struct SymbolTableStruct
 {
-  int (*rand)(void);
-  void (GLAPIENTRY *glGenProgramPipelines)(GLsizei, GLuint*);
-  void (*SDL_GL_SwapBuffers)(void);
-  void (GLAPIENTRY *glRects)(GLshort, GLshort, GLshort, GLshort);
-  SDL_Surface* (*SDL_SetVideoMode)(int, int, int, Uint32);
-  void (GLAPIENTRY *glBindProgramPipeline)(GLuint);
   int (*SDL_ShowCursor)(int);
-  void (GLAPIENTRY *glProgramUniform2fv)(GLuint, GLint, GLsizei, const GLfloat*);
+  void (*SDL_GL_SwapBuffers)(void);
   GLuint (GLAPIENTRY *glCreateShaderProgramv)(GLenum, GLsizei, const char**);
   int (*SDL_PollEvent)(SDL_Event*);
+  void (GLAPIENTRY *glGenProgramPipelines)(GLsizei, GLuint*);
   int (*SDL_Init)(Uint32);
-  void (*SDL_PauseAudio)(int);
-  void (GLAPIENTRY *glProgramUniform3fv)(GLuint, GLint, GLsizei, const GLfloat*);
+  void (GLAPIENTRY *glBindProgramPipeline)(GLuint);
   void (*SDL_Quit)(void);
   void (GLAPIENTRY *glUseProgramStages)(GLuint, GLbitfield, GLuint);
-  int (*SDL_OpenAudio)(SDL_AudioSpec*, SDL_AudioSpec*);
+  void (GLAPIENTRY *glRects)(GLshort, GLshort, GLshort, GLshort);
+  void (GLAPIENTRY *glProgramUniform1f)(GLuint, GLint, GLfloat);
+  uint32_t (*SDL_GetTicks)(void);
+  SDL_Surface* (*SDL_SetVideoMode)(int, int, int, Uint32);
 } g_symbol_table =
 {
-  (int (*)(void))0xe83af065L,
-  (void (GLAPIENTRY *)(GLsizei, GLuint*))0x75e35418L,
-  (void (*)(void))0xda43e6eaL,
-  (void (GLAPIENTRY *)(GLshort, GLshort, GLshort, GLshort))0xd419e20aL,
-  (SDL_Surface* (*)(int, int, int, Uint32))0x39b85060L,
-  (void (GLAPIENTRY *)(GLuint))0x2386bc04L,
   (int (*)(int))0xb88bf697L,
-  (void (GLAPIENTRY *)(GLuint, GLint, GLsizei, const GLfloat*))0xc8ebc2cdL,
+  (void (*)(void))0xda43e6eaL,
   (GLuint (GLAPIENTRY *)(GLenum, GLsizei, const char**))0xa4fd03d8L,
   (int (*)(SDL_Event*))0x64949d97L,
+  (void (GLAPIENTRY *)(GLsizei, GLuint*))0x75e35418L,
   (int (*)(Uint32))0x70d6574L,
-  (void (*)(int))0x29f14a4L,
-  (void (GLAPIENTRY *)(GLuint, GLint, GLsizei, const GLfloat*))0xc969d24eL,
+  (void (GLAPIENTRY *)(GLuint))0x2386bc04L,
   (void (*)(void))0x7eb657f3L,
   (void (GLAPIENTRY *)(GLuint, GLbitfield, GLuint))0x212d8ad7L,
-  (int (*)(SDL_AudioSpec*, SDL_AudioSpec*))0x46fd70c8L,
+  (void (GLAPIENTRY *)(GLshort, GLshort, GLshort, GLshort))0xd419e20aL,
+  (void (GLAPIENTRY *)(GLuint, GLint, GLfloat))0xe1ca37aaL,
+  (uint32_t (*)(void))0xd1d0b104L,
+  (SDL_Surface* (*)(int, int, int, Uint32))0x39b85060L,
 };
 #endif
 
@@ -376,7 +364,7 @@ static void* dnload_find_symbol(uint32_t hash)
 static void dnload(void)
 {
   unsigned ii;
-  for(ii = 0; (16 > ii); ++ii)
+  for(ii = 0; (13 > ii); ++ii)
   {
     void **iter = ((void**)&g_symbol_table) + ii;
     *iter = dnload_find_symbol(*(uint32_t*)iter);
