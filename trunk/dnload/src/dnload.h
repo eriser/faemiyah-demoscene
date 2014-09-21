@@ -109,13 +109,14 @@ void _start() __attribute__((externally_visible));
 #define dnload_SDL_PollEvent SDL_PollEvent
 #define dnload_glGenProgramPipelines glGenProgramPipelines
 #define dnload_SDL_Init SDL_Init
+#define dnload_SDL_PauseAudio SDL_PauseAudio
 #define dnload_glBindProgramPipeline glBindProgramPipeline
 #define dnload_SDL_Quit SDL_Quit
 #define dnload_glUseProgramStages glUseProgramStages
 #define dnload_glRects glRects
-#define dnload_glProgramUniform1f glProgramUniform1f
-#define dnload_SDL_GetTicks SDL_GetTicks
+#define dnload_SDL_OpenAudio SDL_OpenAudio
 #define dnload_SDL_SetVideoMode SDL_SetVideoMode
+#define dnload_glProgramUniform3fv glProgramUniform3fv
 /** \endcond */
 #else
 /** \cond */
@@ -125,13 +126,14 @@ void _start() __attribute__((externally_visible));
 #define dnload_SDL_PollEvent g_symbol_table.SDL_PollEvent
 #define dnload_glGenProgramPipelines g_symbol_table.glGenProgramPipelines
 #define dnload_SDL_Init g_symbol_table.SDL_Init
+#define dnload_SDL_PauseAudio g_symbol_table.SDL_PauseAudio
 #define dnload_glBindProgramPipeline g_symbol_table.glBindProgramPipeline
 #define dnload_SDL_Quit g_symbol_table.SDL_Quit
 #define dnload_glUseProgramStages g_symbol_table.glUseProgramStages
 #define dnload_glRects g_symbol_table.glRects
-#define dnload_glProgramUniform1f g_symbol_table.glProgramUniform1f
-#define dnload_SDL_GetTicks g_symbol_table.SDL_GetTicks
+#define dnload_SDL_OpenAudio g_symbol_table.SDL_OpenAudio
 #define dnload_SDL_SetVideoMode g_symbol_table.SDL_SetVideoMode
+#define dnload_glProgramUniform3fv g_symbol_table.glProgramUniform3fv
 /** \endcond */
 #endif
 
@@ -148,13 +150,14 @@ static struct SymbolTableStruct
   int (*SDL_PollEvent)(SDL_Event*);
   void (GLAPIENTRY *glGenProgramPipelines)(GLsizei, GLuint*);
   int (*SDL_Init)(Uint32);
+  void (*SDL_PauseAudio)(int);
   void (GLAPIENTRY *glBindProgramPipeline)(GLuint);
   void (*SDL_Quit)(void);
   void (GLAPIENTRY *glUseProgramStages)(GLuint, GLbitfield, GLuint);
   void (GLAPIENTRY *glRects)(GLshort, GLshort, GLshort, GLshort);
-  void (GLAPIENTRY *glProgramUniform1f)(GLuint, GLint, GLfloat);
-  uint32_t (*SDL_GetTicks)(void);
+  int (*SDL_OpenAudio)(SDL_AudioSpec*, SDL_AudioSpec*);
   SDL_Surface* (*SDL_SetVideoMode)(int, int, int, Uint32);
+  void (GLAPIENTRY *glProgramUniform3fv)(GLuint, GLint, GLsizei, const GLfloat*);
 } g_symbol_table =
 {
   (int (*)(int))0xb88bf697L,
@@ -163,13 +166,14 @@ static struct SymbolTableStruct
   (int (*)(SDL_Event*))0x64949d97L,
   (void (GLAPIENTRY *)(GLsizei, GLuint*))0x75e35418L,
   (int (*)(Uint32))0x70d6574L,
+  (void (*)(int))0x29f14a4L,
   (void (GLAPIENTRY *)(GLuint))0x2386bc04L,
   (void (*)(void))0x7eb657f3L,
   (void (GLAPIENTRY *)(GLuint, GLbitfield, GLuint))0x212d8ad7L,
   (void (GLAPIENTRY *)(GLshort, GLshort, GLshort, GLshort))0xd419e20aL,
-  (void (GLAPIENTRY *)(GLuint, GLint, GLfloat))0xe1ca37aaL,
-  (uint32_t (*)(void))0xd1d0b104L,
+  (int (*)(SDL_AudioSpec*, SDL_AudioSpec*))0x46fd70c8L,
   (SDL_Surface* (*)(int, int, int, Uint32))0x39b85060L,
+  (void (GLAPIENTRY *)(GLuint, GLint, GLsizei, const GLfloat*))0xc969d24eL,
 };
 #endif
 
@@ -364,7 +368,7 @@ static void* dnload_find_symbol(uint32_t hash)
 static void dnload(void)
 {
   unsigned ii;
-  for(ii = 0; (13 > ii); ++ii)
+  for(ii = 0; (14 > ii); ++ii)
   {
     void **iter = ((void**)&g_symbol_table) + ii;
     *iter = dnload_find_symbol(*(uint32_t*)iter);
