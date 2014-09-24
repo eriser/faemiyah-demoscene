@@ -19,7 +19,7 @@ compilation_mode = "maximum"
 definition_ld = "USE_LD"
 symbol_prefix = "dnload_"
 verbose = False
-version = "r152"
+version = "r174"
 
 ########################################
 # PlatformVar ##########################
@@ -1968,22 +1968,29 @@ def check_executable(op):
     print(output_string + "found")
   return True
 
-def compress_file(compression, src, dst):
+def compress_file(compression, pretty, src, dst):
   """Compress a file to be a self-extracting file-dumping executable."""
+  str_tail = "sed 1d"
+  str_cleanup = ""
+  str_exit = ""
+  if pretty:
+    str_tail = "tail -n+2"
+    str_cleanup = ";rm $i"
+    str_exit = ";exit"
   if "lzma" == compression:
     command = ["xz", "--format=lzma", "--lzma1=preset=9e,lc=1,lp=0,pb=0", "--stdout"]
-    unpack_header = "i=/tmp/i;tail -n+2 $0|lzcat>$i;chmod +x $i;$i;rm $i;exit"
+    header = "i=/tmp/i;%s $0|lzcat>$i;chmod +x $i;$i%s%s" % (str_tail, str_cleanup, str_exit)
   elif "raw" == compression:
     command = ["xz", "-9", "--extreme", "--format=raw", "--stdout"]
-    unpack_header = "i=/tmp/i;tail -n+2 $0|xzcat -F raw>$i;chmod +x $i;$i;rm $i;exit"
+    header = "i=/tmp/i;%s $0|xzcat -F raw>$i;chmod +x $i;$i%s%s" % (str_tail, str_cleanup, str_exit)
   elif "xz" == compression:
     command = ["xz", "--format=xz", "--lzma2=preset=9e,lc=1,pb=0", "--stdout"]
-    unpack_header = "i=/tmp/i;tail -n+2 $0|xzcat>$i;chmod +x $i;$i;rm $i;exit"
+    header = "i=/tmp/i;%s $0|xzcat>$i;chmod +x $i;$i%s%s" % (str_tail, str_cleanup, str_exit)
   else:
-    raise 
+    raise RuntimeError("unknown compression format '%s'" % compression)
   (compressed, se) = run_command(command + [src], False)
   wfd = open(dst, "wb")
-  wfd.write((unpack_header + "\n").encode())
+  wfd.write((header + "\n").encode())
   wfd.write(compressed)
   wfd.close()
   make_executable(dst)
@@ -2286,6 +2293,7 @@ def main():
   parser.add_argument("-l", "--library", action = "append", help = "Add a library to be linked against.")
   parser.add_argument("-L", "--library-directory", action = "append", help = "Add a library directory to be searched for libraries when linking.")
   parser.add_argument("-m", "--method", default = compilation_mode, choices = ("vanilla", "dlfcn", "hash", "maximum"), help = "Method to use for decreasing output file size:\n\tvanilla:\n\t\tProduce binary normally, use no tricks except unpack header.\n\tdlfcn:\n\t\tUse dlopen/dlsym to decrease size without dependencies to any specific object format.\n\thash:\n\t\tUse knowledge of object file format to perform 'import by hash' loading, but do not break any specifications.\n\tmaximum:\n\t\tUse all available techniques to decrease output file size. Resulting file may violate object file specification.\n(default: %(default)s)")
+  parser.add_argument("-n", "--nice-compression", action = "store_true", help = "Do not use dirty tricks in compression header, also remove filedumped binary when done.")
   parser.add_argument("-o", "--output-file", help = "Compile a named binary, do not only create a header. If the name specified features a path, it will be used verbatim. Otherwise the binary will be created in the same path as source file(s) compiled.")
   parser.add_argument("-O", "--operating-system", help = "Try to target given operating system insofar cross-compilation is possible.")
   parser.add_argument("-P", "--call-prefix", default = symbol_prefix, help = "Call prefix to identify desired calls.\n(default: %(default)s)")
@@ -2338,6 +2346,7 @@ def main():
 
   definition_ld = args.define
   compilation_mode = args.method
+  nice_compression = args.nice_compression
   symbol_prefix = args.call_prefix
   target = args.target
 
@@ -2569,7 +2578,7 @@ def main():
     if compilation_mode in ("vanilla", "dlfcn", "hash"):
       shutil.copy(output_file + ".unprocessed", output_file + ".stripped")
       run_command([strip, "-K", ".bss", "-K", ".text", "-K", ".data", "-R", ".comment", "-R", ".eh_frame", "-R", ".eh_frame_hdr", "-R", ".fini", "-R", ".gnu.hash", "-R", ".gnu.version", "-R", ".jcr", "-R", ".note", "-R", ".note.ABI-tag", "-R", ".note.tag", output_file + ".stripped"])
-    compress_file(compression, output_file + ".stripped", output_file)
+    compress_file(compression, nice_compression, output_file + ".stripped", output_file)
 
   return 0
 

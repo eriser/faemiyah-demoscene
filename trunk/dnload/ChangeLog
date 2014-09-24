@@ -1,7 +1,8 @@
-r??? (20??-??-??)
+r174 (2014-09-24)
   * Platform-dependant pick on compression header.
   * Fix byte-by-byte section merging bug.
   * Make quad example simpler and intro example more complex.
+  * Default to filedump header that does not look 'nice' to save some space.
 
 r152 (2014-08-17)
   * Support DT_GNU_HASH in addition to DT_HASH on Linux.
