@@ -1972,20 +1972,18 @@ def compress_file(compression, pretty, src, dst):
   """Compress a file to be a self-extracting file-dumping executable."""
   str_tail = "sed 1d"
   str_cleanup = ""
-  str_exit = ""
   if pretty:
     str_tail = "tail -n+2"
-    str_cleanup = ";rm $i"
-    str_exit = ";exit"
+    str_cleanup = ";rm ~;exit"
   if "lzma" == compression:
     command = ["xz", "--format=lzma", "--lzma1=preset=9e,lc=1,lp=0,pb=0", "--stdout"]
-    header = "i=/tmp/i;%s $0|lzcat>$i;chmod +x $i;$i%s%s" % (str_tail, str_cleanup, str_exit)
+    header = "HOME=/tmp/i;%s $0|lzcat>~;chmod +x ~;~%s" % (str_tail, str_cleanup)
   elif "raw" == compression:
     command = ["xz", "-9", "--extreme", "--format=raw", "--stdout"]
-    header = "i=/tmp/i;%s $0|xzcat -F raw>$i;chmod +x $i;$i%s%s" % (str_tail, str_cleanup, str_exit)
+    header = "HOME=/tmp/i;%s $0|xzcat -F raw>~;chmod +x ~;~%s" % (str_tail, str_cleanup)
   elif "xz" == compression:
     command = ["xz", "--format=xz", "--lzma2=preset=9e,lc=1,pb=0", "--stdout"]
-    header = "i=/tmp/i;%s $0|xzcat>$i;chmod +x $i;$i%s%s" % (str_tail, str_cleanup, str_exit)
+    header = "HOME=/tmp/i;%s $0|xzcat>~;chmod +x ~;~%s" % (str_tail, str_cleanup)
   else:
     raise RuntimeError("unknown compression format '%s'" % compression)
   (compressed, se) = run_command(command + [src], False)
