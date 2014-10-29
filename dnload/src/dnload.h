@@ -66,7 +66,7 @@
 #elif defined(__i386)
 #if defined(__FreeBSD__) || defined(__linux__)
 /** Assembler exit syscall macro. */
-#define asm_exit() asm("int $128" : /* no output */ : "a"(1))
+#define asm_exit() asm("int $3" : /* no output */ : /* no input */)
 #endif
 #endif
 #if !defined(asm_exit)

@@ -237,47 +237,34 @@ class AssemblerFile:
 
   def generate_fake_bss(self, assembler):
     """Remove local labels that would seem to generate .bss, make a fake .bss section."""
-    offset = 0
-    size = 0
-    bss_elements = []
+    bss = AssemblerBssSection()
     for ii in self.sections:
       while True:
         entry = ii.extract_bss()
         if not entry:
           break
-        name, size = entry
-        bss_elements += [(name, offset)]
-        offset += size
-        size = offset
-        if 0 < offset % 4:
-          offset += 4 - (offset % 4)
+        bss.add_element(entry)
     # TODO: Probably creates incorrect binaries at values very close but less than 128M due to code size.
-    if 128 * 1048576 < size:
+    bss_size = bss.size()
+    if 0 >= bss_size:
+      return None
+    if 128 * 1048576 < bss_size:
       pt_load_string = ", second PT_LOAD required"
-      bss_offset = PlatformVar("memory_page")
+      bss.set_offset(PlatformVar("memory_page"))
     else:
       pt_load_string = ", one PT_LOAD sufficient"
-      bss_offset = 0
     if verbose:
       outstr = "Constructed fake .bss segement: "
-      if 1073741824 < size:
-        print("%s%1.1f Gbytes%s" % (outstr, float(size) / 1073741824.0, pt_load_string))
-      elif 1048576 < size:
-        print("%s%1.1f Mbytes%s" % (outstr, float(size) / 1048576.0, pt_load_string))
-      elif 1024 < size:
-        print("%s%1.1f kbytes%s" % (outstr, float(size) / 1024.0, pt_load_string))
+      if 1073741824 < bss_size:
+        print("%s%1.1f Gbytes%s" % (outstr, float(bss_size) / 1073741824.0, pt_load_string))
+      elif 1048576 < bss_size:
+        print("%s%1.1f Mbytes%s" % (outstr, float(bss_size) / 1048576.0, pt_load_string))
+      elif 1024 < bss_size:
+        print("%s%1.1f kbytes%s" % (outstr, float(bss_size) / 1024.0, pt_load_string))
       else:
-        print("%s%u bytes%s" % (outstr, size, pt_load_string))
-    bss = AssemblerSection(".bss")
-    bss.add_line("end:\n")
-    bss.add_line(".balign %i\n" % (int(PlatformVar("addr"))))
-    bss.add_line("aligned_end:\n")
-    bss.add_line(assembler.format_equ("bss_start", "aligned_end + " + str(bss_offset)))
-    for ii in bss_elements:
-      bss.add_line(assembler.format_equ(ii[0], "bss_start + %i" % (ii[1])))
-    bss.add_line(assembler.format_equ("bss_end", "bss_start + %i" % (size)))
+        print("%s%u bytes%s" % (outstr, bss_size, pt_load_string))
     self.sections += [bss]
-    return (0 != bss_offset)
+    return bss
 
   def remove_rodata(self):
     """Remove .rodata sections by merging them into the previous .text section."""
@@ -316,6 +303,21 @@ class AssemblerFile:
       op.write(prefix)
       for ii in self.sections:
         ii.write(op)
+
+########################################
+# AssemblerBssElement ##################
+########################################
+
+class AssemblerBssElement:
+  """.bss element, representing a memory area that would go to .bss section."""
+
+  def __init__(self, name, size):
+    """Constructor."""
+    self.name = name
+    self.size = size
+
+  def __lt__(self, rhs):
+    return self.size < rhs.size
 
 ########################################
 # AssemblerSection #####################
@@ -424,7 +426,7 @@ class AssemblerSection:
     """Perform platform-dependent crunching."""
     self.crunch_entry_push()
     lst = self.want_line(r'\s*int\s+\$?(\S+).*')
-    if lst and ("0x80" == lst[1] or "128" == lst[1]):
+    if lst and (lst[1] in ("3", "128", "0x80")):
       ii = lst[0] + 1
       jj = ii
       while True:
@@ -541,6 +543,66 @@ class AssemblerSection:
       fd.write(self.tag)
     for ii in self.content:
       fd.write(ii)
+
+########################################
+# AssemblerBssSection ##################
+########################################
+
+class AssemblerBssSection(AssemblerSection):
+  """.bss section to be appended to the end of assembler source files."""
+
+  def __init__(self):
+    """Constructor."""
+    AssemblerSection.__init__(self, ".bss")
+    self.elements = []
+    self.offset = 0
+
+  def add_element(self, op):
+    """Add one variable element."""
+    if not is_listing(op) or (2 != len(op)):
+      raise RuntimeError("invalid input to construct a BSS element")
+    self.elements += [AssemblerBssElement(op[0], op[1])]
+    self.elements.sort()
+
+  def create_content(self, assembler, size, tag):
+    """Merge all possible elements into given tag."""
+    cumulative = 0
+    addr_size = int(PlatformVar("addr"))
+    while 0 < len(self.elements):
+      elem = self.elements[0]
+      if cumulative + elem.size > size:
+        break
+      self.add_line(assembler.format_equ(elem.name, "%s + %i" % (tag, cumulative)))
+      cumulative += elem.size
+      if cumulative % addr_size != 0:
+        cumulative += addr_size - (cumulative % addr_size)
+      self.elements = self.elements[1:]
+    # If nothing to write, just end.
+    if 0 >= len(self.elements):
+      self.add_line("end:\n")
+      self.add_line("bss_end:\n")
+      return
+    # Actual content within.
+    self.add_line("end:\n")
+    self.add_line(".balign %i\n" % (int(PlatformVar("addr"))))
+    self.add_line("aligned_end:\n")
+    self.add_line(assembler.format_equ("bss_start", "aligned_end + " + str(self.offset)))
+    cumulative = 0
+    for ii in self.elements:
+      self.add_line(assembler.format_equ(ii.name, "bss_start + %i" % (cumulative)))
+      cumulative += ii.size
+    self.add_line(assembler.format_equ("bss_end", "bss_start + %i" % (cumulative)))
+
+  def has_offset(self):
+    """Tell if offset is nonzero."""
+    return 0 != self.offset
+
+  def size(self):
+    """Calculate cumulative size."""
+    ret = 0
+    for ii in self.elements:
+      ret += ii.size
+    return ret
 
 ########################################
 # AssemblerVariable ####################
@@ -910,6 +972,13 @@ class AssemblerSegment:
       ii.remove_label_post(end_label)
     if 0 < len(self.data):
       self.data[-1].add_label_post(end_label)
+
+  def size(self):
+    """Get cumulative size of data."""
+    ret = 0
+    for ii in self.data:
+      ret += int(ii.size)
+    return ret
 
   def write(self, fd, assembler):
     """Write segment onto disk."""
@@ -1576,7 +1645,7 @@ template_header_begin = """#ifndef DNLOAD_H
 #elif defined(__i386)
 #if defined(__FreeBSD__) || defined(__linux__)
 /** Assembler exit syscall macro. */
-#define asm_exit() asm("int $128" : /* no output */ : "a"(1))
+#define asm_exit() asm("int $3" : /* no output */ : /* no input */)
 #endif
 #endif
 #if !defined(asm_exit)
@@ -2520,7 +2589,8 @@ def main():
         segment_strtab.add_strtab(library_name)
       asm = AssemblerFile(output_file + ".S")
       # generate_fake_bss() returns true if second PT_LOAD was needed.
-      if asm.generate_fake_bss(assembler):
+      bss = asm.generate_fake_bss(assembler)
+      if bss and bss.has_offset():
         replace_platform_variable("phdr_count", 4)
         if osarch_is_32_bit():
           segment_phdr_load_double = AssemblerSegment(assembler_phdr32_load_double)
@@ -2548,9 +2618,14 @@ def main():
         segments_tail += [segment_symtab]
       segments_tail += [segment_interp, segment_strtab]
       segments = merge_segments(segments_head) + load_segments + merge_segments(segments_tail)
+      # calculate total 
+      header_sizes = 0
       fd = open(output_file + ".final.S", "w")
       for ii in segments:
         ii.write(fd, assembler)
+        header_sizes += ii.size()
+      if bss:
+        bss.create_content(assembler, header_sizes, segments[0].name)
       asm.write(fd, assembler)
       fd.close()
       if verbose:
