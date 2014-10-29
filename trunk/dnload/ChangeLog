@@ -1,3 +1,7 @@
+r??? (201?-??-??)
+  * Overlap small .bss elements with program headers.
+  * Use int 3 to terminate on ia32.
+
 r174 (2014-09-24)
   * Platform-dependant pick on compression header.
   * Fix byte-by-byte section merging bug.
