@@ -385,7 +385,7 @@ class AssemblerSection:
   def crunch_amd64(self, lst):
     """Perform platform-dependent crunching."""
     self.crunch_entry_push()
-    lst = self.want_line(r'\s*(syscall).*')
+    lst = self.want_line(r'\s*(int\s+\$0x3|syscall)\s+.*')
     if lst:
       ii = lst[0] + 1
       jj = ii
@@ -425,8 +425,8 @@ class AssemblerSection:
   def crunch_ia32(self, lst):
     """Perform platform-dependent crunching."""
     self.crunch_entry_push()
-    lst = self.want_line(r'\s*int\s+\$?(\S+).*')
-    if lst and (lst[1] in ("3", "128", "0x80")):
+    lst = self.want_line(r'\s*int\s+\$(0x3|0x80)\s+.*')
+    if lst:
       ii = lst[0] + 1
       jj = ii
       while True:
@@ -1634,6 +1634,7 @@ template_header_begin = """#ifndef DNLOAD_H
 #define DNLOAD_POINTER_SIZE 4
 #endif\n
 #if !defined(%s)
+#if defined(DNLOAD_NO_DEBUGGER_TRAP)
 #if defined(__x86_64)
 #if defined(__FreeBSD__)
 /** Assembler exit syscall macro. */
@@ -1645,7 +1646,13 @@ template_header_begin = """#ifndef DNLOAD_H
 #elif defined(__i386)
 #if defined(__FreeBSD__) || defined(__linux__)
 /** Assembler exit syscall macro. */
-#define asm_exit() asm("int $3" : /* no output */ : /* no input */)
+#define asm_exit() asm("int $0x80" : /* no output */ : "a"(1))
+#endif
+#endif
+#else
+#if (defined(__x86_64) || defined(__i386)) && (defined(__FreeBSD__) || defined(__linux__))
+/** Assembler exit syscall macro. */
+#define asm_exit() asm("int $0x3" : /* no output */ : /* no input */)
 #endif
 #endif
 #if !defined(asm_exit)
@@ -2352,14 +2359,15 @@ def main():
   parser.add_argument("-c", "--create-binary", action = "store_true", help = "Create output file, determine output file name from input file name.")
   parser.add_argument("-C", "--compiler", help = "Try to use given compiler executable as opposed to autodetect.")
   parser.add_argument("-d", "--define", default = "USE_LD", help = "Definition to use for checking whether to use 'safe' mechanism instead of dynamic loading.\n(default: %(default)s)")
-  parser.add_argument("-G", "--ignore-gnu-hash", action = "store_true", help = "Always assume SYSV hash table is available, ignore handling for GNU hash table.")
+  parser.add_argument("--ignore-gnu-hash", action = "store_true", help = "Always assume SYSV hash table is available, ignore handling for GNU hash table.")
   parser.add_argument("-h", "--help", action = "store_true", help = "Print this help string and exit.")
   parser.add_argument("-I", "--include-directory", action = "append", help = "Add an include directory to be searched for header files.")
   parser.add_argument("-k", "--linker", help = "Try to use given linker executable as opposed to autodetect.")
   parser.add_argument("-l", "--library", action = "append", help = "Add a library to be linked against.")
   parser.add_argument("-L", "--library-directory", action = "append", help = "Add a library directory to be searched for libraries when linking.")
   parser.add_argument("-m", "--method", default = compilation_mode, choices = ("vanilla", "dlfcn", "hash", "maximum"), help = "Method to use for decreasing output file size:\n\tvanilla:\n\t\tProduce binary normally, use no tricks except unpack header.\n\tdlfcn:\n\t\tUse dlopen/dlsym to decrease size without dependencies to any specific object format.\n\thash:\n\t\tUse knowledge of object file format to perform 'import by hash' loading, but do not break any specifications.\n\tmaximum:\n\t\tUse all available techniques to decrease output file size. Resulting file may violate object file specification.\n(default: %(default)s)")
-  parser.add_argument("-n", "--nice-compression", action = "store_true", help = "Do not use dirty tricks in compression header, also remove filedumped binary when done.")
+  parser.add_argument("--nice-exit", action = "store_true", help = "Do not use debugger trap, exit with proper system call.")
+  parser.add_argument("--nice-filedump", action = "store_true", help = "Do not use dirty tricks in compression header, also remove filedumped binary when done.")
   parser.add_argument("-o", "--output-file", help = "Compile a named binary, do not only create a header. If the name specified features a path, it will be used verbatim. Otherwise the binary will be created in the same path as source file(s) compiled.")
   parser.add_argument("-O", "--operating-system", help = "Try to target given operating system insofar cross-compilation is possible.")
   parser.add_argument("-P", "--call-prefix", default = symbol_prefix, help = "Call prefix to identify desired calls.\n(default: %(default)s)")
@@ -2391,6 +2399,8 @@ def main():
     libraries += args.library
   if args.library_directory:
     library_directories += args.library_directory
+  if args.nice_exit:
+    definitions += ["DNLOAD_NO_DEBUGGER_TRAP"]
   if args.operating_system:
     new_osname = platform_map(args.operating_system.lower())
     if new_osname != osname:
@@ -2414,7 +2424,7 @@ def main():
 
   definition_ld = args.define
   compilation_mode = args.method
-  nice_compression = args.nice_compression
+  nice_filedump = args.nice_filedump
   symbol_prefix = args.call_prefix
   target = args.target
 
@@ -2652,7 +2662,7 @@ def main():
     if compilation_mode in ("vanilla", "dlfcn", "hash"):
       shutil.copy(output_file + ".unprocessed", output_file + ".stripped")
       run_command([strip, "-K", ".bss", "-K", ".text", "-K", ".data", "-R", ".comment", "-R", ".eh_frame", "-R", ".eh_frame_hdr", "-R", ".fini", "-R", ".gnu.hash", "-R", ".gnu.version", "-R", ".jcr", "-R", ".note", "-R", ".note.ABI-tag", "-R", ".note.tag", output_file + ".stripped"])
-    compress_file(compression, nice_compression, output_file + ".stripped", output_file)
+    compress_file(compression, nice_filedump, output_file + ".stripped", output_file)
 
   return 0
 
