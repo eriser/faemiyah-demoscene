@@ -962,6 +962,8 @@ Essentially this algorighm goes through the `GNU_HASH` buckets one by one and th
 
 Unfortunately `GNU_HASH` more than eats away the size advantage [#Empty_DT_SYMTAB_(Linux) Linux would otherwise have].
 
+*Note:* On distributions where all relevant libraries are going to contain a SYSV hash table, `GNU_HASH` handling can be omitted with `--ignore-gnu-hash` command line option.
+
 === Final sizes ===
 
 Compiling with all the tricks listed above (using `-m maximum` or just omitting the option) gives us:
