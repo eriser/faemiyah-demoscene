@@ -894,6 +894,34 @@ The total cost of adding symbols would thus be `8` (for dynamic structure refere
 
 *Note*: In FreeBSD, where `libc` requires symbols `environ` and `__progname` this would be 99 bytes exactly.
 
+=== Location of `r_debug` ===
+
+When not constructing headers manually, the `r_debug` debugger structure containing the link map to iterate over linked shared libraries must be found by examining the program headers, starting right from the entry point.
+
+In his similar project [#References [32]], _minas/calodox_ uses the manually constructed headers to directly know the location into which the dynamic linker will write this address.
+
+After adding a label into the header assembler code, accessing the link map is thus reduced from:
+
+{{{
+static const struct link_map* elf_get_link_map()
+{
+  const Elf32_Ehdr *ehdr = (const Elf32_Ehdr*)ELF_BASE_ADDRESS;
+  const Elf32_Phdr *phdr = (const Elf32_Phdr*)((size_t)ehdr + (size_t)ehdr->e_phoff);
+  for(; (phdr->p_type != PT_DYNAMIC); ++phdr) { }
+  {
+    const struct r_debug *debug = (const struct r_debug*)elf_get_dynamic_address_by_tag((const void*)phdr->p_vaddr, DT_DEBUG);
+    return debug->r_map;
+  }
+}
+}}}
+
+Into this:
+
+{{{
+extern const struct r_debug *dynamic_r_debug;
+#define elf_get_link_map() dynamic_r_debug
+}}}
+
 === Empty `DT_SYMTAB` (Linux) ===
 
 Linux `libc` does not require the user program to define `environ` and `__progname`. I was initially just leaving the `hash` and `symtab` segments blank. A blank `symtab` consists of just one empty (`NULL`) symbol, which already saves quite a lot of space.
@@ -958,6 +986,7 @@ This script would not have been possible without the prior work done by various 
   * *Hymy* [#References [5]] and *Ye Olde Laptops Posse* [#References [6]] for earlier forays into manual ELF32 header construction.
   * *Amand Tihon* [#References [23]] for _BOLD - The Byte Optimized Linker_ [#References [24]] and noticing that `DT_SYMTAB` can be empty.
   * *ts/TDA* [#References [26]] for `INT 3` exit, `HOME=` -shell script trick, and probably something else.
+  * *minas/calodox* [#References [31]] for _elfling_ [#References [32]] and the fixed `r_debug` location trick.
 
 And:
   * *viznut/PWP* [#References [7]] for the series _Experimental music from very short C programs_ [#References [8]], a snipped of which is used in one of the examples.
@@ -1083,4 +1112,6 @@ This attribute explicitly marks functions as symbols to be externally visible, s
 `[`27`]` [http://www.pouet.net/topic.php?which=10038&page=2#c482906 File-dumping example by ts/TDA]<br>
 `[`28`]` [http://svn.python.org/projects/external/xz-5.0.3/doc/lzma-file-format.txt LZMA file format]<br>
 `[`29`]` [http://tukaani.org/xz/xz-file-format-1.0.4.txt XZ file format]<br>
-`[`30`]` [http://x86.renejeschke.de/html/file_module_x86_id_142.html INT 3 instruction at René Jeschke's x86 instruction set reference mirror]
+`[`30`]` [http://x86.renejeschke.de/html/file_module_x86_id_142.html INT 3 instruction at René Jeschke's x86 instruction set reference mirror]<br>
+`[`31`]` [http://www.pouet.net/user.php?who=6102 minas/calodox in Pouet]<br>
+`[`32`]` [https://github.com/google/elfling elfling]<br>
