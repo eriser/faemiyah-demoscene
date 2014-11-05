@@ -55,6 +55,7 @@
 #endif
 
 #if !defined(USE_LD)
+#if defined(DNLOAD_NO_DEBUGGER_TRAP)
 #if defined(__x86_64)
 #if defined(__FreeBSD__)
 /** Assembler exit syscall macro. */
@@ -66,7 +67,13 @@
 #elif defined(__i386)
 #if defined(__FreeBSD__) || defined(__linux__)
 /** Assembler exit syscall macro. */
-#define asm_exit() asm("int $3" : /* no output */ : /* no input */)
+#define asm_exit() asm("int $0x80" : /* no output */ : "a"(1))
+#endif
+#endif
+#else
+#if (defined(__x86_64) || defined(__i386)) && (defined(__FreeBSD__) || defined(__linux__))
+/** Assembler exit syscall macro. */
+#define asm_exit() asm("int $0x3" : /* no output */ : /* no input */)
 #endif
 #endif
 #if !defined(asm_exit)
