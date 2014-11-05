@@ -1781,20 +1781,16 @@ typedef Elf32_Sword dnload_elf_tag_t;
 static const void* elf_get_dynamic_address_by_tag(const void *dyn, dnload_elf_tag_t tag)
 {
   const dnload_elf_dyn_t *dynamic = (const dnload_elf_dyn_t*)dyn;
-  for(;;)
-  {
-#if defined(__linux__)
+  do {
+    ++dynamic; // First entry in PT_DYNAMIC is probably nothing important.
+#if defined(__linux__) && !defined(DNLOAD_IGNORE_GNU_HASH)
     if(0 == dynamic->d_tag)
     {
       return NULL;
     }
 #endif
-    if(dynamic->d_tag == tag)
-    {
-      return (const void*)dynamic->d_un.d_ptr;
-    }
-    ++dynamic;
-  }
+  } while(dynamic->d_tag != tag);
+  return (const void*)dynamic->d_un.d_ptr;
 }
 /** \\brief Get the program link map.
  *
@@ -1806,8 +1802,9 @@ static const struct link_map* elf_get_link_map()
   // First program header is located directly afterwards.
   const dnload_elf_ehdr_t *ehdr = (const dnload_elf_ehdr_t*)ELF_BASE_ADDRESS;
   const dnload_elf_phdr_t *phdr = (const dnload_elf_phdr_t*)((size_t)ehdr + (size_t)ehdr->e_phoff);
-  // Find the dynamic header by traversing the phdr array.
-  for(; (phdr->p_type != PT_DYNAMIC); ++phdr) { }
+  do {
+    ++phdr; // Dynamic header is probably never first in PHDR list.
+  } while(phdr->p_type != PT_DYNAMIC);
   // Find the debug entry in the dynamic header array.
   {
     const struct r_debug *debug = (const struct r_debug*)elf_get_dynamic_address_by_tag((const void*)phdr->p_vaddr, DT_DEBUG);
@@ -1823,7 +1820,7 @@ static const void* elf_get_library_dynamic_section(const struct link_map *lmap, 
 {
   const void *ret = elf_get_dynamic_address_by_tag(lmap->l_ld, tag);
   // Sometimes the value is an offset instead of a naked pointer.
-#if defined(__linux__)
+#if defined(__linux__) && !defined(DNLOAD_IGNORE_GNU_HASH)
   if((NULL != ret) && (ret < (const void*)lmap->l_addr))
 #else
   if(ret < (const void*)lmap->l_addr)
@@ -1858,7 +1855,7 @@ static void* dnload_find_symbol(uint32_t hash)
     const uint32_t* hashtable = (const uint32_t*)elf_get_library_dynamic_section(lmap, DT_HASH);
     unsigned dynsymcount;
     unsigned ii;
-#if defined(__linux__)
+#if defined(__linux__) && !defined(DNLOAD_IGNORE_GNU_HASH)
     if(NULL == hashtable)
     {
       hashtable = (const uint32_t*)elf_get_library_dynamic_section(lmap, DT_GNU_HASH);
@@ -2340,6 +2337,7 @@ def main():
   default_compiler_list = ["g++49", "g++-4.9", "g++", "clang++"]
   default_linker_list = ["/usr/local/bin/ld", "ld"]
   default_strip_list = ["/usr/local/bin/strip", "strip"]
+  definitions = []
   include_directories = ["/usr/include/SDL", "/usr/local/include", "/usr/local/include/SDL"]
   libraries = []
   library_directories = ["/lib", "/lib/x86_64-linux-gnu", "/usr/lib", "/usr/lib/x86_64-linux-gnu", "/usr/local/lib"]
@@ -2354,6 +2352,7 @@ def main():
   parser.add_argument("-c", "--create-binary", action = "store_true", help = "Create output file, determine output file name from input file name.")
   parser.add_argument("-C", "--compiler", help = "Try to use given compiler executable as opposed to autodetect.")
   parser.add_argument("-d", "--define", default = "USE_LD", help = "Definition to use for checking whether to use 'safe' mechanism instead of dynamic loading.\n(default: %(default)s)")
+  parser.add_argument("-G", "--ignore-gnu-hash", action = "store_true", help = "Always assume SYSV hash table is available, ignore handling for GNU hash table.")
   parser.add_argument("-h", "--help", action = "store_true", help = "Print this help string and exit.")
   parser.add_argument("-I", "--include-directory", action = "append", help = "Add an include directory to be searched for header files.")
   parser.add_argument("-k", "--linker", help = "Try to use given linker executable as opposed to autodetect.")
@@ -2382,6 +2381,8 @@ def main():
   if args.help:
     print(parser.format_help().strip())
     return 0
+  if args.ignore_gnu_hash:
+    definitions += ["DNLOAD_IGNORE_GNU_HASH"]
   if args.include_directory:
     include_directories += args.include_directory
   if args.linker:
@@ -2493,7 +2494,7 @@ def main():
     if not strip:
       raise RuntimeError("suitable strip executable not found")
 
-  compiler.set_definitions(["DNLOAD_H"])
+  compiler.set_definitions(["DNLOAD_H"] + definitions)
   symbols = set()
   for ii in source_files:
     if verbose:
@@ -2543,7 +2544,7 @@ def main():
       print("Linking against libraries: %s" % (str(libraries)))
     compiler.generate_compiler_flags()
     compiler.generate_linker_flags()
-    compiler.set_definitions([])
+    compiler.set_definitions(definitions)
     compiler.set_libraries(libraries)
     compiler.set_library_directories(library_directories)
     linker.generate_linker_flags()
