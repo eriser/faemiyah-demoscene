@@ -242,20 +242,16 @@ typedef Elf32_Sword dnload_elf_tag_t;
 static const void* elf_get_dynamic_address_by_tag(const void *dyn, dnload_elf_tag_t tag)
 {
   const dnload_elf_dyn_t *dynamic = (const dnload_elf_dyn_t*)dyn;
-  for(;;)
-  {
-#if defined(__linux__)
+  do {
+    ++dynamic; // First entry in PT_DYNAMIC is probably nothing important.
+#if defined(__linux__) && !defined(DNLOAD_IGNORE_GNU_HASH)
     if(0 == dynamic->d_tag)
     {
       return NULL;
     }
 #endif
-    if(dynamic->d_tag == tag)
-    {
-      return (const void*)dynamic->d_un.d_ptr;
-    }
-    ++dynamic;
-  }
+  } while(dynamic->d_tag != tag);
+  return (const void*)dynamic->d_un.d_ptr;
 }
 /** \brief Get the program link map.
  *
@@ -267,8 +263,9 @@ static const struct link_map* elf_get_link_map()
   // First program header is located directly afterwards.
   const dnload_elf_ehdr_t *ehdr = (const dnload_elf_ehdr_t*)ELF_BASE_ADDRESS;
   const dnload_elf_phdr_t *phdr = (const dnload_elf_phdr_t*)((size_t)ehdr + (size_t)ehdr->e_phoff);
-  // Find the dynamic header by traversing the phdr array.
-  for(; (phdr->p_type != PT_DYNAMIC); ++phdr) { }
+  do {
+    ++phdr; // Dynamic header is probably never first in PHDR list.
+  } while(phdr->p_type != PT_DYNAMIC);
   // Find the debug entry in the dynamic header array.
   {
     const struct r_debug *debug = (const struct r_debug*)elf_get_dynamic_address_by_tag((const void*)phdr->p_vaddr, DT_DEBUG);
@@ -284,7 +281,7 @@ static const void* elf_get_library_dynamic_section(const struct link_map *lmap, 
 {
   const void *ret = elf_get_dynamic_address_by_tag(lmap->l_ld, tag);
   // Sometimes the value is an offset instead of a naked pointer.
-#if defined(__linux__)
+#if defined(__linux__) && !defined(DNLOAD_IGNORE_GNU_HASH)
   if((NULL != ret) && (ret < (const void*)lmap->l_addr))
 #else
   if(ret < (const void*)lmap->l_addr)
@@ -319,7 +316,7 @@ static void* dnload_find_symbol(uint32_t hash)
     const uint32_t* hashtable = (const uint32_t*)elf_get_library_dynamic_section(lmap, DT_HASH);
     unsigned dynsymcount;
     unsigned ii;
-#if defined(__linux__)
+#if defined(__linux__) && !defined(DNLOAD_IGNORE_GNU_HASH)
     if(NULL == hashtable)
     {
       hashtable = (const uint32_t*)elf_get_library_dynamic_section(lmap, DT_GNU_HASH);
