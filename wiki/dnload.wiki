@@ -245,14 +245,13 @@ This will perform of dynamic loading of all required symbols (here: only `puts`)
 #endif
 }}}
 
-Since we already abandoned the default `main` procedure, no-one is going to terminate our program. We could make it "return" but that would normally only pass control to the shell provided by the system, we now have nowhere to return to. Thus, we must make a system call [#References [11]] to terminate the program ourselves. The code that will do this is written into the [https://code.google.com/p/faemiyah-demoscene/source/browse/trunk/dnload/src/dnload.h dnload header] directly as inline assembler. On i386 architecture, it will evaluate into the following :
+Since we already abandoned the default `main` procedure, no-one is going to terminate our program. We could make it "return" but that would normally only pass control to the shell provided by the system, we now have nowhere to return to. Thus, we must make a system call [#References [11]] to terminate the program ourselves. The code that will do this is written into the [https://code.google.com/p/faemiyah-demoscene/source/browse/trunk/dnload/src/dnload.h dnload header] directly as inline assembler. On i386 architecture, it will evaluate into the following single instruction:
 
 {{{
-movl $1, %eax
-int $128
+int $3
 }}}
 
-Note that this puts nothing into `%bl` (as would be expected on Linux) and pushes nothing into the stack (as would be expected on FreeBSD). This is because we do not care what the return value of the program is, and even if it did, the return value is unrecoverable through the decompressor shell script, that the program is eventually wrapped in.
+Note that this is not the traditional exit system call. Instead, it's a trap [#References [30]] that will break into debugger or exit the program if a debugger is not available. It has the advantage of taking less space than moving `$1` into `eax` and executing a normal `int $128` system call. The return value for the program is irrelevant, as the decompressor shell script the program is eventually wrapped in would eventually mask it anyway.
 
 == Advanced examples ==
 
@@ -330,15 +329,19 @@ The header in _Yellow Rose_ looks like this:
 dd bs=1 skip=83<$0|gunzip>/tmp/T;cd /tmp;chmod +x T;__GL_FSAA_MODE=4 ./T;rm T;exit
 }}}
 
-There are multiple programs that crunch classic gzip files to as small sizes as possible, but modern `*`nix systems come with better compressors and better tricks. For example, we prefer to use LZMA compression:
+There are multiple programs that crunch classic gzip files to as small sizes as possible, but modern `*`nix systems come with better compressors and better tricks. For example, using a trick from _ts/TDA_ [#References [27]], redefining HOME allows using the tilde character for clever reduction:
 
 {{{
-i=/tmp/i;tail -n+2 $0|lzcat>$i;chmod +x $i;$i;rm $i;exit
+HOME=/tmp/i;tail -n+2 $0|lzcat>~;chmod +x ~;~;rm ~;exit
 }}}
 
-This unpack header has gone to 58 bytes (newline for `tail` is needed at the end) from the 66 needed by Marq. It also uses significantly better compression.
+This unpack header has gone to 57 bytes (newline for `tail` is needed at the end) from the 66 needed by Marq, but it's still unnecessarily large as it's trying to be nice. If we omit removing the extracted file and allow the compressed garble to flood the screen, we can do the same in 44 bytes:
 
-One could assume that `xz` format would be more advantageous than the earlier `lzma`, but this seems not to be the case as `lzma` compression headers are smaller.
+{{{
+HOME=/tmp/i;sed 1d $0|lzcat>~;chmod +x ~;~
+}}}
+
+One could assume that `xz` format would be more advantageous than the earlier `lzma`, but this seems not to be the case as `lzma` compression headers are smaller [#References [28]][#References [29]].
 
 We use the `xz` toolkit, however, as it allows free customization of the compression parameters. For actual compression parameters, which yields decent results, we use:
 
@@ -954,6 +957,7 @@ This script would not have been possible without the prior work done by various 
   * *parcelshit* [#References [3]] and *las/Mercury* [#References [4]] for the original ELF32 import-by hash algorithm.
   * *Hymy* [#References [5]] and *Ye Olde Laptops Posse* [#References [6]] for earlier forays into manual ELF32 header construction.
   * *Amand Tihon* [#References [23]] for _BOLD - The Byte Optimized Linker_ [#References [24]] and noticing that `DT_SYMTAB` can be empty.
+  * *ts/TDA* [#References [26]] for `INT 3` exit, `HOME=` -shell script trick, and probably something else.
 
 And:
   * *viznut/PWP* [#References [7]] for the series _Experimental music from very short C programs_ [#References [8]], a snipped of which is used in one of the examples.
@@ -1074,4 +1078,9 @@ This attribute explicitly marks functions as symbols to be externally visible, s
 `[`22`]` [http://www.pouet.net/prod.php?which=59264 tutorial2 by Ye Olde Laptops Posse in Pouet]<br>
 `[`23`]` [http://www.alrj.org/ Amand Tihon]<br>
 `[`24`]` [http://www.alrj.org/projects/bold/ BOLD - The Byte Optimized Linker]<br>
-`[`25`]` [https://blogs.oracle.com/ali/entry/gnu_hash_elf_sections GNU Hash ELF Sections by Ali Bahrami]
+`[`25`]` [https://blogs.oracle.com/ali/entry/gnu_hash_elf_sections GNU Hash ELF Sections by Ali Bahrami]<br>
+`[`26`]` [http://www.pouet.net/user.php?who=58551 ts/TDA in Pouet]<br>
+`[`27`]` [http://www.pouet.net/topic.php?which=10038&page=2#c482906 File-dumping example by ts/TDA]<br>
+`[`28`]` [http://svn.python.org/projects/external/xz-5.0.3/doc/lzma-file-format.txt LZMA file format]<br>
+`[`29`]` [http://tukaani.org/xz/xz-file-format-1.0.4.txt XZ file format]<br>
+`[`30`]` [http://x86.renejeschke.de/html/file_module_x86_id_142.html INT 3 instruction at René Jeschke's x86 instruction set reference mirror]
