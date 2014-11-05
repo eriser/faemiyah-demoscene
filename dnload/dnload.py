@@ -611,19 +611,19 @@ class AssemblerBssSection(AssemblerSection):
 class AssemblerVariable:
   """One assembler variable."""
 
-  def __init__(self, op):
+  def __init__(self, op, name = None):
     """Constructor."""
     if not is_listing(op):
       raise RuntimeError("only argument passed is not a list")
     self.desc = op[0]
     self.size = op[1]
     self.value = op[2]
-    self.name = None
-    if 3 < len(op):
-      self.name = op[3]
+    self.name = name
     self.original_size = -1
     self.label_pre = []
     self.label_post = []
+    if 3 < len(op):
+      self.add_label_pre(op[3])
 
   def add_label_pre(self, op):
     """Add pre-label(s)."""
@@ -655,7 +655,7 @@ class AssemblerVariable:
       return [self]
     ret = []
     for ii in range(len(lst)):
-      var = AssemblerVariable(("", 1, ord(lst[ii]), None))
+      var = AssemblerVariable(("", 1, ord(lst[ii])))
       if 0 == ii:
         var.desc = self.desc
         var.name = self.name
@@ -858,7 +858,7 @@ class AssemblerSegment:
 
   def add_strtab(self, op):
     """Add a library name."""
-    libname = AssemblerVariable(("symbol name string", 1, "\"%s\"" % op, labelify(op)))
+    libname = AssemblerVariable(("symbol name string", 1, "\"%s\"" % op), labelify(op))
     terminator = AssemblerVariable(("string terminating zero", 1, 0))
     self.data[1:1] = [libname, terminator]
     self.refresh_name_end_label()
@@ -1153,7 +1153,7 @@ assembler_dynamic = (
     ("d_tag, DT_STRTAB = 5", PlatformVar("addr"), 5),
     ("d_un", PlatformVar("addr"), "strtab"),
     ("d_tag, DT_DEBUG = 21", PlatformVar("addr"), 21),
-    ("d_un", PlatformVar("addr"), 0),
+    ("d_un", PlatformVar("addr"), 0, "dynamic_r_debug"),
     ("d_tag, DT_NULL = 0", PlatformVar("addr"), 0),
     ("d_un", PlatformVar("addr"), 0),
     )
@@ -1799,12 +1799,17 @@ static const void* elf_get_dynamic_address_by_tag(const void *dyn, dnload_elf_ta
   } while(dynamic->d_tag != tag);
   return (const void*)dynamic->d_un.d_ptr;
 }
+#if !defined(DNLOAD_NO_FIXED_R_DEBUG_ADDRESS)
+/** Link map address, fixed location in ELF headers. */
+extern const struct r_debug *dynamic_r_debug;
+#endif
 /** \\brief Get the program link map.
  *
  * \\return Link map struct.
  */
 static const struct link_map* elf_get_link_map()
 {
+#if defined(DNLOAD_NO_FIXED_R_DEBUG_ADDRESS)
   // ELF header is in a fixed location in memory.
   // First program header is located directly afterwards.
   const dnload_elf_ehdr_t *ehdr = (const dnload_elf_ehdr_t*)ELF_BASE_ADDRESS;
@@ -1817,6 +1822,9 @@ static const struct link_map* elf_get_link_map()
     const struct r_debug *debug = (const struct r_debug*)elf_get_dynamic_address_by_tag((const void*)phdr->p_vaddr, DT_DEBUG);
     return debug->r_map;
   }
+#else
+  return dynamic_r_debug->r_map;
+#endif
 }
 /** \\brief Get address of one dynamic section corresponding to given library.
  *
@@ -2430,6 +2438,8 @@ def main():
 
   if not compilation_mode in ("vanilla", "dlfcn", "hash", "maximum"):
     raise RuntimeError("unknown method '%s'" % (compilation_mode))
+  elif "hash" == compilation_mode:
+    definitions += ["DNLOAD_NO_FIXED_R_DEBUG_ADDRESS"]
 
   if 0 >= len(target_search_path):
     for ii in source_files:

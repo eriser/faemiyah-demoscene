@@ -260,12 +260,17 @@ static const void* elf_get_dynamic_address_by_tag(const void *dyn, dnload_elf_ta
   } while(dynamic->d_tag != tag);
   return (const void*)dynamic->d_un.d_ptr;
 }
+#if !defined(DNLOAD_NO_FIXED_R_DEBUG_ADDRESS)
+/** Link map address, fixed location in ELF headers. */
+extern const struct r_debug *dynamic_r_debug;
+#endif
 /** \brief Get the program link map.
  *
  * \return Link map struct.
  */
 static const struct link_map* elf_get_link_map()
 {
+#if defined(DNLOAD_NO_FIXED_R_DEBUG_ADDRESS)
   // ELF header is in a fixed location in memory.
   // First program header is located directly afterwards.
   const dnload_elf_ehdr_t *ehdr = (const dnload_elf_ehdr_t*)ELF_BASE_ADDRESS;
@@ -278,6 +283,9 @@ static const struct link_map* elf_get_link_map()
     const struct r_debug *debug = (const struct r_debug*)elf_get_dynamic_address_by_tag((const void*)phdr->p_vaddr, DT_DEBUG);
     return debug->r_map;
   }
+#else
+  return dynamic_r_debug->r_map;
+#endif
 }
 /** \brief Get address of one dynamic section corresponding to given library.
  *
