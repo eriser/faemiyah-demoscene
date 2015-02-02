@@ -15,11 +15,15 @@ import textwrap
 # Globals ##############################
 ########################################
 
-compilation_mode = "maximum"
 definition_ld = "USE_LD"
 symbol_prefix = "dnload_"
 verbose = False
-version = "r174"
+version = "r183"
+
+ELFLING_OUTPUT = "elfling_output"
+ELFLING_PADDING = 10
+ELFLING_WORK = "elfling_modelCounters"
+UNCOMPRESSED = "_uncompressed"
 
 ########################################
 # PlatformVar ##########################
@@ -32,13 +36,13 @@ class PlatformVar:
 
   def __init__(self, name):
     """Initialize platform variable."""
-    self.name = name
+    self.__name = name
 
   def get(self):
     """Get value associated with the name."""
-    if not self.name in platform_variables:
-      raise RuntimeError("unknown platform variable '%s'" % (self.name))
-    var = platform_variables[self.name]
+    if not self.__name in platform_variables:
+      raise RuntimeError("unknown platform variable '%s'" % (self.__name))
+    var = platform_variables[self.__name]
     platform = (osname, osarch, platform_map(osname) + "-" + platform_map(osarch))
     for ii in platform:
       if ii in var:
@@ -49,7 +53,7 @@ class PlatformVar:
           return var[ii]
     if "default" in var:
       return var["default"]
-    raise RuntimeError("current platform %s not supported for variable '%s'" % (str(platform), self.name))
+    raise RuntimeError("current platform %s not supported for variable '%s'" % (str(platform), self.__name))
 
   def deconstructable(self):
     """Tell if this platform value can be deconstructed."""
@@ -63,7 +67,7 @@ class PlatformVar:
     return ret
 
   def __str__(self):
-    """Convert to string."""
+    """String representation."""
     ret = self.get()
     if isinstance(ret, int):
       return hex(ret)
@@ -94,6 +98,7 @@ platform_variables = {
   "memory_page" : { "32-bit" : 0x1000, "64-bit" : 0x200000 },
   "mpreferred-stack-boundary" : { "32-bit" : 2, "64-bit" : 4 },
   "phdr_count" : { "default" : 3 },
+  "start" : { "default" : "_start" },
   }
 
 def platform_map(op):
@@ -117,39 +122,43 @@ class Assembler:
 
   def __init__(self, op):
     """Constructor."""
-    self.executable = op
-    self.comment = "#"
-    self.byte = ".byte"
-    self.short = ".short"
-    self.word = ".long"
-    self.quad = ".quad"
-    self.string = ".ascii"
+    self.__executable = op
+    self.__comment = "#"
+    self.__byte = ".byte"
+    self.__short = ".short"
+    self.__word = ".long"
+    self.__quad = ".quad"
+    self.__string = ".ascii"
     op = os.path.basename(op)
     if op.startswith("nasm"):
-      self.comment = ";"
-      self.byte = "db"
-      self.short = "dw"
-      self.word = "dd"
-      self.string = "db"
+      self.__comment = ";"
+      self.__byte = "db"
+      self.__short = "dw"
+      self.__word = "dd"
+      self.__string = "db"
 
   def assemble(self, src, dst):
     """Assemble a file."""
-    cmd = [self.executable, src, "-o", dst]
+    cmd = [self.__executable, src, "-o", dst]
     (so, se) = run_command(cmd)
     if 0 < len(se) and verbose:
       print(se)
+
+  def format_align(self, op):
+    """Get alignmen string."""
+    return (".balign %i\n" % (op))
 
   def format_block_comment(self, desc, length = 40):
     """Get a block-formatted comment."""
     block_text = ""
     for ii in range(length):
-      block_text += self.comment
+      block_text += self.__comment
     block_text += "\n"
-    ret = self.comment
+    ret = self.__comment
     if desc:
       ret += " " + desc + " "
     for ii in range(len(ret), length):
-      ret += self.comment
+      ret += self.__comment
     return block_text + ret + "\n" + block_text
 
   def format_comment(self, op, indent = ""):
@@ -158,9 +167,9 @@ class Assembler:
     if is_listing(op):
       for ii in op:
         if ii:
-          ret += indent + self.comment + " " + ii + "\n"
+          ret += indent + self.__comment + " " + ii + "\n"
     elif op:
-      ret += indent + self.comment + " " + op + "\n"
+      ret += indent + self.__comment + " " + op + "\n"
     return ret
 
   def format_data(self, size, value, indent = ""):
@@ -179,15 +188,15 @@ class Assembler:
     else:
       value = str(value)
       if value.startswith("\"") and 1 == size:
-        return indent + self.string + " " + value + "\n"
+        return indent + self.__string + " " + value + "\n"
     if 1 == size:
-      return indent + self.byte + " " + value + "\n"
+      return indent + self.__byte + " " + value + "\n"
     elif 2 == size:
-      return indent + self.short + " " + value + "\n"
+      return indent + self.__short + " " + value + "\n"
     elif 4 == size:
-      return indent + self.word + " " + value + "\n"
+      return indent + self.__word + " " + value + "\n"
     elif 8 == size:
-      return indent + self.quad + " " + value + "\n"
+      return indent + self.__quad + " " + value + "\n"
     else:
       raise NotImplementedError("exporting assembler value of size %i", size)
 
@@ -218,39 +227,45 @@ class AssemblerFile:
     fd = open(filename, "r")
     lines = fd.readlines()
     fd.close()
-    self.sections = []
+    self.__sections = []
     current_section = AssemblerSection("text")
     ii = 0
     sectionre = re.compile(r'^\s+\.section\s+\"?\.([a-zA-Z0-9_]+)[\.\s]')
     for ii in lines:
       match = sectionre.match(ii)
       if match:
-        self.sections += [current_section]
+        self.add_sections(current_section)
         current_section = AssemblerSection(match.group(1), ii)
       else:
         current_section.add_line(ii)
     if not current_section.empty():
-      self.sections += [current_section]
+      self.add_sections(current_section)
     if verbose:
-      section_names = map(lambda x: x.name, self.sections)
-      print("Read %i sections in '%s': %s" % (len(self.sections), filename, ", ".join(section_names)))
+      section_names = map(lambda x: x.get_name(), self.__sections)
+      print("Read %i sections in '%s': %s" % (len(self.__sections), filename, ", ".join(section_names)))
 
-  def generate_fake_bss(self, assembler):
+  def add_sections(self, op):
+    """Manually add one or more sections."""
+    if(is_listing(op)):
+      self.__sections += op
+    else:
+      self.__sections += [op]
+
+  def generate_fake_bss(self, assembler, und_symbols = None, elfling = None):
     """Remove local labels that would seem to generate .bss, make a fake .bss section."""
-    bss = AssemblerBssSection()
-    for ii in self.sections:
+    bss = AssemblerSectionBss()
+    for ii in self.__sections:
       while True:
-        entry = ii.extract_bss()
+        entry = ii.extract_bss(und_symbols)
         if not entry:
           break
-        bss.add_element(entry)
-    # TODO: Probably creates incorrect binaries at values very close but less than 128M due to code size.
-    bss_size = bss.size()
-    if 0 >= bss_size:
-      return None
-    if 128 * 1048576 < bss_size:
+        if not entry.is_und_symbol():
+          bss.add_element(entry)
+    if elfling:
+      bss.add_element(AssemblerBssElement(ELFLING_WORK, elfling.get_work_size()))
+    bss_size = bss.get_size()
+    if 0 < bss.get_alignment():
       pt_load_string = ", second PT_LOAD required"
-      bss.set_offset(PlatformVar("memory_page"))
     else:
       pt_load_string = ", one PT_LOAD sufficient"
     if verbose:
@@ -263,16 +278,28 @@ class AssemblerFile:
         print("%s%1.1f kbytes%s" % (outstr, float(bss_size) / 1024.0, pt_load_string))
       else:
         print("%s%u bytes%s" % (outstr, bss_size, pt_load_string))
-    self.sections += [bss]
+    self.add_sections(bss)
     return bss
+
+  def incorporate(self, other, label_name, jump_point_name):
+    """Incorporate another assembler file into this, rename entry points."""
+    labels = []
+    for ii in other.__sections:
+      ii.replace_entry_point(jump_point_name)
+      labels += ii.gather_labels()
+    labels.remove(jump_point_name)
+    labels.sort(key=len, reverse=True)
+    for ii in other.__sections:
+      ii.replace_labels(labels, label_name)
+    self.add_sections(other.__sections)
 
   def remove_rodata(self):
     """Remove .rodata sections by merging them into the previous .text section."""
     text_section = None
     rodata_sections = []
     ii = 0
-    while len(self.sections) > ii:
-      section = self.sections[ii]
+    while len(self.__sections) > ii:
+      section = self.__sections[ii]
       if "text" == section.name:
         text_section = section
         ii += 1
@@ -281,7 +308,7 @@ class AssemblerFile:
           text_section.content += section.content
         else:
           rodata_sections += [section]
-        del(self.sections[ii])
+        del(self.__sections[ii])
       else:
         ii += 1
     # .rodata sections defined before any .text sections will be merged into
@@ -289,11 +316,26 @@ class AssemblerFile:
     for ii in rodata_sections:
       text_section.content += ii.content
 
+  def replace_constant(self, src, dst):
+    """Replace constant with a replacement constant."""
+    replace_count = 0
+    for ii in self.__sections:
+      for jj in range(len(ii.content)):
+        line = ii.content[jj]
+        replaced = re.sub(r'(\$%s|\$%s)' % (src, hex(src)), r'$%s' % hex(dst), line)
+        if line != replaced:
+          ii.content[jj] = replaced
+          replace_count += 1
+    if 1 > replace_count:
+      raise RuntimeError("could not find constant to be replaced")
+    elif 1 < replace_count:
+      raise RuntimeError("found constant to be replaced more than once, source destroyed")
+
   def write(self, op, assembler):
     """Write an output assembler file or append to an existing file."""
     if isinstance(op, str):
       fd = open(op, "w")
-      for ii in self.sections:
+      for ii in self.__sections:
         ii.write(fd)
       fd.close()
       if verbose:
@@ -301,7 +343,7 @@ class AssemblerFile:
     else:
       prefix = assembler.format_block_comment("Program")
       op.write(prefix)
-      for ii in self.sections:
+      for ii in self.__sections:
         ii.write(op)
 
 ########################################
@@ -311,13 +353,40 @@ class AssemblerFile:
 class AssemblerBssElement:
   """.bss element, representing a memory area that would go to .bss section."""
 
-  def __init__(self, name, size):
+  def __init__(self, name, size, und_symbols = None):
     """Constructor."""
-    self.name = name
-    self.size = size
+    self.__name = name
+    self.__size = size
+    self.__und = (und_symbols and (name in und_symbols))
+
+  def get_name(self):
+    """Get name of this."""
+    return self.__name
+
+  def get_size(self):
+    """Get size of this."""
+    return self.__size
+
+  def is_und_symbol(self):
+    """Tell if this is an und symbol."""
+    return self.__und
+
+  def __eq__(self, rhs):
+    """Equality operator."""
+    return (self.__name == rhs.get_name()) and (self.__size == rhs.get_size()) and (self.__und == rhs.is_und_symbol())
 
   def __lt__(self, rhs):
-    return self.size < rhs.size
+    """Less than operator."""
+    if self.__und:
+      if not rhs.is_und_symbol():
+        return True
+    elif rhs.is_und_symbol():
+      return False
+    return (self.__size < rhs.get_size())
+
+  def __str__(self):
+    """String representation."""
+    return "(%s, %i, %s)" % (self.__name, self.__size, str(self.__und))
 
 ########################################
 # AssemblerSection #####################
@@ -328,13 +397,17 @@ class AssemblerSection:
 
   def __init__(self, section_name, section_tag = None):
     """Constructor."""
-    self.name = section_name
-    self.tag = section_tag
-    self.content = []
+    self.__name = section_name
+    self.__tag = section_tag
+    self.__content = []
 
   def add_line(self, line):
     """Add one line."""
-    self.content += [line]
+    self.__content += [line]
+
+  def clear_content(self):
+    """Clear all content."""
+    self.__content = []
 
   def crunch(self):
     """Remove all offending content."""
@@ -380,66 +453,104 @@ class AssemblerSection:
       self.crunch_amd64(lst)
     elif osarch_is_ia32():
       self.crunch_ia32(lst)
-    self.tag = None
+    self.__tag = None
 
   def crunch_amd64(self, lst):
     """Perform platform-dependent crunching."""
-    self.crunch_entry_push()
+    self.crunch_entry_push("_start")
+    self.crunch_entry_push(UNCOMPRESSED)
+    self.crunch_jump_pop(UNCOMPRESSED)
     lst = self.want_line(r'\s*(int\s+\$0x3|syscall)\s+.*')
     if lst:
       ii = lst[0] + 1
       jj = ii
       while True:
-        if len(self.content) <= jj or re.match(r'\s*\S+\:\s*', self.content[jj]):
+        if len(self.__content) <= jj or re.match(r'\s*\S+\:\s*', self.__content[jj]):
           if verbose:
-            print("Erasing function footer after system call: %i lines." % (jj - ii))
+            print("Erasing function footer after '%s': %i lines" % (lst[1], jj - ii))
           self.erase(ii, jj)
           break
         jj += 1
 
-  def crunch_entry_push(self):
+  def crunch_entry_push(self, op):
     """Crunch amd64/ia32 push directives from given line listing."""
-    lst = self.want_entry_point()
+    lst = self.want_label(op)
     if not lst:
       return
     ii = lst[0] + 1
     jj = ii
+    stack_decrement = 0
+    stack_save_decrement = 0
     reinstated_lines = []
     while True:
-      match = re.match(r'\s*(push\S).*', self.content[jj], re.IGNORECASE)
+      current_line = self.__content[jj]
+      match = re.match(r'\s*(push\S).*%(\S+)', current_line, re.IGNORECASE)
       if match:
+        if is_stack_save_register(match.group(2)):
+          stack_save_decrement += get_push_size(match.group(1))
+        else:
+          stack_decrement += get_push_size(match.group(1))
         jj += 1
         continue;
-      # xor (zeroing) seems to be only stuff inserted in the 'middle' of pushing.
-      match = re.match(r'\s*xor.*', self.content[jj], re.IGNORECASE)
+      # Saving stack pointer or sometimes initializing edx seem to be within pushing.
+      match = re.match(r'\s*mov.*,\s*%(rbp|ebp|edx).*', current_line, re.IGNORECASE)
       if match:
-        reinstated_lines += [self.content[jj]]
+        if is_stack_save_register(match.group(1)):
+          stack_save_decrement = 0
+        reinstated_lines += [current_line]
+        jj += 1
+        continue;
+      # xor (zeroing) seems to be inserted in the 'middle' of pushing.
+      match = re.match(r'\s*xor.*\s+%(\S+)\s?,.*', current_line, re.IGNORECASE)
+      if match:
+        reinstated_lines += [current_line]
         jj += 1
         continue
-      if verbose:
-        print("Erasing function header from '%s': %i lines." % (lst[1], jj - ii - len(reinstated_lines)))
-      self.erase(ii, jj)
-      self.content[ii:ii] = reinstated_lines
+      match = re.match(r'\s*sub.*\s+[^\d]*(\d+),\s*%(rsp|esp)', current_line, re.IGNORECASE)
+      if match:
+        total_decrement = int(match.group(1)) + stack_decrement + stack_save_decrement
+        self.__content[jj] = re.sub(r'\d+', str(total_decrement), current_line)
       break
+    if verbose:
+      print("Erasing function header from '%s': %i lines" % (op, jj - ii - len(reinstated_lines)))
+    self.erase(ii, jj)
+    self.__content[ii:ii] = reinstated_lines
 
   def crunch_ia32(self, lst):
     """Perform platform-dependent crunching."""
-    self.crunch_entry_push()
+    self.crunch_entry_push("_start")
+    self.crunch_entry_push(UNCOMPRESSED)
+    self.crunch_jump_pop(UNCOMPRESSED)
     lst = self.want_line(r'\s*int\s+\$(0x3|0x80)\s+.*')
     if lst:
       ii = lst[0] + 1
       jj = ii
       while True:
-        if len(self.content) <= jj or re.match(r'\s*\S+\:\s*', self.content[jj]):
+        if len(self.__content) <= jj or re.match(r'\s*\S+\:\s*', self.__content[jj]):
           if verbose:
             print("Erasing function footer after interrupt '%s': %i lines." % (lst[1], jj - ii))
           self.erase(ii, jj)
           break
         jj += 1
 
+  def crunch_jump_pop(self, op):
+    """Crunch popping before a jump."""
+    lst = self.want_line(r'\s*(jmp\s+%s)\s+.*' % (op))
+    if not lst:
+      return
+    ii = lst[0]
+    jj = ii - 1
+    while True:
+      if (0 > jj) or not re.match(r'\s*(pop\S).*', self.__content[jj], re.IGNORECASE):
+        if verbose:
+          print("Erasing function footer before jump to '%s': %i lines" % (op, ii - jj - 1))
+        self.erase(jj + 1, ii)
+        break
+      jj -= 1
+
   def empty(self):
     """Tell if this section is empty."""
-    if not self.content:
+    if not self.__content:
       return False
     return True
 
@@ -447,17 +558,19 @@ class AssemblerSection:
     """Erase lines."""
     if not last:
       last = first + 1
-    self.content[first:last] = []
+    if first > last:
+      return
+    self.__content[first:last] = []
 
-  def extract_bss(self):
+  def extract_bss(self, und_symbols):
     """Extract a variable that should go to .bss section."""
     # Test for relevant .globl element.
     found = self.extract_globl_object()
     if found:
-      return found
+      return AssemblerBssElement(found[0], found[1], und_symbols)
     found = self.extract_comm_object()
     if found:
-      return found
+      return AssemblerBssElement(found[0], found[1], und_symbols)
     self.minimal_align()
     self.crunch()
     return None
@@ -506,11 +619,27 @@ class AssemblerSection:
         return (name, int(lst[1]))
       return None
 
+  def gather_labels(self):
+    """Gathers all labels."""
+    ret = []
+    for ii in self.__content:
+      match = re.match(r'((\.L|_ZL)[^:,\s\(]+)', ii)
+      if match:
+        ret += [match.group(1)]
+      match = re.match(r'^([^\.:,\s\(]+):', ii)
+      if match:
+        ret += [match.group(1)]
+    return ret
+
+  def get_name(self):
+    """Accessor."""
+    return self.__name
+
   def minimal_align(self):
     """Remove all .align declarations, replace with desired alignment."""
     desired = int(PlatformVar("align"))
-    for ii in range(len(self.content)):
-      line = self.content[ii]
+    for ii in range(len(self.__content)):
+      line = self.__content[ii]
       match = re.match(r'.*\.align\s+(\d+).*', line)
       if match:
         align = int(match.group(1))
@@ -519,90 +648,128 @@ class AssemblerSection:
           if desired != align:
             if verbose:
               print("Replacing %i-byte alignment with %i-byte alignment." % (align, desired))
-            self.content[ii] = "  .balign %i\n" % (desired)
+            self.__content[ii] = "  .balign %i\n" % (desired)
         else:
           print("Replacing low-order bit alignment %i with %i-byte alignment." % (align, desired))
-          self.content[ii] = "  .balign %i\n" % (desired)
+          self.__content[ii] = "  .balign %i\n" % (desired)
+
+  def replace_entry_point(self, op):
+    """Replaces an entry point with given entry point name from this section, should it exist."""
+    lst = self.want_entry_point()
+    if lst:
+      self.__content[lst[0]] = "%s:\n" % op
+
+  def replace_labels(self, labels, append):
+    """Replace all labels."""
+    for ii in range(len(self.__content)):
+      src = self.__content[ii]
+      for jj in labels:
+        dst = src.replace(jj, jj + append)
+        if dst != src:
+          self.__content[ii] = dst
+          break
 
   def want_entry_point(self):
     """Want a line matching the entry point function."""
-    return self.want_line(r'\s*(_start)\:.*')
+    return self.want_label("_start")
+
+  def want_label(self, op):
+    """Want a label from code."""
+    return self.want_line(r'\s*\S*(%s)\S*\:.*' % (op))
 
   def want_line(self, op, first = 0):
     """Want a line matching regex from object."""
-    for ii in range(first, len(self.content)):
-      line = self.content[ii]
-      match = re.match(op, line, re.IGNORECASE)
+    for ii in range(first, len(self.__content)):
+      match = re.match(op, self.__content[ii], re.IGNORECASE)
       if match:
         return (ii, match.group(1))
     return None
 
   def write(self, fd):
     """Write this section into a file."""
-    if self.tag:
-      fd.write(self.tag)
-    for ii in self.content:
+    if self.__tag:
+      fd.write(self.__tag)
+    for ii in self.__content:
       fd.write(ii)
 
 ########################################
-# AssemblerBssSection ##################
+# AssemblerSectionAlignment ############
 ########################################
 
-class AssemblerBssSection(AssemblerSection):
+class AssemblerSectionAlignment(AssemblerSection):
+  """Alignment section only meant to provide alignment and label."""
+
+  def __init__(self, alignment, padding, post_label, name = None):
+    AssemblerSection.__init__(self, name)
+    self.__alignment = alignment
+    self.__padding = padding
+    self.__post_label = post_label
+
+  def create_content(self, assembler):
+    """Generate assembler content."""
+    self.clear_content()
+    if self.get_name():
+      self.add_line(assembler.format_label(self.get_name()))
+    # Pad with zero bytes.
+    var_line = AssemblerVariable(("", 1, 0)).generate_source(assembler, 1)
+    for ii in range(self.__padding):
+      self.add_line(var_line)
+    if 0 < self.__alignment:
+      self.add_line(assembler.format_align(self.__alignment))
+    self.add_line(assembler.format_label(self.__post_label))
+
+########################################
+# AssemblerSectionBss ##################
+########################################
+
+class AssemblerSectionBss(AssemblerSection):
   """.bss section to be appended to the end of assembler source files."""
 
   def __init__(self):
     """Constructor."""
     AssemblerSection.__init__(self, ".bss")
-    self.elements = []
-    self.offset = 0
+    self.__elements = []
+    self.__size = 0
+    self.__und_size = 0
 
   def add_element(self, op):
     """Add one variable element."""
-    if not is_listing(op) or (2 != len(op)):
-      raise RuntimeError("invalid input to construct a BSS element")
-    self.elements += [AssemblerBssElement(op[0], op[1])]
-    self.elements.sort()
-
-  def create_content(self, assembler, size, tag):
-    """Merge all possible elements into given tag."""
-    cumulative = 0
-    addr_size = int(PlatformVar("addr"))
-    while 0 < len(self.elements):
-      elem = self.elements[0]
-      if cumulative + elem.size > size:
-        break
-      self.add_line(assembler.format_equ(elem.name, "%s + %i" % (tag, cumulative)))
-      cumulative += elem.size
-      if cumulative % addr_size != 0:
-        cumulative += addr_size - (cumulative % addr_size)
-      self.elements = self.elements[1:]
-    # If nothing to write, just end.
-    if 0 >= len(self.elements):
-      self.add_line("end:\n")
-      self.add_line("bss_end:\n")
+    if op in self.__elements:
+      print("WARNING: trying to add .bss element twice: %s" % (str(element)))
       return
-    # Actual content within.
-    self.add_line("end:\n")
-    self.add_line(".balign %i\n" % (int(PlatformVar("addr"))))
-    self.add_line("aligned_end:\n")
-    self.add_line(assembler.format_equ("bss_start", "aligned_end + " + str(self.offset)))
+    self.__elements += [op]
+    self.__elements.sort()
+    self.__size += op.get_size()
+    if op.is_und_symbol():
+      self.__und_size += op.get_size()
+
+  def create_content(self, assembler, prepend_label = None):
+    """Generate assembler content."""
+    self.clear_content()
+    if prepend_label:
+      self.add_line(assembler.format_label(prepend_label))
+    if 0 < self.__size:
+      self.add_line(assembler.format_align(int(PlatformVar("addr"))))
+      self.add_line(assembler.format_label("aligned_end"))
+    if 0 < self.get_alignment():
+      self.add_line(assembler.format_align(self.get_alignment()))
+    self.add_line(assembler.format_label("bss_start"))
     cumulative = 0
-    for ii in self.elements:
-      self.add_line(assembler.format_equ(ii.name, "bss_start + %i" % (cumulative)))
-      cumulative += ii.size
+    for ii in self.__elements:
+      self.add_line(assembler.format_equ(ii.get_name(), "bss_start + %i" % (cumulative)))
+      cumulative += ii.get_size()
     self.add_line(assembler.format_equ("bss_end", "bss_start + %i" % (cumulative)))
 
-  def has_offset(self):
-    """Tell if offset is nonzero."""
-    return 0 != self.offset
+  def get_alignment(self):
+    """Get alignment. May be zero."""
+    # TODO: Probably creates incorrect binaries at values very close but less than 128M due to code size.
+    if 128 * 1024 * 1024 < self.get_size():
+      return int(PlatformVar("memory_page"))
+    return 0
 
-  def size(self):
-    """Calculate cumulative size."""
-    ret = 0
-    for ii in self.elements:
-      ret += ii.size
-    return ret
+  def get_size(self):
+    """Get total size."""
+    return self.__size
 
 ########################################
 # AssemblerVariable ####################
@@ -615,40 +782,40 @@ class AssemblerVariable:
     """Constructor."""
     if not is_listing(op):
       raise RuntimeError("only argument passed is not a list")
-    self.desc = op[0]
-    self.size = op[1]
-    self.value = op[2]
-    self.name = name
-    self.original_size = -1
-    self.label_pre = []
-    self.label_post = []
+    self.__desc = op[0]
+    self.__size = op[1]
+    self.__value = op[2]
+    self.__name = name
+    self.__original_size = -1
+    self.__label_pre = []
+    self.__label_post = []
     if 3 < len(op):
       self.add_label_pre(op[3])
 
   def add_label_pre(self, op):
     """Add pre-label(s)."""
     if is_listing(op):
-      self.label_pre += op
+      self.__label_pre += op
     else:
-      self.label_pre += [op]
+      self.__label_pre += [op]
 
   def add_label_post(self, op):
     """Add post-label(s)."""
     if is_listing(op):
-      self.label_post += op
+      self.__label_post += op
     else:
-      self.label_post += [op]
+      self.__label_post += [op]
 
   def deconstruct(self):
     """Deconstruct into byte stream."""
     lst = []
-    if is_listing(self.value):
-      for ii in self.value:
+    if is_listing(self.__value):
+      for ii in self.__value:
         if not is_deconstructable(ii):
           break
         lst += self.deconstruct_single(int(ii))
-    elif is_deconstructable(self.value):
-      lst = self.deconstruct_single(int(self.value))
+    elif is_deconstructable(self.__value):
+      lst = self.deconstruct_single(int(self.__value))
     if 0 >= len(lst):
       return None
     if 1 >= len(lst):
@@ -657,19 +824,19 @@ class AssemblerVariable:
     for ii in range(len(lst)):
       var = AssemblerVariable(("", 1, ord(lst[ii])))
       if 0 == ii:
-        var.desc = self.desc
-        var.name = self.name
-        var.original_size = self.size
-        var.label_pre = self.label_pre
+        var.__desc = self.__desc
+        var.__name = self.__name
+        var.__original_size = self.__size
+        var.__label_pre = self.__label_pre
       elif len(lst) - 1 == ii:
-        var.label_post = self.label_post
+        var.__label_post = self.__label_post
       ret += [var]
     return ret
 
   def deconstruct_single(self, op):
     """Desconstruct a single value."""
     bom = str(PlatformVar("bom"))
-    int_size = int(self.size)
+    int_size = int(self.__size)
     if 1 == int_size:
       return struct.pack(bom + "B", op)
     if 2 == int_size:
@@ -689,89 +856,93 @@ class AssemblerVariable:
         return struct.pack(bom + "Q", op)
     raise RuntimeError("cannot pack value of size %i" % (int_size))
 
-  def generate_source(self, op, indent, label = None):
+  def generate_source(self, assembler, indent, label = None):
     """Generate assembler source."""
     ret = ""
     indent = get_indent(indent)
-    for ii in self.label_pre:
-      ret += op.format_label(ii)
-    if isinstance(self.value, str) and self.value.startswith("\"") and label and self.name:
-      ret += op.format_label("%s_%s" % (label, self.name))
-    formatted_comment = op.format_comment(self.desc, indent)
-    formatted_data = op.format_data(self.size, self.value, indent)
+    for ii in self.__label_pre:
+      ret += assembler.format_label(ii)
+    if isinstance(self.__value, str) and self.__value.startswith("\"") and label and self.__name:
+      ret += assembler.format_label("%s_%s" % (label, self.__name))
+    formatted_comment = assembler.format_comment(self.__desc, indent)
+    formatted_data = assembler.format_data(self.__size, self.__value, indent)
     if formatted_comment:
       ret += formatted_comment
     ret += formatted_data
-    for ii in self.label_post:
-      ret += op.format_label(ii)
+    for ii in self.__label_post:
+      ret += assembler.format_label(ii)
     return ret
+
+  def get_size(self):
+    """Accessor."""
+    return self.__size
 
   def mergable(self, op):
     """Tell if the two assembler variables are mergable."""
-    if int(self.size) != int(op.size):
+    if int(self.__size) != int(op.__size):
       return False
-    if self.value != op.value:
+    if self.__value != op.__value:
       return False
     return True
 
   def merge(self, op):
     """Merge two assembler variables into one."""
-    self.desc = listify(self.desc, op.desc)
-    self.name = listify(self.name, op.name)
-    self.label_pre = listify(self.label_pre, op.label_pre)
-    self.label_post = listify(self.label_post, op.label_post)
+    self.__desc = listify(self.__desc, op.__desc)
+    self.__name = listify(self.__name, op.__name)
+    self.__label_pre = listify(self.__label_pre, op.__label_pre)
+    self.__label_post = listify(self.__label_post, op.__label_post)
 
   def reconstruct(self, lst):
     """Reconstruct variable from a listing."""
-    original_size = int(self.original_size)
-    self.original_size = -1
+    original_size = int(self.__original_size)
+    self.__original_size = -1
     if 1 >= original_size:
       return False
     if len(lst) < original_size - 1:
       return False
-    ret = chr(self.value)
+    ret = chr(self.__value)
     for ii in range(original_size - 1):
       op = lst[ii]
       if not op.reconstructable((original_size - 2) == ii):
         return False
-      self.label_post = listify(self.label_post, op.label_post)
+      self.__label_post = listify(self.__label_post, op.label_post)
       ret += chr(op.value)
     bom = str(PlatformVar("bom"))
     if 2 == original_size:
-      self.value = struct.unpack(bom + "H", ret)[0]
+      self.__value = struct.unpack(bom + "H", ret)[0]
     elif 4 == original_size:
-      self.value = struct.unpack(bom + "I", ret)[0]
+      self.__value = struct.unpack(bom + "I", ret)[0]
     elif 8 == original_size:
-      self.value = struct.unpack(bom + "Q", ret)[0]
-    self.size = original_size
+      self.__value = struct.unpack(bom + "Q", ret)[0]
+    self.__size = original_size
     return original_size - 1
 
   def reconstructable(self, accept_label_post):
     """Tell if this is reconstructable."""
-    if self.name:
+    if self.__name:
       return False
-    if self.label_pre:
+    if self.__label_pre:
       return False
-    if self.label_post and not accept_label_post:
+    if self.__label_post and not accept_label_post:
       return False
-    if "" != self.desc:
+    if "" != self.__desc:
       return False
-    if -1 != self.original_size:
+    if -1 != self.__original_size:
       return False
 
   def remove_label_pre(self, op):
     """Remove a pre-label."""
-    if op in self.label_pre:
-      self.label_pre.remove(op)
+    if op in self.__label_pre:
+      self.__label_pre.remove(op)
 
   def remove_label_post(self, op):
     """Remove a post-label."""
-    if op in self.label_post:
-      self.label_post.remove(op)
+    if op in self.__label_post:
+      self.__label_post.remove(op)
 
   def __str__(self):
     """String representation."""
-    int_size = int(self.size)
+    int_size = int(self.__size)
     if 1 == int_size:
       ret = 'byte:'
     elif 2 == int_size:
@@ -781,12 +952,12 @@ class AssemblerVariable:
     elif 8 == int_size:
       ret = 'quad'
     else:
-      raise RuntimeError("unknown size %i in an assembler variable" % (self.size))
-    ret += ': ' + str(self.value)
-    if self.name:
-      ret += " (%s)" % (self.name)
-    if self.desc:
-      ret += " '%s'" % (self.desc)
+      raise RuntimeError("unknown size %i in an assembler variable" % (self.__size))
+    ret += ': ' + str(self.__value)
+    if self.__name:
+      ret += " (%s)" % (self.__name)
+    if self.__desc:
+      ret += " '%s'" % (self.__desc)
     return ret
 
 ########################################
@@ -798,20 +969,20 @@ class AssemblerSegment:
 
   def __init__(self, op):
     """Constructor."""
-    self.name = None
-    self.desc = None
-    self.data = []
+    self.__name = None
+    self.__desc = None
+    self.__data = []
     if isinstance(op, str):
-      self.name = op
-      self.desc = None
+      self.__name = op
+      self.__desc = None
     elif is_listing(op):
       for ii in op:
         if is_listing(ii):
           self.add_data(ii)
-        elif not self.name:
-          self.name = ii
-        elif not self.desc:
-          self.desc = ii
+        elif not self.__name:
+          self.__name = ii
+        elif not self.__desc:
+          self.__desc = ii
         else:
           raise RuntimeError("too many string arguments for list constructor")
     self.refresh_name_label()
@@ -819,7 +990,7 @@ class AssemblerSegment:
 
   def add_data(self, op):
     """Add data into this segment."""
-    self.data += [AssemblerVariable(op)]
+    self.__data += [AssemblerVariable(op)]
     self.refresh_name_label()
     self.refresh_name_end_label()
 
@@ -827,26 +998,26 @@ class AssemblerSegment:
     """Add hash dynamic structure."""
     d_tag = AssemblerVariable(("d_tag, DT_HASH = 4", PlatformVar("addr"), 4))
     d_un = AssemblerVariable(("d_un", PlatformVar("addr"), op))
-    self.data[0:0] = [d_tag, d_un]
+    self.__data[0:0] = [d_tag, d_un]
     self.refresh_name_label()
 
   def add_dt_needed(self, op):
     """Add requirement to given library."""
     d_tag = AssemblerVariable(("d_tag, DT_NEEDED = 1", PlatformVar("addr"), 1))
     d_un = AssemblerVariable(("d_un, library name offset in strtab", PlatformVar("addr"), "strtab_%s - strtab" % labelify(op)))
-    self.data[0:0] = [d_tag, d_un]
+    self.__data[0:0] = [d_tag, d_un]
     self.refresh_name_label()
 
   def add_dt_symtab(self, op):
     """Add symtab dynamic structure."""
     d_tag = AssemblerVariable(("d_tag, DT_SYMTAB = 6", PlatformVar("addr"), 6))
     d_un = AssemblerVariable(("d_un", PlatformVar("addr"), op))
-    self.data[0:0] = [d_tag, d_un]
+    self.__data[0:0] = [d_tag, d_un]
     self.refresh_name_label()
 
   def add_hash(self, lst):
     """Generate a minimal DT_HASH based on symbol listing."""
-    self.data = []
+    self.__data = []
     num = len(lst) + 1
     self.add_data(("", 4, 1))
     self.add_data(("", 4, num))
@@ -860,7 +1031,7 @@ class AssemblerSegment:
     """Add a library name."""
     libname = AssemblerVariable(("symbol name string", 1, "\"%s\"" % op), labelify(op))
     terminator = AssemblerVariable(("string terminating zero", 1, 0))
-    self.data[1:1] = [libname, terminator]
+    self.__data[1:1] = [libname, terminator]
     self.refresh_name_end_label()
 
   def add_symbol_empty(self):
@@ -875,9 +1046,10 @@ class AssemblerSegment:
 
   def add_symbol_und(self, name):
     """Add a symbol to satisfy UND from external source."""
+    label_name = "symtab_" + name
     if osarch_is_32_bit():
       self.add_data(("st_name", 4, "strtab_%s - strtab" % (name)))
-      self.add_data(("st_value", PlatformVar("addr"), name))
+      self.add_data(("st_value", PlatformVar("addr"), label_name, label_name))
       self.add_data(("st_size", PlatformVar("addr"), PlatformVar("addr")))
       self.add_data(("st_info", 1, 17))
       self.add_data(("st_other", 1, 0))
@@ -887,40 +1059,44 @@ class AssemblerSegment:
       self.add_data(("st_info", 1, 17))
       self.add_data(("st_other", 1, 0))
       self.add_data(("st_shndx", 2, 1))
-      self.add_data(("st_value", PlatformVar("addr"), name))
+      self.add_data(("st_value", PlatformVar("addr"), label_name, label_name))
       self.add_data(("st_size", PlatformVar("addr"), PlatformVar("addr")))
     else:
       raise_unknown_address_size()
 
+  def clear_data(self):
+    """Clear all data."""
+    self.__data = []
+
   def deconstruct_head(self):
     """Deconstruct this segment (starting from head) into a byte stream."""
     ret = []
-    for ii in range(len(self.data)):
-      op = self.data[ii].deconstruct()
+    for ii in range(len(self.__data)):
+      op = self.__data[ii].deconstruct()
       if not op:
-        return (ret, self.data[ii:])
+        return (ret, self.__data[ii:])
       ret += op
     return (ret, [])
 
   def deconstruct_tail(self):
     """Deconstruct this segment (starting from tail) into a byte stream."""
     ret = []
-    for ii in range(len(self.data)):
-      op = self.data[-ii - 1].deconstruct()
+    for ii in range(len(self.__data)):
+      op = self.__data[-ii - 1].deconstruct()
       if not op:
-        return (self.data[:len(self.data) - ii], ret)
+        return (self.__data[:len(self.__data) - ii], ret)
       ret = op + ret
     return ([], ret)
 
   def empty(self):
     """Tell if this segment is empty."""
-    return 0 >= len(self.data)
+    return 0 >= len(self.__data)
 
   def generate_source(self, op):
     """Generate assembler source."""
-    ret = op.format_block_comment(self.desc)
-    for ii in self.data:
-      ret += ii.generate_source(op, 1, self.name)
+    ret = op.format_block_comment(self.__desc)
+    for ii in self.__data:
+      ret += ii.generate_source(op, 1, self.__name)
     return ret
 
   def merge(self, op):
@@ -939,7 +1115,7 @@ class AssemblerSegment:
     if 0 >= highest_mergable:
       return False
     if verbose:
-      print("Merging headers %s and %s at %i bytes." % (self.name, op.name, highest_mergable))
+      print("Merging headers %s and %s at %i bytes." % (self.__name, op.__name, highest_mergable))
     for ii in range(highest_mergable):
       bytestream_src[-highest_mergable + ii].merge(bytestream_dst[ii])
     bytestream_dst[0:highest_mergable] = []
@@ -949,41 +1125,41 @@ class AssemblerSegment:
 
   def reconstruct(self, bytestream):
     """Reconstruct data from bytestream."""
-    self.data = []
+    self.__data = []
     while 0 < len(bytestream):
       front = bytestream[0]
       bytestream = bytestream[1:]
       constructed = front.reconstruct(bytestream)
       if constructed:
         bytestream[:constructed] = []
-      self.data += [front]
+      self.__data += [front]
 
   def refresh_name_label(self):
     """Add name label to first assembler variable."""
-    for ii in self.data:
-      ii.remove_label_pre(self.name)
-    if 0 < len(self.data):
-      self.data[0].add_label_pre(self.name)
+    for ii in self.__data:
+      ii.remove_label_pre(self.__name)
+    if 0 < len(self.__data):
+      self.__data[0].add_label_pre(self.__name)
 
   def refresh_name_end_label(self):
     """Add a name end label to last assembler variable."""
-    end_label = "%s_end" % (self.name)
-    for ii in self.data:
+    end_label = "%s_end" % (self.__name)
+    for ii in self.__data:
       ii.remove_label_post(end_label)
-    if 0 < len(self.data):
-      self.data[-1].add_label_post(end_label)
+    if 0 < len(self.__data):
+      self.__data[-1].add_label_post(end_label)
 
   def size(self):
     """Get cumulative size of data."""
     ret = 0
-    for ii in self.data:
-      ret += int(ii.size)
+    for ii in self.__data:
+      ret += int(ii.get_size())
     return ret
 
   def write(self, fd, assembler):
     """Write segment onto disk."""
-    if 0 >= len(self.data):
-      raise RuntimeError("segment '%s' is empty" % self.name)
+    if 0 >= len(self.__data):
+      raise RuntimeError("segment '%s' is empty" % self.__name)
     fd.write(self.generate_source(assembler))
 
 assembler_ehdr = (
@@ -1000,7 +1176,7 @@ assembler_ehdr = (
     ("e_type, ET_EXEC = 2", 2, 2),
     ("e_machine, EM_386 = 3, EM_X86_64 = 62", 2, PlatformVar("e_machine")),
     ("e_version, EV_CURRENT = 1", 4, 1),
-    ("e_entry, execution starting point", PlatformVar("addr"), "_start"),
+    ("e_entry, execution starting point", PlatformVar("addr"), PlatformVar("start")),
     ("e_phoff, offset from start to program headers", PlatformVar("addr"), "phdr_interp - ehdr"),
     ("e_shoff, start of section headers", PlatformVar("addr"), 0),
     ("e_flags, unused", 4, 0),
@@ -1046,7 +1222,7 @@ assembler_phdr32_load_double = (
     ("p_vaddr, program virtual address", PlatformVar("addr"), PlatformVar("entry")),
     ("p_paddr, unused", PlatformVar("addr"), 0),
     ("p_filesz, program size on disk", PlatformVar("addr"), "end - ehdr"),
-    ("p_memsz, program headers size in memory", PlatformVar("addr"), "end - ehdr"),
+    ("p_memsz, program headers size in memory", PlatformVar("addr"), "aligned_end - ehdr"),
     ("p_flags, rwx = 7", 4, 7),
     ("p_align, usually " + str(PlatformVar("memory_page")), PlatformVar("addr"), PlatformVar("memory_page")),
     )
@@ -1055,11 +1231,11 @@ assembler_phdr32_load_bss = (
     "phdr_load_bss",
     "Elf32_Phdr, PT_LOAD (.bss)",
     ("p_type, PT_LOAD = 1", 4, 1),
-    ("p_offset, offset of fake .bss segment", PlatformVar("addr"), "end - ehdr"),
+    ("p_offset, offset of fake .bss segment", PlatformVar("addr"), "bss_start - ehdr"),
     ("p_vaddr, program virtual address", PlatformVar("addr"), "bss_start"),
     ("p_paddr, unused", PlatformVar("addr"), 0),
     ("p_filesz, .bss size on disk", PlatformVar("addr"), 0),
-    ("p_memsz, .bss size in memory", PlatformVar("addr"), "bss_end - end"),
+    ("p_memsz, .bss size in memory", PlatformVar("addr"), "bss_end - bss_start"),
     ("p_flags, rw = 6", 4, 6),
     ("p_align, usually " + str(PlatformVar("memory_page")), PlatformVar("addr"), PlatformVar("memory_page")),
     )
@@ -1112,7 +1288,7 @@ assembler_phdr64_load_double = (
     ("p_vaddr, program virtual address", PlatformVar("addr"), PlatformVar("entry")),
     ("p_paddr, unused", PlatformVar("addr"), 0),
     ("p_filesz, program size on disk", PlatformVar("addr"), "end - ehdr"),
-    ("p_memsz, program headers size in memory", PlatformVar("addr"), "end - ehdr"),
+    ("p_memsz, program headers size in memory", PlatformVar("addr"), "aligned_end - ehdr"),
     ("p_align, usually " + str(PlatformVar("memory_page")), PlatformVar("addr"), PlatformVar("memory_page")),
     )
 
@@ -1185,51 +1361,59 @@ class Linker:
 
   def __init__(self, op):
     """Constructor."""
-    self.command = op
-    self.command_basename = os.path.basename(self.command)
-    self.library_directories = []
-    self.libraries = []
-    self.linker_flags = []
-    self.linker_script = []
+    self.__command = op
+    self.__command_basename = os.path.basename(self.__command)
+    self.__library_directories = []
+    self.__libraries = []
+    self.__linker_flags = []
+    self.__linker_script = []
 
-  def generate_library_directory_list(self):
-    """Set link directory listing."""
-    ret = []
-    prefix = "-L"
-    if self.command_basename.startswith("cl."):
-      prefix = "/L"
-    for ii in self.library_directories:
-      ret += [prefix + ii]
-    if self.command_basename.startswith("ld"):
-      ret += ["-rpath-link", ":".join(self.library_directories)]
-    return ret
-
-  def generate_library_list(self):
-    """Generate link library list libraries."""
-    ret = []
-    prefix = "-l"
-    if self.command_basename.startswith("cl."):
-      prefix = "/l"
-    for ii in self.libraries:
-      ret += [prefix + ii]
-    return ret
+  def command_basename_startswith(self, op):
+    """Check if command basename starts with given string."""
+    return self.__command_basename.startswith(op)
 
   def generate_linker_flags(self):
     """Generate linker command for given mode."""
-    self.linker_flags = []
-    if self.command_basename.startswith("g++") or self.command_basename.startswith("gcc"):
-      self.linker_flags += ["-nostartfiles", "-nostdlib", "-Xlinker", "--strip-all"]
-    elif self.command_basename.startswith("clang"):
-      self.linker_flags += ["-nostdlib", "-Xlinker", "--strip-all"]
-    elif self.command_basename.startswith("ld"):
+    self.__linker_flags = []
+    if self.__command_basename.startswith("g++") or self.__command_basename.startswith("gcc"):
+      self.__linker_flags += ["-nostartfiles", "-nostdlib", "-Xlinker", "--strip-all"]
+    elif self.__command_basename.startswith("clang"):
+      self.__linker_flags += ["-nostdlib", "-Xlinker", "--strip-all"]
+    elif self.__command_basename.startswith("ld"):
       dynamic_linker = str(PlatformVar("interp"))
       if dynamic_linker.startswith("\"") and dynamic_linker.endswith("\""):
         dynamic_linker = dynamic_linker[1:-1]
       elif dynamic_linker.startswith("0x"):
         dynamic_linker = ""
-      self.linker_flags += ["-nostdlib", "--strip-all", "--dynamic-linker=%s" % (dynamic_linker)]
+      self.__linker_flags += ["-nostdlib", "--strip-all", "--dynamic-linker=%s" % (dynamic_linker)]
     else:
       raise RuntimeError("compilation not supported with compiler '%s'" % (op))
+
+  def get_command(self):
+    """Accessor."""
+    return self.__command
+
+  def get_library_list(self):
+    """Generate link library list libraries."""
+    ret = []
+    prefix = "-l"
+    if self.__command_basename.startswith("cl."):
+      prefix = "/l"
+    for ii in self.__libraries:
+      ret += [prefix + ii]
+    return ret
+
+  def get_library_directory_list(self):
+    """Set link directory listing."""
+    ret = []
+    prefix = "-L"
+    if self.__command_basename.startswith("cl."):
+      prefix = "/L"
+    for ii in self.__library_directories:
+      ret += [prefix + ii]
+    if self.__command_basename.startswith("ld"):
+      ret += ["-rpath-link", ":".join(self.__library_directories)]
+    return ret
 
   def get_library_name(self, op):
     """Get actual name of library."""
@@ -1240,7 +1424,7 @@ class Linker:
       return op
     libname = "lib%s.so" % (op)
     # Shared object may be linker script, if so, it will tell actual shared object.
-    for ii in self.library_directories:
+    for ii in self.__library_directories:
       current_libname = locate(ii, libname)
       if current_libname and file_is_ascii_text(current_libname):
         fd = open(current_libname, "r")
@@ -1253,9 +1437,13 @@ class Linker:
           return ret
     return libname
 
+  def get_linker_flags(self):
+    """Accessor."""
+    return self.__linker_flags
+
   def generate_linker_script(self, dst):
     """Get linker script from linker, improve it, write improved linker script to given file."""
-    (so, se) = run_command([self.command, "--verbose"])
+    (so, se) = run_command([self.__command, "--verbose"])
     if 0 < len(se) and verbose:
       print(se)
     match = re.match(r'.*linker script\S+\s*\n=+\s+(.*)\s+=+\s*\n.*', so, re.DOTALL)
@@ -1273,7 +1461,7 @@ class Linker:
 
   def link(self, src, dst, extra_args = []):
     """Link a file."""
-    cmd = [self.command, src, "-o", dst] + self.linker_flags + self.generate_library_directory_list() + self.generate_library_list() + extra_args + self.linker_script
+    cmd = [self.__command, src, "-o", dst] + self.__linker_flags + self.get_library_directory_list() + self.get_library_list() + extra_args + self.__linker_script
     (so, se) = run_command(cmd)
     if 0 < len(se) and verbose:
       print(se)
@@ -1282,7 +1470,7 @@ class Linker:
   def link_binary(self, src, dst):
     """Link a binary file with no bells and whistles."""
     entry_param = "--entry=" + str(PlatformVar("entry"))
-    cmd = [self.command, "--oformat=binary", entry_param, src, "-o", dst] + self.linker_script
+    cmd = [self.__command, "--oformat=binary", entry_param, src, "-o", dst] + self.__linker_script
     (so, se) = run_command(cmd)
     if 0 < len(se) and verbose:
       print(se)
@@ -1290,17 +1478,17 @@ class Linker:
 
   def set_libraries(self, lst):
     """Set libraries to link."""
-    self.libraries = lst
+    self.__libraries = lst
 
   def set_library_directories(self, lst):
-    self.library_directories = []
+    self.__library_directories = []
     for ii in lst:
       if os.path.isdir(ii):
-        self.library_directories += [ii]
+        self.__library_directories += [ii]
 
   def set_linker_script(self, op):
     """Use given linker script."""
-    self.linker_script = ["-T", op]
+    self.__linker_script = ["-T", op]
 
 ########################################
 # Compiler #############################
@@ -1312,47 +1500,47 @@ class Compiler(Linker):
   def __init__(self, op):
     """Constructor."""
     Linker.__init__(self, op)
-    self.compiler_flags = []
-    self.compiler_flags_extra = []
-    self.definitions = []
-    self.include_directories = []
+    self.__compiler_flags = []
+    self.__compiler_flags_extra = []
+    self.__definitions = []
+    self.__include_directories = []
 
   def add_extra_compiler_flags(self, op):
     """Add extra compiler flags."""
     if is_listing(op):
       for ii in op:
         self.add_extra_compiler_flags(ii)
-    elif not op in self.include_directories and not op in self.definitions:
-      self.compiler_flags_extra += [op]
+    elif not op in self.__include_directories and not op in self.__definitions:
+      self.__compiler_flags_extra += [op]
 
   def compile_asm(self, src, dst):
     """Compile a file into assembler source."""
-    cmd = [self.command, "-S", src, "-o", dst] + self.compiler_flags + self.compiler_flags_extra + self.definitions + self.include_directories
+    cmd = [self.get_command(), "-S", src, "-o", dst] + self.__compiler_flags + self.__compiler_flags_extra + self.__definitions + self.__include_directories
     (so, se) = run_command(cmd)
     if 0 < len(se) and verbose:
       print(se)
 
   def compile_and_link(self, src, dst):
     """Compile and link a file directly."""
-    cmd = [self.command, src, "-o", dst] + self.compiler_flags + self.compiler_flags_extra + self.definitions + self.include_directories + self.linker_flags + self.generate_library_directory_list() + self.generate_library_list()
+    cmd = [self.get_command(), src, "-o", dst] + self.__compiler_flags + self.__compiler_flags_extra + self.__definitions + self.__include_directories + self.get_linker_flags() + self.get_library_directory_list() + self.get_library_list()
     (so, se) = run_command(cmd)
     if 0 < len(se) and verbose:
       print(se)
 
   def generate_compiler_flags(self):
     """Generate compiler flags."""
-    self.compiler_flags = []
-    if self.command_basename.startswith("g++") or self.command_basename.startswith("gcc"):
-      self.compiler_flags += ["-Os", "-ffast-math", "-fno-asynchronous-unwind-tables", "-fno-exceptions", "-fno-rtti", "-fno-threadsafe-statics", "-fomit-frame-pointer", "-fsingle-precision-constant", "-fwhole-program", "-march=%s" % (str(PlatformVar("march"))), "-mpreferred-stack-boundary=%i" % (int(PlatformVar("mpreferred-stack-boundary"))), "-Wall"]
-    elif self.command_basename.startswith("clang"):
-      self.compiler_flags += ["-Os", "-ffast-math", "-fno-asynchronous-unwind-tables", "-fno-exceptions", "-fno-rtti", "-fno-threadsafe-statics", "-fomit-frame-pointer", "-march=%s" % (str(PlatformVar("march"))), "-Wall"]
+    self.__compiler_flags = []
+    if self.command_basename_startswith("g++") or self.command_basename_startswith("gcc"):
+      self.__compiler_flags += ["-Os", "-ffast-math", "-fno-asynchronous-unwind-tables", "-fno-exceptions", "-fno-rtti", "-fno-threadsafe-statics", "-fomit-frame-pointer", "-fsingle-precision-constant", "-fwhole-program", "-march=%s" % (str(PlatformVar("march"))), "-mpreferred-stack-boundary=%i" % (int(PlatformVar("mpreferred-stack-boundary"))), "-Wall"]
+    elif self.command_basename_startswith("clang"):
+      self.__compiler_flags += ["-Os", "-ffast-math", "-fno-asynchronous-unwind-tables", "-fno-exceptions", "-fno-rtti", "-fno-threadsafe-statics", "-fomit-frame-pointer", "-march=%s" % (str(PlatformVar("march"))), "-Wall"]
     else:
-      raise RuntimeError("compilation not supported with compiler '%s'" % (self.command_basename))
+      raise RuntimeError("compilation not supported with compiler '%s'" % (self.get_command_basename()))
 
   def preprocess(self, op):
     """Preprocess a file, return output."""
-    args = [self.command, op] + self.compiler_flags_extra + self.definitions + self.include_directories
-    if self.command_basename.startswith("cl."):
+    args = [self.get_command(), op] + self.__compiler_flags_extra + self.__definitions + self.__include_directories
+    if self.command_basename_startswith("cl."):
       args += ["/E"]
     else:
       args += ["-E"]
@@ -1364,28 +1552,189 @@ class Compiler(Linker):
   def set_definitions(self, lst):
     """Set definitions."""
     prefix = "-D"
-    self.definitions = []
-    if self.command_basename.startswith("cl."):
+    self.__definitions = []
+    if self.command_basename_startswith("cl."):
       prefix = "/D"
-      self.definitions += [prefix + "WIN32"]
+      self.__definitions += [prefix + "WIN32"]
     if isinstance(lst, (list, tuple)):
       for ii in lst:
-        self.definitions += [prefix + ii]
+        self.__definitions += [prefix + ii]
     else:
-      self.definitions += [prefix + lst]
+      self.__definitions += [prefix + lst]
 
   def set_include_dirs(self, lst):
     """Set include directory listing."""
     prefix = "-I"
-    if os.path.basename(self.command).startswith("cl."):
+    if self.command_basename_startswith("cl."):
       prefix = "/I"
-    self.include_directories = []
+    self.__include_directories = []
     for ii in lst:
       if os.path.isdir(ii):
         new_include_directory = prefix + ii
-        if new_include_directory in self.compiler_flags_extra:
-          self.compiler_flags_extra.remove(new_include_directory)
-        self.include_directories += [new_include_directory]
+        if new_include_directory in self.__compiler_flags_extra:
+          self.__compiler_flags_extra.remove(new_include_directory)
+        self.__include_directories += [new_include_directory]
+
+########################################
+# Elfling ##############################
+########################################
+
+template_elfling_source = """#include "elfling_unpack.hpp"
+%s\n
+/** Working memory area. */
+extern uint8_t %s[];\n
+/** Compression output area. */
+extern uint8_t %s[];\n
+#if defined(__cplusplus)
+extern "C" {
+#endif\n
+#if defined(__clang__)
+/** Program entry point. */
+void _start();
+#else
+/** Program entry point. */
+void _start() __attribute__((externally_visible));
+#endif\n
+/** Jump point after decompression. */
+extern void %s();\n
+#if defined(__cplusplus)
+}
+#endif\n
+void _start()
+{
+  elfling_unpack(elfling_weights, elfling_contexts, %i, %s, elfling_input + %i, %s, %i);
+  %s();
+}\n
+"""
+
+class Elfling:
+  """Usage class for the elfling packer program from minas/calodox."""
+
+  def __init__(self, op):
+    """Constructor."""
+    self.__command = op
+    self.__contexts = [0]
+    self.__data = [0] * (10 + 4)
+    self.__weights = [0]
+    self.__uncompressed_size = 12345678
+
+  def compress(self, src, dst):
+    """Compress given file, starting from entry point and ending at file end."""
+    info = readelf_get_info(src)
+    starting_size = os.path.getsize(src)
+    if starting_size != info["size"]:
+      raise RuntimeError("size of file '%s' differs from header claim: %i != %i" %
+          (src, starting_size, info["size"]))
+    rfd = open(src, "rb")
+    wfd = open(dst, "wb")
+    data = rfd.read(starting_size)
+    wfd.write(data[info["entry"]:])
+    rfd.close()
+    wfd.close()
+    self.__uncompressed_size = len(data) - info["entry"]
+    if verbose:
+      print("Wrote compressable program block '%s': %i bytes" % (dst, self.__uncompressed_size))
+    self.__contexts = []
+    self.__weights = []
+    (so, se) = run_command([self.__command, dst])
+    lines = so.split("\n")
+    for ii in lines:
+      terms = ii.split()
+      if terms and terms[0].startswith("Final"):
+        compressed_size = int(terms[1])
+        for jj in terms[2:]:
+          individual_term = jj.split("*")
+          self.__weights += [int(individual_term[0], 10)]
+          self.__contexts += [int(individual_term[1], 16)]
+    if verbose:
+      print("Program block compressed into '%s': %i bytes" % (dst + ".pack", compressed_size))
+      print("Compression weights: %s" % (str(self.__weights)))
+      print("Compression contexts: %s" % (str(self.__contexts)))
+    rfd = open(dst + ".pack", "rb")
+    compressed_contexts = []
+    compressed_weights = []
+    uncompressed_size = rfd.read(4)
+    uncompressed_size = (struct.unpack("I", uncompressed_size))[0]
+    if uncompressed_size != self.__uncompressed_size:
+      raise RuntimeError("size given to packer does not match size information in file: %i != %i" %
+          (self.__uncompressed_size, uncompressed_size))
+    context_count = rfd.read(1)
+    context_count = (struct.unpack("B", context_count))[0]
+    for ii in range(context_count):
+      compressed_weights += struct.unpack("B", rfd.read(1))
+    for ii in range(context_count):
+      compressed_contexts += struct.unpack("B", rfd.read(1))
+    if compressed_contexts != self.__contexts:
+      raise RuntimeError("contexts reported by packer do not match context information in file: %s != %s" %
+          (str(self.__contexts), str(compressed_contexts)))
+    if compressed_weights != self.__weights:
+      raise RuntimeError("weights reported by packer do not match weight information in file: %s != %s" %
+          (str(self.__weights), str(compressed_weights)))
+    read_data = rfd.read()
+    rfd.close()
+    if len(read_data) != compressed_size:
+      raise RuntimeError("size reported by packer does not match length of file: %i != %i" %
+          (compressed_size, len(read_data)))
+    self.__data = []
+    for ii in read_data:
+      self.__data += struct.unpack("B", ii)
+
+  def generate_c_data_block(self):
+    """Generate direct C code for data block."""
+    ret = "static const uint8_t elfling_weights[] =\n{\n  "
+    for ii in range(len(self.__weights)):
+      if 0 < ii:
+        ret += ", "
+      ret += "%i" % (self.__weights[ii])
+    ret += "\n};\n\nstatic const uint8_t elfling_contexts[] =\n{\n  "
+    for ii in range(len(self.__contexts)):
+      if 0 < ii:
+        ret += ", "
+      ret += "%i" % (self.__contexts[ii])
+    ret += "\n};\n\nstatic const uint8_t elfling_input[] =\n{\n  "
+    for ii in range(ELFLING_PADDING):
+      if 0 < ii:
+        ret += ", "
+      ret += "0"
+    print(self.__data[0])
+    for ii in self.__data:
+      ret += ", %i" % (ii)
+    return ret + "\n};"
+
+  def generate_c_source(self):
+    """Generate the C uncompressor source."""
+    return template_elfling_source % (self.generate_c_data_block(), ELFLING_WORK, ELFLING_OUTPUT, UNCOMPRESSED, len(self.__contexts), ELFLING_WORK, self.get_input_offset(), ELFLING_OUTPUT, self.get_uncompressed_size(), UNCOMPRESSED)
+
+  def get_contexts(self):
+    """Get contexts. Contains dummy data until compression has been ran."""
+    return self.__contexts
+
+  def get_input_offset(self):
+    """Get the input offset for compressed data."""
+    return ELFLING_PADDING + len(self.__data) - 4
+
+  def get_uncompressed_size(self):
+    """Get uncompressed size. Contains dummy value until compression has been ran."""
+    return self.__uncompressed_size
+
+  def get_weights(self):
+    """Get weights. Contains dummy data until compression has been ran."""
+    return self.__weights
+
+  def get_work_size(self):
+    """Return the working area size required for decompression."""
+    # TODO: Extract this value from the source.
+    return (4 << 20) * 16
+
+  def has_data(self):
+    """Tell if compression has been done."""
+    return ([0] != self.__contexts) and ([0] != self.__weights)
+
+  def write_c_source(self, dst):
+    """Write elfling uncompressor source into given location."""
+    wfd = open(dst, "wt")
+    wfd.write(self.generate_c_source())
+    wfd.close()
 
 ########################################
 # Symbol ###############################
@@ -1396,65 +1745,69 @@ class Symbol:
 
   def __init__(self, lst, lib):
     """Constructor."""
-    self.returntype = lst[0]
+    self.__returntype = lst[0]
     if isinstance(lst[1], (list, tuple)):
-      self.name = lst[1][0]
-      self.rename = lst[1][1]
+      self.__name = lst[1][0]
+      self.__rename = lst[1][1]
     else:
-      self.name = lst[1]
-      self.rename = lst[1]
-    self.parameters = None
+      self.__name = lst[1]
+      self.__rename = lst[1]
+    self.__parameters = None
     if 2 < len(lst):
-      self.parameters = lst[2:]
-    self.library = lib
+      self.__parameters = lst[2:]
+    self.__library = lib
 
   def generate_definition(self):
     """Get function definition for given symbol."""
     prefix = ""
-    if self.name[:2] == "gl":
+    if self.__name[:2] == "gl":
       prefix = "GLAPIENTRY "
     params = "void"
-    if self.parameters:
-      params = ", ".join(self.parameters)
-    return "%s (%s*%s)(%s)" % (self.returntype, prefix, self.name, params)
+    if self.__parameters:
+      params = ", ".join(self.__parameters)
+    return "%s (%s*%s)(%s)" % (self.__returntype, prefix, self.__name, params)
 
   def generate_prototype(self):
     """Get function prototype for given symbol."""
     prefix = ""
-    if self.name[:2] == "gl":
+    if self.__name[:2] == "gl":
       prefix = "GLAPIENTRY "
     params = "void"
-    if self.parameters:
-      params = ", ".join(self.parameters)
-    return "(%s (%s*)(%s))" % (self.returntype, prefix, params)
+    if self.__parameters:
+      params = ", ".join(self.__parameters)
+    return "(%s (%s*)(%s))" % (self.__returntype, prefix, params)
 
   def generate_rename_direct(self):
     """Generate definition to use without a symbol table."""
-    return "#define %s%s %s" % (symbol_prefix, self.name, self.rename)
+    return "#define %s%s %s" % (symbol_prefix, self.__name, self.__rename)
 
   def generate_rename_tabled(self):
     """Generate definition to use with a symbol table."""
-    return "#define %s%s g_symbol_table.%s" % (symbol_prefix, self.name, self.name)
+    return "#define %s%s g_symbol_table.%s" % (symbol_prefix, self.__name, self.__name)
 
   def get_hash(self):
     """Get the hash of symbol name."""
-    return sdbm_hash(self.name)
+    return sdbm_hash(self.__name)
 
   def get_library_name(self, linker):
     """Get linkable library object name."""
-    return linker.get_library_name(self.library.name)
+    return linker.get_library_name(self.__library.get_name())
+
+  def get_name(self):
+    """Accessor."""
+    return self.__name
 
   def __lt__(self, rhs):
     """Sorting operator."""
-    if self.library.name < rhs.library.name:
+    if self.__library.get_name() < rhs.__library.get_name():
       return True
-    elif self.library.name > rhs.library.name:
+    elif self.__library.get_name() > rhs.__library.get_name():
       return False
-    return self.name < rhs.name
+    return self.__name < rhs.__name
 
   def __str__(self):
     """String representation."""
-    return self.name
+    return self.__name
 
 ########################################
 # Library ##############################
@@ -1463,20 +1816,20 @@ class Symbol:
 class LibraryDefinition:
   """Represents one library containing symbols."""
 
-  def __init__(self, library_name):
+  def __init__(self, op):
     """Constructor."""
-    self.name = library_name
-    self.symbols = []
+    self.__name = op
+    self.__symbols = []
 
   def add_symbols(self, lst):
     """Add a symbol listing."""
     for ii in lst:
-      self.symbols += [Symbol(ii, self)]
+      self.__symbols += [Symbol(ii, self)]
 
   def find_symbol(self, op):
     """Find a symbol by name."""
-    for ii in self.symbols:
-      if ii.name == op:
+    for ii in self.__symbols:
+      if ii.get_name() == op:
         return ii
     return None
 
@@ -1484,6 +1837,7 @@ library_definition_c = LibraryDefinition("c")
 library_definition_c.add_symbols((
   ("void*", "malloc", "size_t"),
   ("void*", "memset", "void*", "int", "size_t"),
+  ("int", "printf", "const char* __restrict", "..."),
   ("int", "puts", "const char*"),
   ("unsigned", "sleep", "unsigned"),
   ("int", ("rand", "bsd_rand")),
@@ -1663,6 +2017,18 @@ template_header_begin = """#ifndef DNLOAD_H
 extern "C" {
 #endif\n
 #if !defined(USE_LD)
+#if defined(__clang__)
+/** Program entry point. */
+void _start();
+#else
+/** Program entry point. */
+void _start() __attribute__((externally_visible));
+#endif
+#endif
+"""
+
+template_und_symbols = """
+#if !defined(USE_LD)
 #if defined(__FreeBSD__)
 #if defined(__clang__)
 /** Symbol required by libc. */
@@ -1675,13 +2041,6 @@ void *environ __attribute__((externally_visible));
 /** Symbol required by libc. */
 void *__progname __attribute__((externally_visible));
 #endif
-#endif
-#if defined(__clang__)
-/** Program entry point. */
-void _start();
-#else
-/** Program entry point. */
-void _start() __attribute__((externally_visible));
 #endif
 #endif
 """
@@ -1966,15 +2325,18 @@ def analyze_source(op):
     ret = ret.union(symbolset)
   return ret
 
-def generate_loader(symbols, linker):
+def generate_loader(mode, symbols, linker):
   """Generate the loader code."""
-  if "vanilla" == compilation_mode:
+  if "vanilla" == mode:
     loader_content = generate_loader_vanilla()
-  elif "dlfcn" == compilation_mode:
+  elif "dlfcn" == mode:
     loader_content = generate_loader_dlfcn(symbols, linker)
   else:
     loader_content = generate_loader_hash(symbols)
-  return template_loader % (definition_ld, loader_content)
+  ret = template_loader % (definition_ld, loader_content)
+  if "maximum" != mode:
+    ret += template_uns_symbols
+  return ret
 
 def generate_loader_dlfcn(symbols, linker):
   """Generate dlopen/dlsym loader code."""
@@ -2000,20 +2362,20 @@ def generate_loader_vanilla():
   """Generate loader that actually leaves the loading to the operating system."""
   return template_loader_vanilla
 
-def generate_symbol_definitions(symbols):
+def generate_symbol_definitions(mode, symbols):
   """Generate a listing of definitions from replacement symbols to real symbols."""
   direct = []
   tabled = []
   for ii in symbols:
     direct += [ii.generate_rename_direct()]
     tabled += [ii.generate_rename_tabled()]
-  if "vanilla" == compilation_mode:
+  if "vanilla" == mode:
     tabled = direct
   return template_symbol_definitions % (definition_ld, "\n".join(direct), "\n".join(tabled))
 
-def generate_symbol_struct(symbols):
+def generate_symbol_struct(mode, symbols):
   """Generate the symbol struct definition."""
-  if "vanilla" == compilation_mode:
+  if "vanilla" == mode:
     return ""
   definitions = []
   hashes = []
@@ -2021,7 +2383,7 @@ def generate_symbol_struct(symbols):
   for ii in symbols:
     definitions += ["  %s;" % (ii.generate_definition())]
     hashes += ["  %s%s," % (ii.generate_prototype(), ii.get_hash())]
-  if "dlfcn" != compilation_mode:
+  if "dlfcn" != mode:
     symbol_table_content = " =\n{\n%s\n}" % ("\n".join(hashes))
   return template_symbol_table % (definition_ld, "\n".join(definitions), symbol_table_content)
 
@@ -2052,7 +2414,7 @@ def check_executable(op):
 def compress_file(compression, pretty, src, dst):
   """Compress a file to be a self-extracting file-dumping executable."""
   str_tail = "sed 1d"
-  str_cleanup = ""
+  str_cleanup = ";exit"
   if pretty:
     str_tail = "tail -n+2"
     str_cleanup = ";rm ~;exit"
@@ -2106,6 +2468,124 @@ def find_symbols(lst):
     ret += [find_symbol(ii)]
   return ret
 
+def generate_binary_minimal(source_file, compiler, assembler, linker, elfling, libraries, output_file):
+  """Generate a binary using all possible tricks. Return whether or not reprocess is necessary."""
+  if source_file:
+    compiler.compile_asm(source_file, output_file + ".S")
+  segment_ehdr = AssemblerSegment(assembler_ehdr)
+  if osarch_is_32_bit():
+    segment_phdr_dynamic = AssemblerSegment(assembler_phdr32_dynamic)
+    segment_phdr_interp = AssemblerSegment(assembler_phdr32_interp)
+  elif osarch_is_64_bit():
+    segment_phdr_dynamic = AssemblerSegment(assembler_phdr64_dynamic)
+    segment_phdr_interp = AssemblerSegment(assembler_phdr64_interp)
+  else:
+    raise_unknown_address_size()
+  segment_dynamic = AssemblerSegment(assembler_dynamic)
+  segment_hash = AssemblerSegment(assembler_hash)
+  segment_interp = AssemblerSegment(assembler_interp)
+  segment_strtab = AssemblerSegment(assembler_strtab)
+  segment_symtab = AssemblerSegment(assembler_symtab)
+  # There may be symbols necessary for addition.
+  und_symbol_string = "Checking for required UND symbols... "
+  if osname_is_freebsd():
+    und_symbols = sorted(["environ", "__progname"])
+  else:
+    und_symbols = None
+  if verbose:
+    print(und_symbol_string + str(und_symbols))
+  if is_listing(und_symbols):
+    segment_symtab.add_symbol_empty()
+    for ii in und_symbols:
+      segment_symtab.add_symbol_und(ii)
+    for ii in reversed(und_symbols):
+      segment_strtab.add_strtab(ii)
+    segment_dynamic.add_dt_symtab("symtab")
+    segment_dynamic.add_dt_hash("hash")
+    segment_hash.add_hash(und_symbols)
+  else:
+    segment_dynamic.add_dt_symtab(0)
+  # Add libraries.
+  for ii in reversed(libraries):
+    library_name = linker.get_library_name(ii)
+    segment_dynamic.add_dt_needed(library_name)
+    segment_strtab.add_strtab(library_name)
+  # Assembler file generation is more complex when elfling is enabled.
+  if elfling:
+    elfling.write_c_source(output_file + ".elfling.cpp")
+    compiler.compile_asm(output_file + ".elfling.cpp", output_file + ".elfling.S")
+    asm = AssemblerFile(output_file + ".elfling.S")
+    additional_asm = AssemblerFile(output_file + ".S")
+    # Entry point is used as compression start information.
+    elfling_align = int(PlatformVar("memory_page"))
+    if elfling.has_data():
+      alignment_section = AssemblerSectionAlignment(elfling_align, ELFLING_PADDING, ELFLING_OUTPUT, "end")
+      set_program_start("_start")
+    else:
+      alignment_section = AssemblerSectionAlignment(elfling_align, ELFLING_PADDING, ELFLING_OUTPUT)
+      set_program_start(ELFLING_OUTPUT)
+    asm.add_sections(alignment_section)
+    asm.incorporate(additional_asm, "_incorporated", UNCOMPRESSED)
+  else:
+    asm = AssemblerFile(output_file + ".S")
+    additional_asm = None
+    alignment_section = None
+  # May be necessary to have two PT_LOAD headers as opposed to one.
+  bss_section = asm.generate_fake_bss(assembler, und_symbols, elfling)
+  if 0 < bss_section.get_alignment():
+    replace_platform_variable("phdr_count", 4)
+    if osarch_is_32_bit():
+      segment_phdr_load_double = AssemblerSegment(assembler_phdr32_load_double)
+      segment_phdr_load_bss = AssemblerSegment(assembler_phdr32_load_bss)
+    elif osarch_is_64_bit():
+      segment_phdr_load_double = AssemblerSegment(assembler_phdr64_load_double)
+      segment_phdr_load_bss = AssemblerSegment(assembler_phdr64_load_bss)
+    else:
+      raise_unknown_address_size()
+    load_segments = [segment_phdr_load_double, segment_phdr_load_bss]
+  else:
+    if osarch_is_32_bit():
+      segment_phdr_load_single = AssemblerSegment(assembler_phdr32_load_single)
+    elif osarch_is_64_bit():
+      segment_phdr_load_single = AssemblerSegment(assembler_phdr64_load_single)
+    else:
+      raise_unknown_address_size()
+    load_segments = [segment_phdr_load_single]
+  # Collapse headers.
+  segments_head = [segment_ehdr, segment_phdr_interp]
+  segments_tail = [segment_phdr_dynamic]
+  if is_listing(und_symbols):
+    segments_tail += [segment_hash]
+  segments_tail += [segment_dynamic]
+  if is_listing(und_symbols):
+    segments_tail += [segment_symtab]
+  segments_tail += [segment_interp, segment_strtab]
+  segments = merge_segments(segments_head) + load_segments + merge_segments(segments_tail)
+  # Calculate total size of headers.
+  header_sizes = 0
+  fd = open(output_file + ".combined.S", "w")
+  for ii in segments:
+    ii.write(fd, assembler)
+    header_sizes += ii.size()
+  if verbose:
+    print("Size of headers: %i bytes" % (header_sizes))
+  # Create content of earlier sections and write source when done.
+  if alignment_section:
+    alignment_section.create_content(assembler)
+  if elfling and elfling.has_data():
+    bss_section.create_content(assembler)
+  else:
+    bss_section.create_content(assembler, "end")
+  asm.write(fd, assembler)
+  fd.close()
+  if verbose:
+    print("Wrote assembler source '%s'." % (output_file + ".combined.S"))
+  assembler.assemble(output_file + ".combined.S", output_file + ".o")
+  linker.generate_linker_script(output_file + ".ld")
+  linker.set_linker_script(output_file + ".ld")
+  linker.link_binary(output_file + ".o", output_file + ".unprocessed")
+  readelf_truncate(output_file + ".unprocessed", output_file + ".stripped")
+
 def labelify(op):
   """Take string as input. Convert into string that passes as label."""
   return re.sub(r'[\/\.]', '_', op)
@@ -2131,6 +2611,20 @@ def get_indent(op):
     # Would tab be better?
     ret += "  "
   return ret
+
+def get_push_size(op):
+  """Get push side increment for given instruction or register."""
+  ins = op.lower()
+  if ins == 'pushq':
+    return 8
+  elif ins == 'pushl':
+    return 4
+  else:
+    raise RuntimeError("push size not known for instruction '%s'" % (ins))
+
+def is_stack_save_register(op):
+  """Tell if given register is used for saving the stack."""
+  return op.lower() in ('rbp', 'ebp')
 
 def is_deconstructable(op):
   """Tell if a variable can be deconstructed."""
@@ -2229,15 +2723,28 @@ def raise_unknown_address_size():
   """Common function to raise an error if os architecture address size is unknown."""
   raise RuntimeError("platform '%s' addressing size unknown" % (osarch))
 
+def readelf_get_info(op):
+  """Read information from an ELF file using readelf. Return as dictionary."""
+  ret = {}
+  (so, se) = run_command(["readelf", "--file-header", "--program-headers", op])
+  match = re.search(r'LOAD\s+\S+\s+(\S+)\s+\S+\s+(\S+)\s+\S+\s+RWE', so, re.MULTILINE)
+  if match:
+    ret["base"] = int(match.group(1), 16)
+    ret["size"] = int(match.group(2), 16)
+  else:
+    raise RuntimeError("could not read first PT_LOAD from executable '%s'" % (op))
+  match = re.search(r'Entry\spoint\saddress:\s+(\S+)', so, re.MULTILINE)
+  if match:
+    ret["entry"] = int(match.group(1), 16) - ret["base"]
+  else:
+    raise RuntimeError("could not read entry point from executable '%s'" % (op))
+  return ret
+
 def readelf_truncate(src, dst):
   """Truncate file to size reported by readelf first PT_LOAD file size."""
-  (so, se) = run_command(["readelf", "--program-headers", src])
-  match = re.search(r'LOAD\s+\S+\s+\S+\s+\S+\s+(\S+)\s+', so, re.MULTILINE)
-  if match:
-    truncate_size = int(match.group(1), 0)
-  else:
-    raise RuntimeError("could not read file size from executable '%s'" % (src))
+  info = readelf_get_info(src)
   size = os.path.getsize(src)
+  truncate_size = info["size"]
   if size == truncate_size:
     if verbose:
       print("Executable size equals PT_LOAD size (%u bytes), no truncation necessary." % (size))
@@ -2292,6 +2799,10 @@ def search_executable(op):
     raise RuntimeError("weird argument given to executable search: %s" % (str(op)))
   return None
 
+def set_program_start(op):
+  """Set label to start program execution from."""
+  replace_platform_variable("start", op)
+
 def touch(op):
   """Emulate *nix 'touch' command."""
   if not os.path.exists(op):
@@ -2338,7 +2849,6 @@ class CustomHelpFormatter(argparse.HelpFormatter):
 
 def main():
   """Main function."""
-  global compilation_mode
   global definition_ld
   global osname
   global symbol_prefix
@@ -2349,10 +2859,11 @@ def main():
   compiler = None
   compression = str(PlatformVar("compression"))
   default_assembler_list = ["/usr/local/bin/as", "as"]
-  default_compiler_list = ["g++49", "g++-4.9", "g++", "clang++"]
+  default_compiler_list = ["g++49", "g++-4.9", "g++48", "g++-4.8", "g++", "clang++"]
   default_linker_list = ["/usr/local/bin/ld", "ld"]
   default_strip_list = ["/usr/local/bin/strip", "strip"]
   definitions = []
+  elfling = None
   include_directories = ["/usr/include/SDL", "/usr/local/include", "/usr/local/include/SDL"]
   libraries = []
   library_directories = ["/lib", "/lib/x86_64-linux-gnu", "/usr/lib", "/usr/lib/x86_64-linux-gnu", "/usr/local/lib"]
@@ -2367,13 +2878,14 @@ def main():
   parser.add_argument("-c", "--create-binary", action = "store_true", help = "Create output file, determine output file name from input file name.")
   parser.add_argument("-C", "--compiler", help = "Try to use given compiler executable as opposed to autodetect.")
   parser.add_argument("-d", "--define", default = "USE_LD", help = "Definition to use for checking whether to use 'safe' mechanism instead of dynamic loading.\n(default: %(default)s)")
+  parser.add_argument("-e", "--elfling", action = "store_true", help = "Use elfling packer if available.")
   parser.add_argument("--ignore-gnu-hash", action = "store_true", help = "Always assume SYSV hash table is available, ignore handling for GNU hash table.")
   parser.add_argument("-h", "--help", action = "store_true", help = "Print this help string and exit.")
   parser.add_argument("-I", "--include-directory", action = "append", help = "Add an include directory to be searched for header files.")
   parser.add_argument("-k", "--linker", help = "Try to use given linker executable as opposed to autodetect.")
   parser.add_argument("-l", "--library", action = "append", help = "Add a library to be linked against.")
   parser.add_argument("-L", "--library-directory", action = "append", help = "Add a library directory to be searched for libraries when linking.")
-  parser.add_argument("-m", "--method", default = compilation_mode, choices = ("vanilla", "dlfcn", "hash", "maximum"), help = "Method to use for decreasing output file size:\n\tvanilla:\n\t\tProduce binary normally, use no tricks except unpack header.\n\tdlfcn:\n\t\tUse dlopen/dlsym to decrease size without dependencies to any specific object format.\n\thash:\n\t\tUse knowledge of object file format to perform 'import by hash' loading, but do not break any specifications.\n\tmaximum:\n\t\tUse all available techniques to decrease output file size. Resulting file may violate object file specification.\n(default: %(default)s)")
+  parser.add_argument("-m", "--method", default = "maximum", choices = ("vanilla", "dlfcn", "hash", "maximum"), help = "Method to use for decreasing output file size:\n\tvanilla:\n\t\tProduce binary normally, use no tricks except unpack header.\n\tdlfcn:\n\t\tUse dlopen/dlsym to decrease size without dependencies to any specific object format.\n\thash:\n\t\tUse knowledge of object file format to perform 'import by hash' loading, but do not break any specifications.\n\tmaximum:\n\t\tUse all available techniques to decrease output file size. Resulting file may violate object file specification.\n(default: %(default)s)")
   parser.add_argument("--nice-exit", action = "store_true", help = "Do not use debugger trap, exit with proper system call.")
   parser.add_argument("--nice-filedump", action = "store_true", help = "Do not use dirty tricks in compression header, also remove filedumped binary when done.")
   parser.add_argument("-o", "--output-file", help = "Compile a named binary, do not only create a header. If the name specified features a path, it will be used verbatim. Otherwise the binary will be created in the same path as source file(s) compiled.")
@@ -2394,6 +2906,8 @@ def main():
     output_file = True
   if args.compiler:
     compiler = args.compiler
+  if args.elfling:
+    elfling = True
   if args.help:
     print(parser.format_help().strip())
     return 0
@@ -2418,6 +2932,8 @@ def main():
     output_file = args.output_file
   if args.search_path:
     target_search_path += args.search_path
+  if args.source:
+    source_files += args.source
   if args.strip_binary:
     strip = args.strip_binary
   if args.unpack_header:
@@ -2427,8 +2943,6 @@ def main():
   if args.version:
     print(version)
     return 0
-  if args.source:
-    source_files += args.source
 
   definition_ld = args.define
   compilation_mode = args.method
@@ -2491,6 +3005,11 @@ def main():
     compiler.add_extra_compiler_flags(sdl_stdout.split())
   compiler.set_include_dirs(include_directories)
 
+  if elfling:
+    elfling = search_executable(["elfling-packer", "./elfling-packer"])
+    if elfling:
+      elfling = Elfling(elfling)
+
   if output_file:
     if assembler:
       if not check_executable(assembler):
@@ -2531,9 +3050,9 @@ def main():
     print("Symbols found: ['%s']" % ("', '".join(symbol_strings)))
 
   file_contents = template_header_begin % (os.path.basename(sys.argv[0]), definition_ld, definition_ld)
-  file_contents += generate_symbol_definitions(symbols)
-  file_contents += generate_symbol_struct(symbols)
-  file_contents += generate_loader(symbols, linker)
+  file_contents += generate_symbol_definitions(compilation_mode, symbols)
+  file_contents += generate_symbol_struct(compilation_mode, symbols)
+  file_contents += generate_loader(compilation_mode, symbols, linker)
   file_contents += template_header_end
 
   fd = open(target, "w")
@@ -2571,91 +3090,11 @@ def main():
     linker.set_libraries(libraries)
     linker.set_library_directories(library_directories)
     if "maximum" == compilation_mode:
-      compiler.compile_asm(source_file, output_file + ".S")
-      segment_ehdr = AssemblerSegment(assembler_ehdr)
-      if osarch_is_32_bit():
-        segment_phdr_dynamic = AssemblerSegment(assembler_phdr32_dynamic)
-        segment_phdr_interp = AssemblerSegment(assembler_phdr32_interp)
-      elif osarch_is_64_bit():
-        segment_phdr_dynamic = AssemblerSegment(assembler_phdr64_dynamic)
-        segment_phdr_interp = AssemblerSegment(assembler_phdr64_interp)
-      else:
-        raise_unknown_address_size()
-      segment_dynamic = AssemblerSegment(assembler_dynamic)
-      segment_hash = AssemblerSegment(assembler_hash)
-      segment_interp = AssemblerSegment(assembler_interp)
-      segment_strtab = AssemblerSegment(assembler_strtab)
-      segment_symtab = AssemblerSegment(assembler_symtab)
-      und_symbol_string = "Checking for required UND symbols... "
-      if osname_is_freebsd():
-        und_symbols = sorted(["environ", "__progname"])
-      else:
-        und_symbols = None
-      if verbose:
-        print(und_symbol_string + str(und_symbols))
-      if is_listing(und_symbols):
-        segment_symtab.add_symbol_empty()
-        for ii in und_symbols:
-          segment_symtab.add_symbol_und(ii)
-        for ii in reversed(und_symbols):
-          segment_strtab.add_strtab(ii)
-        segment_dynamic.add_dt_symtab("symtab")
-        segment_dynamic.add_dt_hash("hash")
-        segment_hash.add_hash(und_symbols)
-      else:
-        segment_dynamic.add_dt_symtab(0)
-      for ii in reversed(libraries):
-        library_name = linker.get_library_name(ii)
-        segment_dynamic.add_dt_needed(library_name)
-        segment_strtab.add_strtab(library_name)
-      asm = AssemblerFile(output_file + ".S")
-      # generate_fake_bss() returns true if second PT_LOAD was needed.
-      bss = asm.generate_fake_bss(assembler)
-      if bss and bss.has_offset():
-        replace_platform_variable("phdr_count", 4)
-        if osarch_is_32_bit():
-          segment_phdr_load_double = AssemblerSegment(assembler_phdr32_load_double)
-          segment_phdr_load_bss = AssemblerSegment(assembler_phdr32_load_bss)
-        elif osarch_is_64_bit():
-          segment_phdr_load_double = AssemblerSegment(assembler_phdr64_load_double)
-          segment_phdr_load_bss = AssemblerSegment(assembler_phdr64_load_bss)
-        else:
-          raise_unknown_address_size()
-        load_segments = [segment_phdr_load_double, segment_phdr_load_bss]
-      else:
-        if osarch_is_32_bit():
-          segment_phdr_load_single = AssemblerSegment(assembler_phdr32_load_single)
-        elif osarch_is_64_bit():
-          segment_phdr_load_single = AssemblerSegment(assembler_phdr64_load_single)
-        else:
-          raise_unknown_address_size()
-        load_segments = [segment_phdr_load_single]
-      segments_head = [segment_ehdr, segment_phdr_interp]
-      segments_tail = [segment_phdr_dynamic]
-      if is_listing(und_symbols):
-        segments_tail += [segment_hash]
-      segments_tail += [segment_dynamic]
-      if is_listing(und_symbols):
-        segments_tail += [segment_symtab]
-      segments_tail += [segment_interp, segment_strtab]
-      segments = merge_segments(segments_head) + load_segments + merge_segments(segments_tail)
-      # calculate total 
-      header_sizes = 0
-      fd = open(output_file + ".final.S", "w")
-      for ii in segments:
-        ii.write(fd, assembler)
-        header_sizes += ii.size()
-      if bss:
-        bss.create_content(assembler, header_sizes, segments[0].name)
-      asm.write(fd, assembler)
-      fd.close()
-      if verbose:
-        print("Wrote assembler source '%s'." % (output_file + ".final.S"))
-      assembler.assemble(output_file + ".final.S", output_file + ".o")
-      linker.generate_linker_script(output_file + ".ld")
-      linker.set_linker_script(output_file + ".ld")
-      linker.link_binary(output_file + ".o", output_file + ".unprocessed")
-      readelf_truncate(output_file + ".unprocessed", output_file + ".stripped")
+      generate_binary_minimal(source_file, compiler, assembler, linker, elfling, libraries, output_file)
+      # Now have complete binary, may need to reprocess.
+      if elfling:
+        elfling.compress(output_file + ".stripped", output_file + ".extracted")
+        generate_binary_minimal(None, compiler, assembler, linker, elfling, libraries, output_file)
     elif "hash" == compilation_mode:
       compiler.compile_asm(source_file, output_file + ".S")
       asm = AssemblerFile(output_file + ".S")

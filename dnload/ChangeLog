@@ -1,7 +1,11 @@
-r??? (201?-??-??)
-  * Overlap small .bss elements with program headers.
+r183 (2015-02-03)
   * Default to debugger trap for terminating to save some space.
-  * Use fixed r_debug address trick.
+  * Use fixed r_debug address trick from minas/Calodox.
+  * Preliminary support for using elfling by minas/Calodox for two-stage
+    compression. Actual elfling source not yet included.
+  * Do not create unnecessary .bss fields for required UND symbols.
+  * Fix errors in entry point crunching.
+  * Less offensively bad Python coding conventions.
 
 r174 (2014-09-24)
   * Platform-dependant pick on compression header.
