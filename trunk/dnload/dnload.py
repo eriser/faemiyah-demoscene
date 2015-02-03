@@ -15,21 +15,19 @@ import textwrap
 # Globals ##############################
 ########################################
 
-definition_ld = "USE_LD"
-symbol_prefix = "dnload_"
-verbose = False
-version = "r183"
+(g_osname, g_osignore1, g_osignore2, g_osignore3, g_osarch) = os.uname()
+g_verbose = False
+
+VERSION = "r183"
 
 ELFLING_OUTPUT = "elfling_output"
 ELFLING_PADDING = 10
 ELFLING_WORK = "elfling_modelCounters"
-UNCOMPRESSED = "_uncompressed"
+ELFLING_UNCOMPRESSED = "_uncompressed"
 
 ########################################
 # PlatformVar ##########################
 ########################################
-
-(osname, osignore1, osignore2, osignore3, osarch) = os.uname()
 
 class PlatformVar:
   """Platform-dependent variable."""
@@ -43,7 +41,7 @@ class PlatformVar:
     if not self.__name in platform_variables:
       raise RuntimeError("unknown platform variable '%s'" % (self.__name))
     var = platform_variables[self.__name]
-    platform = (osname, osarch, platform_map(osname) + "-" + platform_map(osarch))
+    platform = (g_osname, g_osarch, platform_map(g_osname) + "-" + platform_map(g_osarch))
     for ii in platform:
       if ii in var:
         return var[ii]
@@ -141,7 +139,7 @@ class Assembler:
     """Assemble a file."""
     cmd = [self.__executable, src, "-o", dst]
     (so, se) = run_command(cmd)
-    if 0 < len(se) and verbose:
+    if 0 < len(se) and is_verbose():
       print(se)
 
   def format_align(self, op):
@@ -240,7 +238,7 @@ class AssemblerFile:
         current_section.add_line(ii)
     if not current_section.empty():
       self.add_sections(current_section)
-    if verbose:
+    if is_verbose():
       section_names = map(lambda x: x.get_name(), self.__sections)
       print("Read %i sections in '%s': %s" % (len(self.__sections), filename, ", ".join(section_names)))
 
@@ -268,7 +266,7 @@ class AssemblerFile:
       pt_load_string = ", second PT_LOAD required"
     else:
       pt_load_string = ", one PT_LOAD sufficient"
-    if verbose:
+    if is_verbose():
       outstr = "Constructed fake .bss segement: "
       if 1073741824 < bss_size:
         print("%s%1.1f Gbytes%s" % (outstr, float(bss_size) / 1073741824.0, pt_load_string))
@@ -338,7 +336,7 @@ class AssemblerFile:
       for ii in self.__sections:
         ii.write(fd)
       fd.close()
-      if verbose:
+      if is_verbose():
         print("Wrote assembler source file '%s'." % (op))
     else:
       prefix = assembler.format_block_comment("Program")
@@ -458,15 +456,15 @@ class AssemblerSection:
   def crunch_amd64(self, lst):
     """Perform platform-dependent crunching."""
     self.crunch_entry_push("_start")
-    self.crunch_entry_push(UNCOMPRESSED)
-    self.crunch_jump_pop(UNCOMPRESSED)
+    self.crunch_entry_push(ELFLING_UNCOMPRESSED)
+    self.crunch_jump_pop(ELFLING_UNCOMPRESSED)
     lst = self.want_line(r'\s*(int\s+\$0x3|syscall)\s+.*')
     if lst:
       ii = lst[0] + 1
       jj = ii
       while True:
         if len(self.__content) <= jj or re.match(r'\s*\S+\:\s*', self.__content[jj]):
-          if verbose:
+          if is_verbose():
             print("Erasing function footer after '%s': %i lines" % (lst[1], jj - ii))
           self.erase(ii, jj)
           break
@@ -511,7 +509,7 @@ class AssemblerSection:
         total_decrement = int(match.group(1)) + stack_decrement + stack_save_decrement
         self.__content[jj] = re.sub(r'\d+', str(total_decrement), current_line)
       break
-    if verbose:
+    if is_verbose():
       print("Erasing function header from '%s': %i lines" % (op, jj - ii - len(reinstated_lines)))
     self.erase(ii, jj)
     self.__content[ii:ii] = reinstated_lines
@@ -519,15 +517,15 @@ class AssemblerSection:
   def crunch_ia32(self, lst):
     """Perform platform-dependent crunching."""
     self.crunch_entry_push("_start")
-    self.crunch_entry_push(UNCOMPRESSED)
-    self.crunch_jump_pop(UNCOMPRESSED)
+    self.crunch_entry_push(ELFLING_UNCOMPRESSED)
+    self.crunch_jump_pop(ELFLING_UNCOMPRESSED)
     lst = self.want_line(r'\s*int\s+\$(0x3|0x80)\s+.*')
     if lst:
       ii = lst[0] + 1
       jj = ii
       while True:
         if len(self.__content) <= jj or re.match(r'\s*\S+\:\s*', self.__content[jj]):
-          if verbose:
+          if is_verbose():
             print("Erasing function footer after interrupt '%s': %i lines." % (lst[1], jj - ii))
           self.erase(ii, jj)
           break
@@ -542,7 +540,7 @@ class AssemblerSection:
     jj = ii - 1
     while True:
       if (0 > jj) or not re.match(r'\s*(pop\S).*', self.__content[jj], re.IGNORECASE):
-        if verbose:
+        if is_verbose():
           print("Erasing function footer before jump to '%s': %i lines" % (op, ii - jj - 1))
         self.erase(jj + 1, ii)
         break
@@ -646,7 +644,7 @@ class AssemblerSection:
         # Due to GNU AS compatibility modes, .align may mean different things.
         if osarch_is_amd64 or osarch_is_ia32():
           if desired != align:
-            if verbose:
+            if is_verbose():
               print("Replacing %i-byte alignment with %i-byte alignment." % (align, desired))
             self.__content[ii] = "  .balign %i\n" % (desired)
         else:
@@ -1114,7 +1112,7 @@ class AssemblerSegment:
         highest_mergable = ii + 1
     if 0 >= highest_mergable:
       return False
-    if verbose:
+    if is_verbose():
       print("Merging headers %s and %s at %i bytes." % (self.__name, op.__name, highest_mergable))
     for ii in range(highest_mergable):
       bytestream_src[-highest_mergable + ii].merge(bytestream_dst[ii])
@@ -1432,7 +1430,7 @@ class Linker:
         fd.close()
         if match:
           ret = os.path.basename(match.group(1))
-          if verbose:
+          if is_verbose():
             print("Using shared library '%s' instead of '%s'." % (ret, libname))
           return ret
     return libname
@@ -1444,7 +1442,7 @@ class Linker:
   def generate_linker_script(self, dst):
     """Get linker script from linker, improve it, write improved linker script to given file."""
     (so, se) = run_command([self.__command, "--verbose"])
-    if 0 < len(se) and verbose:
+    if 0 < len(se) and is_verbose():
       print(se)
     match = re.match(r'.*linker script\S+\s*\n=+\s+(.*)\s+=+\s*\n.*', so, re.DOTALL)
     if not match:
@@ -1455,7 +1453,7 @@ class Linker:
     fd = open(dst, "w")
     fd.write(ld_script)
     fd.close()
-    if verbose:
+    if is_verbose():
       print("Wrote linker script '%s'." % (dst))
     return ld_script
 
@@ -1463,7 +1461,7 @@ class Linker:
     """Link a file."""
     cmd = [self.__command, src, "-o", dst] + self.__linker_flags + self.get_library_directory_list() + self.get_library_list() + extra_args + self.__linker_script
     (so, se) = run_command(cmd)
-    if 0 < len(se) and verbose:
+    if 0 < len(se) and is_verbose():
       print(se)
     return so
 
@@ -1472,7 +1470,7 @@ class Linker:
     entry_param = "--entry=" + str(PlatformVar("entry"))
     cmd = [self.__command, "--oformat=binary", entry_param, src, "-o", dst] + self.__linker_script
     (so, se) = run_command(cmd)
-    if 0 < len(se) and verbose:
+    if 0 < len(se) and is_verbose():
       print(se)
     return so
 
@@ -1517,14 +1515,14 @@ class Compiler(Linker):
     """Compile a file into assembler source."""
     cmd = [self.get_command(), "-S", src, "-o", dst] + self.__compiler_flags + self.__compiler_flags_extra + self.__definitions + self.__include_directories
     (so, se) = run_command(cmd)
-    if 0 < len(se) and verbose:
+    if 0 < len(se) and is_verbose():
       print(se)
 
   def compile_and_link(self, src, dst):
     """Compile and link a file directly."""
     cmd = [self.get_command(), src, "-o", dst] + self.__compiler_flags + self.__compiler_flags_extra + self.__definitions + self.__include_directories + self.get_linker_flags() + self.get_library_directory_list() + self.get_library_list()
     (so, se) = run_command(cmd)
-    if 0 < len(se) and verbose:
+    if 0 < len(se) and is_verbose():
       print(se)
 
   def generate_compiler_flags(self):
@@ -1545,7 +1543,7 @@ class Compiler(Linker):
     else:
       args += ["-E"]
     (so, se) = run_command(args)
-    if 0 < len(se) and verbose:
+    if 0 < len(se) and is_verbose():
       print(se)
     return so
 
@@ -1632,7 +1630,7 @@ class Elfling:
     rfd.close()
     wfd.close()
     self.__uncompressed_size = len(data) - info["entry"]
-    if verbose:
+    if is_verbose():
       print("Wrote compressable program block '%s': %i bytes" % (dst, self.__uncompressed_size))
     self.__contexts = []
     self.__weights = []
@@ -1646,7 +1644,7 @@ class Elfling:
           individual_term = jj.split("*")
           self.__weights += [int(individual_term[0], 10)]
           self.__contexts += [int(individual_term[1], 16)]
-    if verbose:
+    if is_verbose():
       print("Program block compressed into '%s': %i bytes" % (dst + ".pack", compressed_size))
       print("Compression weights: %s" % (str(self.__weights)))
       print("Compression contexts: %s" % (str(self.__contexts)))
@@ -1703,7 +1701,7 @@ class Elfling:
 
   def generate_c_source(self):
     """Generate the C uncompressor source."""
-    return template_elfling_source % (self.generate_c_data_block(), ELFLING_WORK, ELFLING_OUTPUT, UNCOMPRESSED, len(self.__contexts), ELFLING_WORK, self.get_input_offset(), ELFLING_OUTPUT, self.get_uncompressed_size(), UNCOMPRESSED)
+    return template_elfling_source % (self.generate_c_data_block(), ELFLING_WORK, ELFLING_OUTPUT, ELFLING_UNCOMPRESSED, len(self.__contexts), ELFLING_WORK, self.get_input_offset(), ELFLING_OUTPUT, self.get_uncompressed_size(), ELFLING_UNCOMPRESSED)
 
   def get_contexts(self):
     """Get contexts. Contains dummy data until compression has been ran."""
@@ -1777,13 +1775,13 @@ class Symbol:
       params = ", ".join(self.__parameters)
     return "(%s (%s*)(%s))" % (self.__returntype, prefix, params)
 
-  def generate_rename_direct(self):
+  def generate_rename_direct(self, prefix):
     """Generate definition to use without a symbol table."""
-    return "#define %s%s %s" % (symbol_prefix, self.__name, self.__rename)
+    return "#define %s%s %s" % (prefix, self.__name, self.__rename)
 
-  def generate_rename_tabled(self):
+  def generate_rename_tabled(self, prefix):
     """Generate definition to use with a symbol table."""
-    return "#define %s%s g_symbol_table.%s" % (symbol_prefix, self.__name, self.__name)
+    return "#define %s%s g_symbol_table.%s" % (prefix, self.__name, self.__name)
 
   def get_hash(self):
     """Get the hash of symbol name."""
@@ -2138,6 +2136,27 @@ typedef Elf32_Sword dnload_elf_tag_t;
 #endif
 /** \\brief ELF base address. */
 #define ELF_BASE_ADDRESS %s
+/** \\brief Get dynamic section element by tag.
+ *
+ * \\param dyn Dynamic section.
+ * \\param tag Tag to look for.
+ * \\return Pointer to dynamic element.
+ */
+static const dnload_elf_dyn_t* elf_get_dynamic_element_by_tag(const void *dyn, dnload_elf_tag_t tag)
+{
+  const dnload_elf_dyn_t *dynamic = (const dnload_elf_dyn_t*)dyn;
+  do {
+    ++dynamic; // First entry in PT_DYNAMIC is probably nothing important.
+#if defined(__linux__) && defined(DNLOAD_SAFE_SYMTAB_HANDLING)
+    if(0 == dynamic->d_tag)
+    {
+      return NULL;
+    }
+#endif
+  } while(dynamic->d_tag != tag);
+  return dynamic;
+}
+#if defined(DNLOAD_NO_FIXED_R_DEBUG_ADDRESS) || defined(DNLOAD_SAFE_SYMTAB_HANDLING)
 /** \\brief Get the address associated with given tag in a dynamic section.
  *
  * \\param dyn Dynamic section.
@@ -2146,18 +2165,16 @@ typedef Elf32_Sword dnload_elf_tag_t;
  */
 static const void* elf_get_dynamic_address_by_tag(const void *dyn, dnload_elf_tag_t tag)
 {
-  const dnload_elf_dyn_t *dynamic = (const dnload_elf_dyn_t*)dyn;
-  do {
-    ++dynamic; // First entry in PT_DYNAMIC is probably nothing important.
-#if defined(__linux__) && !defined(DNLOAD_IGNORE_GNU_HASH)
-    if(0 == dynamic->d_tag)
-    {
-      return NULL;
-    }
+  const dnload_elf_dyn_t *dynamic = elf_get_dynamic_element_by_tag(dyn, tag);
+#if defined(__linux__) && defined(DNLOAD_SAFE_SYMTAB_HANDLING)
+  if(NULL == dynamic)
+  {
+    return NULL;
+  }
 #endif
-  } while(dynamic->d_tag != tag);
   return (const void*)dynamic->d_un.d_ptr;
 }
+#endif
 #if !defined(DNLOAD_NO_FIXED_R_DEBUG_ADDRESS)
 /** Link map address, fixed location in ELF headers. */
 extern const struct r_debug *dynamic_r_debug;
@@ -2185,25 +2202,36 @@ static const struct link_map* elf_get_link_map()
   return dynamic_r_debug->r_map;
 #endif
 }
+/** \\brief Return pointer from link map address.
+ *
+ * \\param lmap Link map.
+ * \\param ptr Pointer in this link map.
+ */
+static const void* elf_transform_dynamic_address(const struct link_map *lmap, const void *ptr)
+{
+  // Sometimes the value is an offset instead of a naked pointer.
+#if defined(__linux__) && defined(DNLOAD_SAFE_SYMTAB_HANDLING)
+  if((NULL != ptr) && (ret < (const void*)lmap->l_addr))
+#else
+  if(ptr < (const void*)lmap->l_addr)
+#endif
+  {
+    return (uint8_t*)ptr + (size_t)lmap->l_addr;
+  }
+  return ptr;
+}
+#if defined(DNLOAD_SAFE_SYMTAB_HANDLING)
 /** \\brief Get address of one dynamic section corresponding to given library.
  *
  * \param lmap Link map.
  * \param tag Tag to look for.
+ * \\return Pointer to given section or NULL.
  */
 static const void* elf_get_library_dynamic_section(const struct link_map *lmap, dnload_elf_tag_t tag)
 {
-  const void *ret = elf_get_dynamic_address_by_tag(lmap->l_ld, tag);
-  // Sometimes the value is an offset instead of a naked pointer.
-#if defined(__linux__) && !defined(DNLOAD_IGNORE_GNU_HASH)
-  if((NULL != ret) && (ret < (const void*)lmap->l_addr))
-#else
-  if(ret < (const void*)lmap->l_addr)
-#endif
-  {
-    return (uint8_t*)ret + (size_t)lmap->l_addr;
-  }
-  return ret;
+  return elf_transform_dynamic_address(lmap, elf_get_dynamic_address_by_tag(lmap->l_ld, tag));
 }
+#endif
 /** \\brief Find a symbol in any of the link maps.
  *
  * Should a symbol with name matching the given hash not be present, this function will happily continue until
@@ -2223,50 +2251,62 @@ static void* dnload_find_symbol(uint32_t hash)
   {
     // First entry is this object itself, safe to advance first.
     lmap = lmap->l_next;
-    // Find symbol from link map. We need the string table and a corresponding symbol table.
-    const char* strtab = (const char*)elf_get_library_dynamic_section(lmap, DT_STRTAB);
-    const dnload_elf_sym_t* symtab = (const dnload_elf_sym_t*)elf_get_library_dynamic_section(lmap, DT_SYMTAB);
-    const uint32_t* hashtable = (const uint32_t*)elf_get_library_dynamic_section(lmap, DT_HASH);
-    unsigned dynsymcount;
-    unsigned ii;
-#if defined(__linux__) && !defined(DNLOAD_IGNORE_GNU_HASH)
-    if(NULL == hashtable)
     {
-      hashtable = (const uint32_t*)elf_get_library_dynamic_section(lmap, DT_GNU_HASH);
-      // DT_GNU_HASH symbol counter borrows from FreeBSD rtld-elf implementation.
-      dynsymcount = 0;
+#if defined(DNLOAD_SAFE_SYMTAB_HANDLING)
+      // Find symbol from link map. We need the string table and a corresponding symbol table.
+      const char* strtab = (const char*)elf_get_library_dynamic_section(lmap, DT_STRTAB);
+      const dnload_elf_sym_t* symtab = (const dnload_elf_sym_t*)elf_get_library_dynamic_section(lmap, DT_SYMTAB);
+      const uint32_t* hashtable = (const uint32_t*)elf_get_library_dynamic_section(lmap, DT_HASH);
+      unsigned dynsymcount;
+      unsigned ii;
+#if defined(__linux__)
+      if(NULL == hashtable)
       {
-        unsigned bucket_count = hashtable[0];
-        const uint32_t* buckets = hashtable + 4 + ((sizeof(void*) / 4) * hashtable[2]);
-        const uint32_t* chain_zero = buckets + bucket_count + hashtable[1];
-        for(ii = 0; (ii < bucket_count); ++ii)
+        hashtable = (const uint32_t*)elf_get_library_dynamic_section(lmap, DT_GNU_HASH);
+        // DT_GNU_HASH symbol counter borrows from FreeBSD rtld-elf implementation.
+        dynsymcount = 0;
         {
-          unsigned bkt = buckets[ii];
-          if(bkt == 0)
+          unsigned bucket_count = hashtable[0];
+          const uint32_t* buckets = hashtable + 4 + ((sizeof(void*) / 4) * hashtable[2]);
+          const uint32_t* chain_zero = buckets + bucket_count + hashtable[1];
+          for(ii = 0; (ii < bucket_count); ++ii)
           {
-            continue;
-          }
-          {
-            const uint32_t* hashval = chain_zero + bkt;
-            do {
-              ++dynsymcount;
-            } while(0 == (*hashval++ & 1u));
+            unsigned bkt = buckets[ii];
+            if(bkt == 0)
+            {
+              continue;
+            }
+            {
+              const uint32_t* hashval = chain_zero + bkt;
+              do {
+                ++dynsymcount;
+              } while(0 == (*hashval++ & 1u));              
+            }
           }
         }
       }
-    }
-    else
+      else
 #endif
-    {
-      dynsymcount = hashtable[1];
-    }
-    for(ii = 0; (ii < dynsymcount); ++ii)
-    {
-      const dnload_elf_sym_t* sym = &symtab[ii];
-      const char *name = &strtab[sym->st_name];
-      if(sdbm_hash((const uint8_t*)name) == hash)
       {
-        return (void*)((const uint8_t*)sym->st_value + (size_t)lmap->l_addr);
+        dynsymcount = hashtable[1];
+      }
+      for(ii = 0; (ii < dynsymcount); ++ii)
+      {
+        const dnload_elf_sym_t* sym = &symtab[ii];
+#else
+      // Assume DT_SYMTAB dynamic entry immediately follows DT_STRTAB dynamic entry.
+      // Assume DT_STRTAB memory block immediately follows DT_SYMTAB dynamic entry.
+      const dnload_elf_dyn_t *dynamic = elf_get_dynamic_element_by_tag(lmap->l_ld, DT_STRTAB);
+      const char* strtab = (const char*)elf_transform_dynamic_address(lmap, (const void*)(dynamic->d_un.d_ptr));
+      const dnload_elf_sym_t* sym = (const dnload_elf_sym_t*)elf_transform_dynamic_address(lmap, (const void*)((dynamic + 1)->d_un.d_ptr));
+      for(; ((void*)sym < (void*)strtab); ++sym)
+      {
+#endif
+        const char *name = strtab + sym->st_name;
+        if(sdbm_hash((const uint8_t*)name) == hash)
+        {
+          return (void*)((const uint8_t*)sym->st_value + (size_t)lmap->l_addr);
+        }
       }
     }
   }
@@ -2314,10 +2354,10 @@ static struct SymbolTableStruct
 #endif
 """
 
-def analyze_source(op):
+def analyze_source(source, prefix):
   """Analyze given preprocessed C source for symbol names."""
-  symbolre =  re.compile(r"[\s:;&\|\<\>\=\^\+\-\*/\(\)\?]" + symbol_prefix + "([a-zA-Z0-9_]+)")
-  results = symbolre.findall(op, re.MULTILINE)
+  symbolre =  re.compile(r"[\s:;&\|\<\>\=\^\+\-\*/\(\)\?]" + prefix + "([a-zA-Z0-9_]+)")
+  results = symbolre.findall(source, re.MULTILINE)
   ret = set()
   for ii in results:
     symbolset = set()
@@ -2325,7 +2365,7 @@ def analyze_source(op):
     ret = ret.union(symbolset)
   return ret
 
-def generate_loader(mode, symbols, linker):
+def generate_loader(mode, symbols, definition, linker):
   """Generate the loader code."""
   if "vanilla" == mode:
     loader_content = generate_loader_vanilla()
@@ -2333,7 +2373,7 @@ def generate_loader(mode, symbols, linker):
     loader_content = generate_loader_dlfcn(symbols, linker)
   else:
     loader_content = generate_loader_hash(symbols)
-  ret = template_loader % (definition_ld, loader_content)
+  ret = template_loader % (definition, loader_content)
   if "maximum" != mode:
     ret += template_uns_symbols
   return ret
@@ -2362,18 +2402,18 @@ def generate_loader_vanilla():
   """Generate loader that actually leaves the loading to the operating system."""
   return template_loader_vanilla
 
-def generate_symbol_definitions(mode, symbols):
+def generate_symbol_definitions(mode, symbols, prefix, definition):
   """Generate a listing of definitions from replacement symbols to real symbols."""
   direct = []
   tabled = []
   for ii in symbols:
-    direct += [ii.generate_rename_direct()]
-    tabled += [ii.generate_rename_tabled()]
+    direct += [ii.generate_rename_direct(prefix)]
+    tabled += [ii.generate_rename_tabled(prefix)]
   if "vanilla" == mode:
     tabled = direct
-  return template_symbol_definitions % (definition_ld, "\n".join(direct), "\n".join(tabled))
+  return template_symbol_definitions % (definition, "\n".join(direct), "\n".join(tabled))
 
-def generate_symbol_struct(mode, symbols):
+def generate_symbol_struct(mode, symbols, definition):
   """Generate the symbol struct definition."""
   if "vanilla" == mode:
     return ""
@@ -2385,7 +2425,7 @@ def generate_symbol_struct(mode, symbols):
     hashes += ["  %s%s," % (ii.generate_prototype(), ii.get_hash())]
   if "dlfcn" != mode:
     symbol_table_content = " =\n{\n%s\n}" % ("\n".join(hashes))
-  return template_symbol_table % (definition_ld, "\n".join(definitions), symbol_table_content)
+  return template_symbol_table % (definition, "\n".join(definitions), symbol_table_content)
 
 ########################################
 # Functions ############################
@@ -2397,17 +2437,17 @@ def check_executable(op):
   try:
     proc = subprocess.Popen([op], stdout = subprocess.PIPE, stderr = subprocess.PIPE)
   except OSError:
-    if verbose:
+    if is_verbose():
       print(output_string + "not found")
     return False
   try:
     if proc.poll():
       proc.kill()
   except OSError:
-    if verbose:
+    if is_verbose():
       print(output_string + "killed")
     return True
-  if verbose:
+  if is_verbose():
     print(output_string + "found")
   return True
 
@@ -2492,7 +2532,7 @@ def generate_binary_minimal(source_file, compiler, assembler, linker, elfling, l
     und_symbols = sorted(["environ", "__progname"])
   else:
     und_symbols = None
-  if verbose:
+  if is_verbose():
     print(und_symbol_string + str(und_symbols))
   if is_listing(und_symbols):
     segment_symtab.add_symbol_empty()
@@ -2525,7 +2565,7 @@ def generate_binary_minimal(source_file, compiler, assembler, linker, elfling, l
       alignment_section = AssemblerSectionAlignment(elfling_align, ELFLING_PADDING, ELFLING_OUTPUT)
       set_program_start(ELFLING_OUTPUT)
     asm.add_sections(alignment_section)
-    asm.incorporate(additional_asm, "_incorporated", UNCOMPRESSED)
+    asm.incorporate(additional_asm, "_incorporated", ELFLING_UNCOMPRESSED)
   else:
     asm = AssemblerFile(output_file + ".S")
     additional_asm = None
@@ -2567,7 +2607,7 @@ def generate_binary_minimal(source_file, compiler, assembler, linker, elfling, l
   for ii in segments:
     ii.write(fd, assembler)
     header_sizes += ii.size()
-  if verbose:
+  if is_verbose():
     print("Size of headers: %i bytes" % (header_sizes))
   # Create content of earlier sections and write source when done.
   if alignment_section:
@@ -2578,7 +2618,7 @@ def generate_binary_minimal(source_file, compiler, assembler, linker, elfling, l
     bss_section.create_content(assembler, "end")
   asm.write(fd, assembler)
   fd.close()
-  if verbose:
+  if is_verbose():
     print("Wrote assembler source '%s'." % (output_file + ".combined.S"))
   assembler.assemble(output_file + ".combined.S", output_file + ".o")
   linker.generate_linker_script(output_file + ".ld")
@@ -2633,6 +2673,10 @@ def is_deconstructable(op):
 def is_listing(op):
   """Tell if given parameter is a listing."""
   return isinstance(op, (list, tuple))
+
+def is_verbose():
+  """Tell if verbose mode is on."""
+  return g_verbose
 
 def locate(pth, fn):
   """Search for given file from given path downward."""
@@ -2702,9 +2746,9 @@ def osarch_is_ia32():
 
 def osarch_match(op):
   """Check if osarch matches some chain resulting in given value."""
-  if op == osarch:
+  if op == g_osarch:
     return True
-  ii = osarch
+  ii = g_osarch
   while ii in platform_mapping:
     ii = platform_mapping[ii]
     if op == ii:
@@ -2713,15 +2757,15 @@ def osarch_match(op):
 
 def osname_is_freebsd():
   """Check if the operating system name maps to FreeBSD."""
-  return ("FreeBSD" == osname)
+  return ("FreeBSD" == g_osname)
 
 def osname_is_linux():
   """Check if the operating system name maps to Linux."""
-  return ("Linux" == osname)
+  return ("Linux" == g_osname)
 
 def raise_unknown_address_size():
   """Common function to raise an error if os architecture address size is unknown."""
-  raise RuntimeError("platform '%s' addressing size unknown" % (osarch))
+  raise RuntimeError("platform '%s' addressing size unknown" % (g_osarch))
 
 def readelf_get_info(op):
   """Read information from an ELF file using readelf. Return as dictionary."""
@@ -2746,11 +2790,11 @@ def readelf_truncate(src, dst):
   size = os.path.getsize(src)
   truncate_size = info["size"]
   if size == truncate_size:
-    if verbose:
+    if is_verbose():
       print("Executable size equals PT_LOAD size (%u bytes), no truncation necessary." % (size))
     shutil.copy(src, dst)
   else:
-    if verbose:
+    if is_verbose():
       print("Truncating file size to PT_LOAD size: %u bytes" % (truncate_size))
     rfd = open(src, "rb")
     wfd = open(dst, "wb")
@@ -2760,7 +2804,7 @@ def readelf_truncate(src, dst):
 
 def run_command(lst, decode_output = True):
   """Run program identified by list of command line parameters."""
-  if verbose:
+  if is_verbose():
     print("Executing command: %s" % (" ".join(lst)))
   proc = subprocess.Popen(lst, stdout = subprocess.PIPE, stderr = subprocess.PIPE)
   (proc_stdout, proc_stderr) = proc.communicate()
@@ -2806,7 +2850,7 @@ def set_program_start(op):
 def touch(op):
   """Emulate *nix 'touch' command."""
   if not os.path.exists(op):
-    if verbose:
+    if is_verbose():
       print("Creating nonexistent file '%s'." % (op))
     fd = open(op, "w")
     fd.close()
@@ -2849,10 +2893,8 @@ class CustomHelpFormatter(argparse.HelpFormatter):
 
 def main():
   """Main function."""
-  global definition_ld
-  global osname
-  global symbol_prefix
-  global verbose
+  global g_osname
+  global g_verbose
 
   assembler = None
   cross_compile = False
@@ -2879,7 +2921,6 @@ def main():
   parser.add_argument("-C", "--compiler", help = "Try to use given compiler executable as opposed to autodetect.")
   parser.add_argument("-d", "--define", default = "USE_LD", help = "Definition to use for checking whether to use 'safe' mechanism instead of dynamic loading.\n(default: %(default)s)")
   parser.add_argument("-e", "--elfling", action = "store_true", help = "Use elfling packer if available.")
-  parser.add_argument("--ignore-gnu-hash", action = "store_true", help = "Always assume SYSV hash table is available, ignore handling for GNU hash table.")
   parser.add_argument("-h", "--help", action = "store_true", help = "Print this help string and exit.")
   parser.add_argument("-I", "--include-directory", action = "append", help = "Add an include directory to be searched for header files.")
   parser.add_argument("-k", "--linker", help = "Try to use given linker executable as opposed to autodetect.")
@@ -2890,7 +2931,8 @@ def main():
   parser.add_argument("--nice-filedump", action = "store_true", help = "Do not use dirty tricks in compression header, also remove filedumped binary when done.")
   parser.add_argument("-o", "--output-file", help = "Compile a named binary, do not only create a header. If the name specified features a path, it will be used verbatim. Otherwise the binary will be created in the same path as source file(s) compiled.")
   parser.add_argument("-O", "--operating-system", help = "Try to target given operating system insofar cross-compilation is possible.")
-  parser.add_argument("-P", "--call-prefix", default = symbol_prefix, help = "Call prefix to identify desired calls.\n(default: %(default)s)")
+  parser.add_argument("-P", "--call-prefix", default = "dnload_", help = "Call prefix to identify desired calls.\n(default: %(default)s)")
+  parser.add_argument("--safe-symtab", action = "store_true", help = "Handle DT_SYMTAB in a safe manner.")
   parser.add_argument("-s", "--search-path", action = "append", help = "Directory to search for the header file to generate. May be specified multiple times. If not given, searches paths of source files to compile. If not given and no source files to compile, current path will be used.")
   parser.add_argument("-S", "--strip-binary", help = "Try to use given strip executable as opposed to autodetect.")
   parser.add_argument("-t", "--target", default = "dnload.h", help = "Target header file to look for.\n(default: %(default)s)")
@@ -2911,8 +2953,6 @@ def main():
   if args.help:
     print(parser.format_help().strip())
     return 0
-  if args.ignore_gnu_hash:
-    definitions += ["DNLOAD_IGNORE_GNU_HASH"]
   if args.include_directory:
     include_directories += args.include_directory
   if args.linker:
@@ -2925,11 +2965,13 @@ def main():
     definitions += ["DNLOAD_NO_DEBUGGER_TRAP"]
   if args.operating_system:
     new_osname = platform_map(args.operating_system.lower())
-    if new_osname != osname:
+    if new_osname != g_osname:
       cross_compile = True
-      osname = new_osname
+      g_osname = new_osname
   if args.output_file:
     output_file = args.output_file
+  if args.safe_symtab:
+    definitions += ["DNLOAD_SAFE_SYMTAB_HANDLING"]
   if args.search_path:
     target_search_path += args.search_path
   if args.source:
@@ -2939,9 +2981,9 @@ def main():
   if args.unpack_header:
     compression = args.unpack_header
   if args.verbose:
-    verbose = True
+    g_verbose = True
   if args.version:
-    print(version)
+    print(VERSION)
     return 0
 
   definition_ld = args.define
@@ -2965,7 +3007,7 @@ def main():
 
   target_path, target_file = os.path.split(os.path.normpath(target))
   if target_path:
-    if verbose:
+    if is_verbose():
       print("Using explicit target header file '%s'." % (target))
     touch(target)
   else:
@@ -2973,7 +3015,7 @@ def main():
     if target_file:
       target = os.path.normpath(target_file)
       target_path, target_file = os.path.split(target)
-      if verbose:
+      if is_verbose():
         print("Header file '%s' found in path '%s/'." % (target_file, target_path))
     else:
       raise RuntimeError("no information where to put header file '%s' - not found in path(s) %s" % (target, str(target_search_path)))
@@ -3036,30 +3078,30 @@ def main():
   compiler.set_definitions(["DNLOAD_H"] + definitions)
   symbols = set()
   for ii in source_files:
-    if verbose:
+    if is_verbose():
       print("Analyzing source file '%s'." % (ii))
-    so = compiler.preprocess(ii)
-    source_symbols = analyze_source(so)
+    source = compiler.preprocess(ii)
+    source_symbols = analyze_source(source, symbol_prefix)
     symbols = symbols.union(source_symbols)
   symbols = find_symbols(symbols)
   if "dlfcn" == compilation_mode:
     symbols = sorted(symbols)
 
-  if verbose:
+  if is_verbose():
     symbol_strings = map(lambda x: str(x), symbols)
     print("Symbols found: ['%s']" % ("', '".join(symbol_strings)))
 
   file_contents = template_header_begin % (os.path.basename(sys.argv[0]), definition_ld, definition_ld)
-  file_contents += generate_symbol_definitions(compilation_mode, symbols)
-  file_contents += generate_symbol_struct(compilation_mode, symbols)
-  file_contents += generate_loader(compilation_mode, symbols, linker)
+  file_contents += generate_symbol_definitions(compilation_mode, symbols, symbol_prefix, definition_ld)
+  file_contents += generate_symbol_struct(compilation_mode, symbols, definition_ld)
+  file_contents += generate_loader(compilation_mode, symbols, definition_ld, linker)
   file_contents += template_header_end
 
   fd = open(target, "w")
   fd.write(file_contents)
   fd.close()
 
-  if verbose:
+  if is_verbose():
     print("Wrote header file '%s'." % (target))
 
   if output_file:
@@ -3070,7 +3112,7 @@ def main():
       output_path, output_basename = os.path.split(source_file)
       output_basename, source_extension = os.path.splitext(output_basename)
       output_file = os.path.normpath(os.path.join(output_path, output_basename))
-      if verbose:
+      if is_verbose():
         print("Using output file '%s' after source file '%s'." % (output_file, source_file))
     else:
       output_file = os.path.normpath(output_file)
@@ -3079,7 +3121,7 @@ def main():
         output_path = target_path
       output_file = os.path.normpath(os.path.join(output_path, output_basename))
     libraries = sorted(libraries)
-    if verbose:
+    if is_verbose():
       print("Linking against libraries: %s" % (str(libraries)))
     compiler.generate_compiler_flags()
     compiler.generate_linker_flags()
