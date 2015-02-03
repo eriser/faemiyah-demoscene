@@ -298,10 +298,10 @@ class AssemblerFile:
     ii = 0
     while len(self.__sections) > ii:
       section = self.__sections[ii]
-      if "text" == section.name:
+      if "text" == section.get_name():
         text_section = section
         ii += 1
-      elif "rodata" == section.name:
+      elif "rodata" == section.get_name():
         if text_section:
           text_section.content += section.content
         else:
@@ -1799,6 +1799,10 @@ class Symbol:
     """Get the hash of symbol name."""
     return self.__hash
 
+  def get_library(self):
+    """Access library reference."""
+    return self.__library
+
   def get_library_name(self, linker):
     """Get linkable library object name."""
     return linker.get_library_name(self.__library.get_name())
@@ -1843,6 +1847,10 @@ class LibraryDefinition:
       if ii.get_name() == op:
         return ii
     return None
+
+  def get_name(self):
+    """Accessor."""
+    return self.__name
 
 library_definition_c = LibraryDefinition("c", (
   ("void*", "malloc", "size_t"),
@@ -2379,7 +2387,7 @@ def generate_loader(mode, symbols, definition, linker):
     loader_content = generate_loader_hash(symbols)
   ret = template_loader % (definition, loader_content)
   if "maximum" != mode:
-    ret += template_uns_symbols
+    ret += template_und_symbols
   return ret
 
 def generate_loader_dlfcn(symbols, linker):
@@ -2387,7 +2395,7 @@ def generate_loader_dlfcn(symbols, linker):
   dlfcn_string = ""
   current_lib = None
   for ii in symbols:
-    symbol_lib = ii.library.name
+    symbol_lib = ii.get_library().get_name()
     if current_lib != symbol_lib:
       if current_lib:
         dlfcn_string += "\"\\0%s\\0\"\n" % (ii.get_library_name(linker))
