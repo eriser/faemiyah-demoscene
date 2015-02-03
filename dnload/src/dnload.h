@@ -97,37 +97,37 @@ void _start() __attribute__((externally_visible));
 
 #if defined(USE_LD)
 /** \cond */
-#define dnload_SDL_ShowCursor SDL_ShowCursor
-#define dnload_SDL_GL_SwapBuffers SDL_GL_SwapBuffers
-#define dnload_glCreateShaderProgramv glCreateShaderProgramv
-#define dnload_SDL_PollEvent SDL_PollEvent
-#define dnload_glGenProgramPipelines glGenProgramPipelines
-#define dnload_SDL_Init SDL_Init
-#define dnload_SDL_PauseAudio SDL_PauseAudio
-#define dnload_glBindProgramPipeline glBindProgramPipeline
-#define dnload_SDL_Quit SDL_Quit
 #define dnload_glUseProgramStages glUseProgramStages
-#define dnload_glRects glRects
-#define dnload_SDL_OpenAudio SDL_OpenAudio
+#define dnload_glBindProgramPipeline glBindProgramPipeline
+#define dnload_SDL_PauseAudio SDL_PauseAudio
 #define dnload_SDL_SetVideoMode SDL_SetVideoMode
+#define dnload_SDL_OpenAudio SDL_OpenAudio
+#define dnload_SDL_PollEvent SDL_PollEvent
+#define dnload_SDL_Init SDL_Init
+#define dnload_glGenProgramPipelines glGenProgramPipelines
+#define dnload_SDL_Quit SDL_Quit
+#define dnload_glCreateShaderProgramv glCreateShaderProgramv
+#define dnload_SDL_ShowCursor SDL_ShowCursor
 #define dnload_glProgramUniform3fv glProgramUniform3fv
+#define dnload_glRects glRects
+#define dnload_SDL_GL_SwapBuffers SDL_GL_SwapBuffers
 /** \endcond */
 #else
 /** \cond */
-#define dnload_SDL_ShowCursor g_symbol_table.SDL_ShowCursor
-#define dnload_SDL_GL_SwapBuffers g_symbol_table.SDL_GL_SwapBuffers
-#define dnload_glCreateShaderProgramv g_symbol_table.glCreateShaderProgramv
-#define dnload_SDL_PollEvent g_symbol_table.SDL_PollEvent
-#define dnload_glGenProgramPipelines g_symbol_table.glGenProgramPipelines
-#define dnload_SDL_Init g_symbol_table.SDL_Init
-#define dnload_SDL_PauseAudio g_symbol_table.SDL_PauseAudio
-#define dnload_glBindProgramPipeline g_symbol_table.glBindProgramPipeline
-#define dnload_SDL_Quit g_symbol_table.SDL_Quit
 #define dnload_glUseProgramStages g_symbol_table.glUseProgramStages
-#define dnload_glRects g_symbol_table.glRects
-#define dnload_SDL_OpenAudio g_symbol_table.SDL_OpenAudio
+#define dnload_glBindProgramPipeline g_symbol_table.glBindProgramPipeline
+#define dnload_SDL_PauseAudio g_symbol_table.SDL_PauseAudio
 #define dnload_SDL_SetVideoMode g_symbol_table.SDL_SetVideoMode
+#define dnload_SDL_OpenAudio g_symbol_table.SDL_OpenAudio
+#define dnload_SDL_PollEvent g_symbol_table.SDL_PollEvent
+#define dnload_SDL_Init g_symbol_table.SDL_Init
+#define dnload_glGenProgramPipelines g_symbol_table.glGenProgramPipelines
+#define dnload_SDL_Quit g_symbol_table.SDL_Quit
+#define dnload_glCreateShaderProgramv g_symbol_table.glCreateShaderProgramv
+#define dnload_SDL_ShowCursor g_symbol_table.SDL_ShowCursor
 #define dnload_glProgramUniform3fv g_symbol_table.glProgramUniform3fv
+#define dnload_glRects g_symbol_table.glRects
+#define dnload_SDL_GL_SwapBuffers g_symbol_table.SDL_GL_SwapBuffers
 /** \endcond */
 #endif
 
@@ -138,36 +138,36 @@ void _start() __attribute__((externally_visible));
  */
 static struct SymbolTableStruct
 {
-  int (*SDL_ShowCursor)(int);
-  void (*SDL_GL_SwapBuffers)(void);
-  GLuint (GLAPIENTRY *glCreateShaderProgramv)(GLenum, GLsizei, const char**);
-  int (*SDL_PollEvent)(SDL_Event*);
-  void (GLAPIENTRY *glGenProgramPipelines)(GLsizei, GLuint*);
-  int (*SDL_Init)(Uint32);
-  void (*SDL_PauseAudio)(int);
-  void (GLAPIENTRY *glBindProgramPipeline)(GLuint);
-  void (*SDL_Quit)(void);
   void (GLAPIENTRY *glUseProgramStages)(GLuint, GLbitfield, GLuint);
-  void (GLAPIENTRY *glRects)(GLshort, GLshort, GLshort, GLshort);
-  int (*SDL_OpenAudio)(SDL_AudioSpec*, SDL_AudioSpec*);
+  void (GLAPIENTRY *glBindProgramPipeline)(GLuint);
+  void (*SDL_PauseAudio)(int);
   SDL_Surface* (*SDL_SetVideoMode)(int, int, int, Uint32);
+  int (*SDL_OpenAudio)(SDL_AudioSpec*, SDL_AudioSpec*);
+  int (*SDL_PollEvent)(SDL_Event*);
+  int (*SDL_Init)(Uint32);
+  void (GLAPIENTRY *glGenProgramPipelines)(GLsizei, GLuint*);
+  void (*SDL_Quit)(void);
+  GLuint (GLAPIENTRY *glCreateShaderProgramv)(GLenum, GLsizei, const char**);
+  int (*SDL_ShowCursor)(int);
   void (GLAPIENTRY *glProgramUniform3fv)(GLuint, GLint, GLsizei, const GLfloat*);
+  void (GLAPIENTRY *glRects)(GLshort, GLshort, GLshort, GLshort);
+  void (*SDL_GL_SwapBuffers)(void);
 } g_symbol_table =
 {
-  (int (*)(int))0xb88bf697,
-  (void (*)(void))0xda43e6ea,
-  (GLuint (GLAPIENTRY *)(GLenum, GLsizei, const char**))0xa4fd03d8,
-  (int (*)(SDL_Event*))0x64949d97,
-  (void (GLAPIENTRY *)(GLsizei, GLuint*))0x75e35418,
-  (int (*)(Uint32))0x70d6574,
-  (void (*)(int))0x29f14a4,
-  (void (GLAPIENTRY *)(GLuint))0x2386bc04,
-  (void (*)(void))0x7eb657f3,
   (void (GLAPIENTRY *)(GLuint, GLbitfield, GLuint))0x212d8ad7,
-  (void (GLAPIENTRY *)(GLshort, GLshort, GLshort, GLshort))0xd419e20a,
-  (int (*)(SDL_AudioSpec*, SDL_AudioSpec*))0x46fd70c8,
+  (void (GLAPIENTRY *)(GLuint))0x2386bc04,
+  (void (*)(int))0x29f14a4,
   (SDL_Surface* (*)(int, int, int, Uint32))0x39b85060,
+  (int (*)(SDL_AudioSpec*, SDL_AudioSpec*))0x46fd70c8,
+  (int (*)(SDL_Event*))0x64949d97,
+  (int (*)(Uint32))0x70d6574,
+  (void (GLAPIENTRY *)(GLsizei, GLuint*))0x75e35418,
+  (void (*)(void))0x7eb657f3,
+  (GLuint (GLAPIENTRY *)(GLenum, GLsizei, const char**))0xa4fd03d8,
+  (int (*)(int))0xb88bf697,
   (void (GLAPIENTRY *)(GLuint, GLint, GLsizei, const GLfloat*))0xc969d24e,
+  (void (GLAPIENTRY *)(GLshort, GLshort, GLshort, GLshort))0xd419e20a,
+  (void (*)(void))0xda43e6ea,
 };
 #endif
 
@@ -300,16 +300,12 @@ static const struct link_map* elf_get_link_map()
  */
 static const void* elf_transform_dynamic_address(const struct link_map *lmap, const void *ptr)
 {
-  // Sometimes the value is an offset instead of a naked pointer.
-#if defined(__linux__) && defined(DNLOAD_SAFE_SYMTAB_HANDLING)
-  if((NULL != ptr) && (ret < (const void*)lmap->l_addr))
+#if defined(__FreeBSD__)
+  return (uint8_t*)ptr + (size_t)lmap->l_addr;
 #else
-  if(ptr < (const void*)lmap->l_addr)
-#endif
-  {
-    return (uint8_t*)ptr + (size_t)lmap->l_addr;
-  }
+  (void)lmap;
   return ptr;
+#endif
 }
 #if defined(DNLOAD_SAFE_SYMTAB_HANDLING)
 /** \brief Get address of one dynamic section corresponding to given library.

@@ -820,7 +820,11 @@ class AssemblerVariable:
       return [self]
     ret = []
     for ii in range(len(lst)):
-      var = AssemblerVariable(("", 1, ord(lst[ii])))
+      struct_elem = lst[ii]
+      if isinstance(struct_elem, str):
+        var = AssemblerVariable(("", 1, ord(struct_elem)))
+      else:
+        var = AssemblerVariable(("", 1, int(struct_elem)))
       if 0 == ii:
         var.__desc = self.__desc
         var.__name = self.__name
@@ -1738,6 +1742,13 @@ class Elfling:
 # Symbol ###############################
 ########################################
 
+def sdbm_hash(name):
+  """Calculate SDBM hash over a string."""
+  ret = 0
+  for ii in name:
+    ret = (ret * 65599 + ord(ii)) & 0xFFFFFFFF
+  return hex(ret)
+
 class Symbol:
   """Represents one (function) symbol."""
 
@@ -1750,6 +1761,7 @@ class Symbol:
     else:
       self.__name = lst[1]
       self.__rename = lst[1]
+    self.__hash = sdbm_hash(self.__name)
     self.__parameters = None
     if 2 < len(lst):
       self.__parameters = lst[2:]
@@ -1785,7 +1797,7 @@ class Symbol:
 
   def get_hash(self):
     """Get the hash of symbol name."""
-    return sdbm_hash(self.__name)
+    return self.__hash
 
   def get_library_name(self, linker):
     """Get linkable library object name."""
@@ -1814,10 +1826,11 @@ class Symbol:
 class LibraryDefinition:
   """Represents one library containing symbols."""
 
-  def __init__(self, op):
+  def __init__(self, name, symbols = []):
     """Constructor."""
-    self.__name = op
+    self.__name = name
     self.__symbols = []
+    self.add_symbols(symbols)
 
   def add_symbols(self, lst):
     """Add a symbol listing."""
@@ -1831,8 +1844,7 @@ class LibraryDefinition:
         return ii
     return None
 
-library_definition_c = LibraryDefinition("c")
-library_definition_c.add_symbols((
+library_definition_c = LibraryDefinition("c", (
   ("void*", "malloc", "size_t"),
   ("void*", "memset", "void*", "int", "size_t"),
   ("int", "printf", "const char* __restrict", "..."),
@@ -1841,8 +1853,7 @@ library_definition_c.add_symbols((
   ("int", ("rand", "bsd_rand")),
   ("void", ("srand", "bsd_srand"), "unsigned int"),
   ))
-library_definition_gl = LibraryDefinition("GL")
-library_definition_gl.add_symbols((
+library_definition_gl = LibraryDefinition("GL", (
   ("void", "glActiveTexture", "GLenum"),
   ("void", "glAttachShader", "GLuint", "GLuint"),
   ("void", "glBindFramebuffer", "GLenum", "GLuint"),
@@ -1899,19 +1910,16 @@ library_definition_gl.add_symbols((
   ("void", "glVertexAttribPointer", "GLuint", "GLint", "GLenum", "GLboolean", "GLsizei", "const GLvoid*"),
   ("void", "glViewport", "GLint", "GLint", "GLsizei", "GLsizei"),
   ))
-library_definition_glu = LibraryDefinition("GLU")
-library_definition_glu.add_symbols((
+library_definition_glu = LibraryDefinition("GLU", (
   ("GLint", "gluBuild3DMipmaps", "GLenum", "GLint", "GLsizei", "GLsizei", "GLsizei", "GLenum", "GLenum", "const void*"),
   ))
-library_definition_m = LibraryDefinition("m")
-library_definition_m.add_symbols((
+library_definition_m = LibraryDefinition("m", (
   ("double", "acos", "double"),
   ("float", "acosf", "float"),
   ("float", "powf", "float", "float"),
   ("float", "tanhf", "float")
   ))
-library_definition_sdl = LibraryDefinition("SDL")
-library_definition_sdl.add_symbols((
+library_definition_sdl = LibraryDefinition("SDL", (
   ("uint32_t", "SDL_GetTicks"),
   ("void", "SDL_GL_SwapBuffers"),
   ("int", "SDL_Init", "Uint32"),
@@ -2209,16 +2217,12 @@ static const struct link_map* elf_get_link_map()
  */
 static const void* elf_transform_dynamic_address(const struct link_map *lmap, const void *ptr)
 {
-  // Sometimes the value is an offset instead of a naked pointer.
-#if defined(__linux__) && defined(DNLOAD_SAFE_SYMTAB_HANDLING)
-  if((NULL != ptr) && (ret < (const void*)lmap->l_addr))
+#if defined(__FreeBSD__)
+  return (uint8_t*)ptr + (size_t)lmap->l_addr;
 #else
-  if(ptr < (const void*)lmap->l_addr)
-#endif
-  {
-    return (uint8_t*)ptr + (size_t)lmap->l_addr;
-  }
+  (void)lmap;
   return ptr;
+#endif
 }
 #if defined(DNLOAD_SAFE_SYMTAB_HANDLING)
 /** \\brief Get address of one dynamic section corresponding to given library.
@@ -2817,13 +2821,6 @@ def run_command(lst, decode_output = True):
     raise RuntimeError("command failed: %i, stderr output:\n%s" % (proc.returncode, proc_stderr))
   return (proc_stdout, proc_stderr)
 
-def sdbm_hash(name):
-  """Calculate SDBM hash over a string."""
-  ret = 0
-  for ii in name:
-    ret = (ret * 65599 + ord(ii)) & 0xFFFFFFFF
-  return hex(ret)
-
 def search_executable(op):
   """Check for existence of binary, everything within the list will be tried."""
   checked = []
@@ -3086,6 +3083,8 @@ def main():
   symbols = find_symbols(symbols)
   if "dlfcn" == compilation_mode:
     symbols = sorted(symbols)
+  elif "maximum" == compilation_mode:
+    symbols = map(lambda x: x[1], sorted(map(lambda x: (x.get_hash(), x), symbols)))
 
   if is_verbose():
     symbol_strings = map(lambda x: str(x), symbols)
