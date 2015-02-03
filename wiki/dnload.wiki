@@ -158,24 +158,25 @@ Linking against libraries: ['c']
 Executing command: g++49 -S src/hello_world.cpp -o src/hello_world.S -Os -ffast-math -fno-asynchronous-unwind-tables -fno-exceptions -fno-rtti -fno-threadsafe-statics -fomit-frame-pointer -fsingle-precision-constant -fwhole-program -march=pentium4 -mpreferred-stack-boundary=2 -Wall -D_GNU_SOURCE=1 -D_REENTRANT -D_THREAD_SAFE -I/usr/local/include -I/usr/local/include/SDL
 Checking for required UND symbols... ['__progname', 'environ']
 Using shared library 'libc.so.7' instead of 'libc.so'.
-Read 7 sections in 'src/hello_world.S': text, text, text, rodata, text, text, note
-Erasing function header from '_start': 4 lines.
-Erasing function footer after interrupt '128': 9 lines.
+Read 5 sections in 'src/hello_world.S': text, rodata, text, text, note
+Erasing function header from '_start': 5 lines
+Erasing function footer after interrupt '0x3': 9 lines.
 Replacing 4-byte alignment with 1-byte alignment.
-Constructed fake .bss segement: 8 bytes, one PT_LOAD sufficient
+Constructed fake .bss segement: 0 bytes, one PT_LOAD sufficient
 Merging headers phdr_dynamic and hash at 4 bytes.
 Merging headers hash and dynamic at 4 bytes.
 Merging headers dynamic and symtab at 15 bytes.
 Merging headers interp and strtab at 1 bytes.
-Wrote assembler source 'src/hello_world.final.S'.
-Executing command: /usr/local/bin/as src/hello_world.final.S -o src/hello_world.o
+Size of headers: 245 bytes
+Wrote assembler source 'src/hello_world.combined.S'.
+Executing command: /usr/local/bin/as src/hello_world.combined.S -o src/hello_world.o
 Executing command: /usr/local/bin/ld --verbose
 Wrote linker script 'src/hello_world.ld'.
 Executing command: /usr/local/bin/ld --oformat=binary --entry=0x2000000 src/hello_world.o -o src/hello_world.unprocessed -T src/hello_world.ld
-Executing command: readelf --program-headers src/hello_world.unprocessed
-Truncating file size to PT_LOAD size: 518 bytes
+Executing command: readelf --file-header --program-headers src/hello_world.unprocessed
+Executable size equals PT_LOAD size (411 bytes), no truncation necessary.
 Executing command: xz --format=lzma --lzma1=preset=9e,lc=1,lp=0,pb=0 --stdout src/hello_world.stripped
-Wrote 'src/hello_world': 413 bytes
+Wrote 'src/hello_world': 321 bytes
 }}}
 
 The actual program output should be:
@@ -255,19 +256,17 @@ Note that this is not the traditional exit system call. Instead, it's a trap [#R
 
 == Advanced examples ==
 
-The `src/` folder contains two other examples: `quad.cpp` and `intro.cpp`. The quad example will simply open a coder-colored window and output 8-bit music (from very short programs) for a couple of seconds.
-
-The intro example is more interesting, as it contains a (extremely primitive) raycaster and can be compiled with CMake for a interactive program with a 'debug mode'. To compile this, run (you will need Boost, GLEW, libPNG, OpenGL and SDL):
+The `src/` folder contains two other examples: `quad.cpp` and `intro.cpp`. The quad example will simply open a coder-colored window, whereas the intro example performs (extremely primitive) raycasting and outputs 8-bit music (from very short programs) for a couple of seconds. The intro example can also be compiled with CMake for a interactive program with a 'debug mode'. To compile this, run (you will need Boost, GLEW, libPNG, OpenGL and SDL):
 
 {{{
-cmake . && make clean all && ./src/stub -d -w
+cmake . && make clean all && ./src/intro -d -w
 }}}
 
 This should open a window allowing mouse pan and WASD movement.
 You can size-optimize the program with:
 
 {{{
-python dnload.py -v src/intro.cpp -o stub -lGL -lSDL
+python dnload.py -c src/intro.cpp -lGL -lSDL -v
 }}}
 
 Have fun!
@@ -354,10 +353,10 @@ At least on our bruteforced tests, this seems to consistently yield the best res
 For academic interest, the script can create its output using nothing besides the unpack header trick. To do this, use the command line flag `-m vanilla` (as in `--method`). This yields us the baseline whencefrom we begin our quest for smaller binaries:
 
 {{{
-'src/hello_world.stripped': 1940 bytes
-'src/hello_world': 637 bytes
-'src/quad.stripped': ~3500 bytes
-'src/quad': ~1500 bytes
+'src/hello_world.stripped': 1396 bytes
+'src/hello_world': 625 bytes
+'src/intro.stripped': 5048 bytes
+'src/intro': 1629 bytes
 }}}
 
 *Note:* Unless otherwise mentioned, all sizes, code excerpts and implementation details in this chapter refer to `FreeBSD-ia32`, which was the original supported platform.
@@ -389,24 +388,17 @@ Luckily, using the forementioned two symbols, we can perform dynamic loading our
   * Two successive zeroes revert to initial state, next string will again be a library name.
   * Third successive zero stops loading.
 
-This produces the following loader (using `quad.cpp` example):
+This produces the following loader (using `intro.cpp` example):
 
 {{{
 static const char g_dynstr[] = ""
 "libGL.so\0"
-"glAttachShader\0"
-"glCompileShader\0"
-"glCreateProgram\0"
-"glCreateShader\0"
-"glDisable\0"
-"glEnableVertexAttribArray\0"
-"glGetAttribLocation\0"
-"glGetUniformLocation\0"
-"glLinkProgram\0"
-"glRectf\0"
-"glShaderSource\0"
-"glUniform1f\0"
-"glUseProgram\0"
+"glBindProgramPipeline\0"
+"glCreateShaderProgramv\0"
+"glGenProgramPipelines\0"
+"glProgramUniform3fv\0"
+"glRects\0"
+"glUseProgramStages\0"
 "\0libSDL.so\0"
 "SDL_GL_SwapBuffers\0"
 "SDL_Init\0"
@@ -456,13 +448,13 @@ To gain access to these functions, we need to link against the standard C librar
 Recompiling with `-m dlfcn`, we get new sizes:
 
 {{{
-'hello_world.stripped': 1568 bytes
-'hello_world': 752 bytes
-'quad.stripped': 2572 bytes
-'quad': 1327 bytes
+'hello_world.stripped': 1544 bytes
+'hello_world': 736 bytes
+'intro.stripped': 5076 bytes
+'intro': 1590 bytes
 }}}
 
-Interestingly, even though the size of hello world example is reduced, its compressed size is increased due to additional program logic in the function loading system. On any nontrivial program the tradeoff should still be worth it, however.
+Interestingly, this method does not really seem to be that advantageous at all on modern FreeBSD. Small binaries actually get larger due to additional program logic in the function loading system. On any nontrivial program there is a slight tradeoff in favor of just using plain `ld` though.
 
 == Import by hash - scouring ELF headers ==
 
@@ -634,10 +626,10 @@ static void dnload(void)
 Compiling with `-m hash` and linking against normal libraries (as opposed to what was needed with the dlfcn method) gives us new sizes:
 
 {{{
-'hello_world.stripped': 1180 bytes
-'hello_world': 637 bytes
-'quad.stripped': 1888 bytes
-'quad': 1122 bytes
+'hello_world.stripped': 1100 bytes
+'hello_world': 556 bytes
+'intro.stripped': 5464 bytes
+'intro': 1356 bytes
 }}}
 
 Significantly better.
@@ -969,10 +961,10 @@ Unfortunately `GNU_HASH` more than eats away the size advantage [#Empty_DT_SYMTA
 Compiling with all the tricks listed above (using `-m maximum` or just omitting the option) gives us:
 
 {{{
-'hello_world.stripped': 518 bytes
-'hello_world': 413 bytes
-'quad.stripped': 1218 bytes
-'quad': 896 bytes
+'hello_world.stripped': 411 bytes
+'hello_world': 321 bytes
+'intro.stripped': 1609 bytes
+'intro': 1099 bytes
 }}}
 
 *Note:* Numbers subject to change.
