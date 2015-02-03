@@ -1,7 +1,8 @@
-r186 (2015-02-04)
+r189 (2015-02-04)
   * Use 'unsafe' DT_SYMTAB / DT_HASH location assumption from minas/Calodox.
   * Only treat d_un pointers as offsets on FreeBSD.
   * Make hashed symbol table order stable, decreases compressed size.
+  * Fix bugs that had crept into legacy compilation modes.
   * Minor Python style improvements.
 
 r183 (2015-02-03)

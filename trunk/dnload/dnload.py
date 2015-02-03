@@ -18,7 +18,7 @@ import textwrap
 (g_osname, g_osignore1, g_osignore2, g_osignore3, g_osarch) = os.uname()
 g_verbose = False
 
-VERSION = "r186"
+VERSION = "r189"
 
 ELFLING_OUTPUT = "elfling_output"
 ELFLING_PADDING = 10
@@ -303,7 +303,7 @@ class AssemblerFile:
         ii += 1
       elif "rodata" == section.get_name():
         if text_section:
-          text_section.content += section.content
+          text_section.merge_content(section)
         else:
           rodata_sections += [section]
         del(self.__sections[ii])
@@ -632,6 +632,10 @@ class AssemblerSection:
   def get_name(self):
     """Accessor."""
     return self.__name
+
+  def merge_content(self, other):
+    """Merge content with another section."""
+    self.__content += other.__content
 
   def minimal_align(self):
     """Remove all .align declarations, replace with desired alignment."""
