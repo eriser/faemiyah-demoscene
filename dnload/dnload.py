@@ -18,7 +18,7 @@ import textwrap
 (g_osname, g_osignore1, g_osignore2, g_osignore3, g_osarch) = os.uname()
 g_verbose = False
 
-VERSION = "r183"
+VERSION = "r186"
 
 ELFLING_OUTPUT = "elfling_output"
 ELFLING_PADDING = 10
