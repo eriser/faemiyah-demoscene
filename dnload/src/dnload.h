@@ -227,6 +227,27 @@ typedef Elf32_Sword dnload_elf_tag_t;
 #endif
 /** \brief ELF base address. */
 #define ELF_BASE_ADDRESS 0x400000
+/** \brief Get dynamic section element by tag.
+ *
+ * \param dyn Dynamic section.
+ * \param tag Tag to look for.
+ * \return Pointer to dynamic element.
+ */
+static const dnload_elf_dyn_t* elf_get_dynamic_element_by_tag(const void *dyn, dnload_elf_tag_t tag)
+{
+  const dnload_elf_dyn_t *dynamic = (const dnload_elf_dyn_t*)dyn;
+  do {
+    ++dynamic; // First entry in PT_DYNAMIC is probably nothing important.
+#if defined(__linux__) && defined(DNLOAD_SAFE_SYMTAB_HANDLING)
+    if(0 == dynamic->d_tag)
+    {
+      return NULL;
+    }
+#endif
+  } while(dynamic->d_tag != tag);
+  return dynamic;
+}
+#if defined(DNLOAD_NO_FIXED_R_DEBUG_ADDRESS) || defined(DNLOAD_SAFE_SYMTAB_HANDLING)
 /** \brief Get the address associated with given tag in a dynamic section.
  *
  * \param dyn Dynamic section.
@@ -235,18 +256,16 @@ typedef Elf32_Sword dnload_elf_tag_t;
  */
 static const void* elf_get_dynamic_address_by_tag(const void *dyn, dnload_elf_tag_t tag)
 {
-  const dnload_elf_dyn_t *dynamic = (const dnload_elf_dyn_t*)dyn;
-  do {
-    ++dynamic; // First entry in PT_DYNAMIC is probably nothing important.
-#if defined(__linux__) && !defined(DNLOAD_IGNORE_GNU_HASH)
-    if(0 == dynamic->d_tag)
-    {
-      return NULL;
-    }
+  const dnload_elf_dyn_t *dynamic = elf_get_dynamic_element_by_tag(dyn, tag);
+#if defined(__linux__) && defined(DNLOAD_SAFE_SYMTAB_HANDLING)
+  if(NULL == dynamic)
+  {
+    return NULL;
+  }
 #endif
-  } while(dynamic->d_tag != tag);
   return (const void*)dynamic->d_un.d_ptr;
 }
+#endif
 #if !defined(DNLOAD_NO_FIXED_R_DEBUG_ADDRESS)
 /** Link map address, fixed location in ELF headers. */
 extern const struct r_debug *dynamic_r_debug;
@@ -274,25 +293,36 @@ static const struct link_map* elf_get_link_map()
   return dynamic_r_debug->r_map;
 #endif
 }
+/** \brief Return pointer from link map address.
+ *
+ * \param lmap Link map.
+ * \param ptr Pointer in this link map.
+ */
+static const void* elf_transform_dynamic_address(const struct link_map *lmap, const void *ptr)
+{
+  // Sometimes the value is an offset instead of a naked pointer.
+#if defined(__linux__) && defined(DNLOAD_SAFE_SYMTAB_HANDLING)
+  if((NULL != ptr) && (ret < (const void*)lmap->l_addr))
+#else
+  if(ptr < (const void*)lmap->l_addr)
+#endif
+  {
+    return (uint8_t*)ptr + (size_t)lmap->l_addr;
+  }
+  return ptr;
+}
+#if defined(DNLOAD_SAFE_SYMTAB_HANDLING)
 /** \brief Get address of one dynamic section corresponding to given library.
  *
  * \param lmap Link map.
  * \param tag Tag to look for.
+ * \return Pointer to given section or NULL.
  */
 static const void* elf_get_library_dynamic_section(const struct link_map *lmap, dnload_elf_tag_t tag)
 {
-  const void *ret = elf_get_dynamic_address_by_tag(lmap->l_ld, tag);
-  // Sometimes the value is an offset instead of a naked pointer.
-#if defined(__linux__) && !defined(DNLOAD_IGNORE_GNU_HASH)
-  if((NULL != ret) && (ret < (const void*)lmap->l_addr))
-#else
-  if(ret < (const void*)lmap->l_addr)
-#endif
-  {
-    return (uint8_t*)ret + (size_t)lmap->l_addr;
-  }
-  return ret;
+  return elf_transform_dynamic_address(lmap, elf_get_dynamic_address_by_tag(lmap->l_ld, tag));
 }
+#endif
 /** \brief Find a symbol in any of the link maps.
  *
  * Should a symbol with name matching the given hash not be present, this function will happily continue until
@@ -312,50 +342,62 @@ static void* dnload_find_symbol(uint32_t hash)
   {
     // First entry is this object itself, safe to advance first.
     lmap = lmap->l_next;
-    // Find symbol from link map. We need the string table and a corresponding symbol table.
-    const char* strtab = (const char*)elf_get_library_dynamic_section(lmap, DT_STRTAB);
-    const dnload_elf_sym_t* symtab = (const dnload_elf_sym_t*)elf_get_library_dynamic_section(lmap, DT_SYMTAB);
-    const uint32_t* hashtable = (const uint32_t*)elf_get_library_dynamic_section(lmap, DT_HASH);
-    unsigned dynsymcount;
-    unsigned ii;
-#if defined(__linux__) && !defined(DNLOAD_IGNORE_GNU_HASH)
-    if(NULL == hashtable)
     {
-      hashtable = (const uint32_t*)elf_get_library_dynamic_section(lmap, DT_GNU_HASH);
-      // DT_GNU_HASH symbol counter borrows from FreeBSD rtld-elf implementation.
-      dynsymcount = 0;
+#if defined(DNLOAD_SAFE_SYMTAB_HANDLING)
+      // Find symbol from link map. We need the string table and a corresponding symbol table.
+      const char* strtab = (const char*)elf_get_library_dynamic_section(lmap, DT_STRTAB);
+      const dnload_elf_sym_t* symtab = (const dnload_elf_sym_t*)elf_get_library_dynamic_section(lmap, DT_SYMTAB);
+      const uint32_t* hashtable = (const uint32_t*)elf_get_library_dynamic_section(lmap, DT_HASH);
+      unsigned dynsymcount;
+      unsigned ii;
+#if defined(__linux__)
+      if(NULL == hashtable)
       {
-        unsigned bucket_count = hashtable[0];
-        const uint32_t* buckets = hashtable + 4 + ((sizeof(void*) / 4) * hashtable[2]);
-        const uint32_t* chain_zero = buckets + bucket_count + hashtable[1];
-        for(ii = 0; (ii < bucket_count); ++ii)
+        hashtable = (const uint32_t*)elf_get_library_dynamic_section(lmap, DT_GNU_HASH);
+        // DT_GNU_HASH symbol counter borrows from FreeBSD rtld-elf implementation.
+        dynsymcount = 0;
         {
-          unsigned bkt = buckets[ii];
-          if(bkt == 0)
+          unsigned bucket_count = hashtable[0];
+          const uint32_t* buckets = hashtable + 4 + ((sizeof(void*) / 4) * hashtable[2]);
+          const uint32_t* chain_zero = buckets + bucket_count + hashtable[1];
+          for(ii = 0; (ii < bucket_count); ++ii)
           {
-            continue;
-          }
-          {
-            const uint32_t* hashval = chain_zero + bkt;
-            do {
-              ++dynsymcount;
-            } while(0 == (*hashval++ & 1u));
+            unsigned bkt = buckets[ii];
+            if(bkt == 0)
+            {
+              continue;
+            }
+            {
+              const uint32_t* hashval = chain_zero + bkt;
+              do {
+                ++dynsymcount;
+              } while(0 == (*hashval++ & 1u));              
+            }
           }
         }
       }
-    }
-    else
+      else
 #endif
-    {
-      dynsymcount = hashtable[1];
-    }
-    for(ii = 0; (ii < dynsymcount); ++ii)
-    {
-      const dnload_elf_sym_t* sym = &symtab[ii];
-      const char *name = &strtab[sym->st_name];
-      if(sdbm_hash((const uint8_t*)name) == hash)
       {
-        return (void*)((const uint8_t*)sym->st_value + (size_t)lmap->l_addr);
+        dynsymcount = hashtable[1];
+      }
+      for(ii = 0; (ii < dynsymcount); ++ii)
+      {
+        const dnload_elf_sym_t* sym = &symtab[ii];
+#else
+      // Assume DT_SYMTAB dynamic entry immediately follows DT_STRTAB dynamic entry.
+      // Assume DT_STRTAB memory block immediately follows DT_SYMTAB dynamic entry.
+      const dnload_elf_dyn_t *dynamic = elf_get_dynamic_element_by_tag(lmap->l_ld, DT_STRTAB);
+      const char* strtab = (const char*)elf_transform_dynamic_address(lmap, (const void*)(dynamic->d_un.d_ptr));
+      const dnload_elf_sym_t* sym = (const dnload_elf_sym_t*)elf_transform_dynamic_address(lmap, (const void*)((dynamic + 1)->d_un.d_ptr));
+      for(; ((void*)sym < (void*)strtab); ++sym)
+      {
+#endif
+        const char *name = strtab + sym->st_name;
+        if(sdbm_hash((const uint8_t*)name) == hash)
+        {
+          return (void*)((const uint8_t*)sym->st_value + (size_t)lmap->l_addr);
+        }
       }
     }
   }

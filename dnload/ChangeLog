@@ -1,3 +1,7 @@
+r??? (2015-??-??)
+  * Enable unsafe DT_SYMTAB / DT_HASH location assumption from minas/calodox.
+  * Minor Python style improvements.
+
 r183 (2015-02-03)
   * Default to debugger trap for terminating to save some space.
   * Use fixed r_debug address trick from minas/Calodox.
