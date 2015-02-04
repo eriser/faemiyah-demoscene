@@ -490,6 +490,12 @@ class AssemblerSection:
           stack_decrement += get_push_size(match.group(1))
         jj += 1
         continue;
+      # Preserve comment lines as they are.
+      match = re.match(r'^\s*[#;].*', current_line, re.IGNORECASE)
+      if match:
+        reinstated_lines += [current_line]
+        jj += 1
+        continue
       # Saving stack pointer or sometimes initializing edx seem to be within pushing.
       match = re.match(r'\s*mov.*,\s*%(rbp|ebp|edx).*', current_line, re.IGNORECASE)
       if match:
@@ -1702,7 +1708,6 @@ class Elfling:
       if 0 < ii:
         ret += ", "
       ret += "0"
-    print(self.__data[0])
     for ii in self.__data:
       ret += ", %i" % (ii)
     return ret + "\n};"
@@ -2524,7 +2529,8 @@ def find_symbols(lst):
     ret += [find_symbol(ii)]
   return ret
 
-def generate_binary_minimal(source_file, compiler, assembler, linker, elfling, libraries, output_file):
+def generate_binary_minimal(source_file, compiler, assembler, linker, und_symbols, elfling, libraries,
+    output_file):
   """Generate a binary using all possible tricks. Return whether or not reprocess is necessary."""
   if source_file:
     compiler.compile_asm(source_file, output_file + ".S")
@@ -2543,13 +2549,6 @@ def generate_binary_minimal(source_file, compiler, assembler, linker, elfling, l
   segment_strtab = AssemblerSegment(assembler_strtab)
   segment_symtab = AssemblerSegment(assembler_symtab)
   # There may be symbols necessary for addition.
-  und_symbol_string = "Checking for required UND symbols... "
-  if osname_is_freebsd():
-    und_symbols = sorted(["environ", "__progname"])
-  else:
-    und_symbols = None
-  if is_verbose():
-    print(und_symbol_string + str(und_symbols))
   if is_listing(und_symbols):
     segment_symtab.add_symbol_empty()
     for ii in und_symbols:
@@ -2641,6 +2640,15 @@ def generate_binary_minimal(source_file, compiler, assembler, linker, elfling, l
   linker.set_linker_script(output_file + ".ld")
   linker.link_binary(output_file + ".o", output_file + ".unprocessed")
   readelf_truncate(output_file + ".unprocessed", output_file + ".stripped")
+
+def get_platform_und_symbols():
+  """Get the UND symbols required for this platform."""
+  ret = None
+  if osname_is_freebsd():
+    ret = sorted(["environ", "__progname"])
+  if is_verbose():
+    print("Checking for required UND symbols... " + str(ret))
+  return ret
 
 def labelify(op):
   """Take string as input. Convert into string that passes as label."""
@@ -3143,11 +3151,14 @@ def main():
     linker.set_libraries(libraries)
     linker.set_library_directories(library_directories)
     if "maximum" == compilation_mode:
-      generate_binary_minimal(source_file, compiler, assembler, linker, elfling, libraries, output_file)
+      und_symbols = get_platform_und_symbols()
+      generate_binary_minimal(source_file, compiler, assembler, linker, und_symbols, elfling, libraries,
+          output_file)
       # Now have complete binary, may need to reprocess.
       if elfling:
         elfling.compress(output_file + ".stripped", output_file + ".extracted")
-        generate_binary_minimal(None, compiler, assembler, linker, elfling, libraries, output_file)
+        generate_binary_minimal(None, compiler, assembler, linker, und_symbols, elfling, libraries,
+            output_file)
     elif "hash" == compilation_mode:
       compiler.compile_asm(source_file, output_file + ".S")
       asm = AssemblerFile(output_file + ".S")
