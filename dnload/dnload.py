@@ -2271,7 +2271,7 @@ static void* dnload_find_symbol(uint32_t hash)
 #if defined(DNLOAD_SAFE_SYMTAB_HANDLING)
       // Find symbol from link map. We need the string table and a corresponding symbol table.
       const char* strtab = (const char*)elf_get_library_dynamic_section(lmap, DT_STRTAB);
-      const dnload_elf_sym_t* symtab = (const dnload_elf_sym_t*)elf_get_library_dynamic_section(lmap, DT_SYMTAB);
+      const dnload_elf_sym_t *symtab = (const dnload_elf_sym_t*)elf_get_library_dynamic_section(lmap, DT_SYMTAB);
       const uint32_t* hashtable = (const uint32_t*)elf_get_library_dynamic_section(lmap, DT_HASH);
       unsigned dynsymcount;
       unsigned ii;
@@ -2308,13 +2308,13 @@ static void* dnload_find_symbol(uint32_t hash)
       }
       for(ii = 0; (ii < dynsymcount); ++ii)
       {
-        const dnload_elf_sym_t* sym = &symtab[ii];
+        const dnload_elf_sym_t *sym = &symtab[ii];
 #else
       // Assume DT_SYMTAB dynamic entry immediately follows DT_STRTAB dynamic entry.
       // Assume DT_STRTAB memory block immediately follows DT_SYMTAB dynamic entry.
       const dnload_elf_dyn_t *dynamic = elf_get_dynamic_element_by_tag(lmap->l_ld, DT_STRTAB);
       const char* strtab = (const char*)elf_transform_dynamic_address(lmap, (const void*)(dynamic->d_un.d_ptr));
-      const dnload_elf_sym_t* sym = (const dnload_elf_sym_t*)elf_transform_dynamic_address(lmap, (const void*)((dynamic + 1)->d_un.d_ptr));
+      const dnload_elf_sym_t *sym = (const dnload_elf_sym_t*)elf_transform_dynamic_address(lmap, (const void*)((dynamic + 1)->d_un.d_ptr));
       for(; ((void*)sym < (void*)strtab); ++sym)
       {
 #endif
