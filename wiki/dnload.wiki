@@ -890,7 +890,7 @@ The total cost of adding symbols would thus be `8` (for dynamic structure refere
 
 When not constructing headers manually, the `r_debug` debugger structure containing the link map to iterate over linked shared libraries must be found by examining the program headers, starting right from the entry point.
 
-In his similar project [#References [32]], _minas/calodox_ uses the manually constructed headers to directly know the location into which the dynamic linker will write this address.
+In his similar project [#References [32]], _minas/Calodox_ uses the manually constructed headers to directly know the location into which the dynamic linker will write this address.
 
 After adding a label into the header assembler code, accessing the link map is thus reduced from:
 
@@ -914,47 +914,48 @@ extern const struct r_debug *dynamic_r_debug;
 #define elf_get_link_map() dynamic_r_debug
 }}}
 
-=== Empty `DT_SYMTAB` (Linux) ===
+=== Ordering of `DT_STRTAB` and `DT_SYMTAB` ===
 
-Linux `libc` does not require the user program to define `environ` and `__progname`. I was initially just leaving the `hash` and `symtab` segments blank. A blank `symtab` consists of just one empty (`NULL`) symbol, which already saves quite a lot of space.
+Logically, before iterating through the symbols in a library, their total amount would be interpreted from that library's hash table. This only takes a bit of space on FreeBSD where (easily interpretable) SYSV hash tables seem to be present in every library. On linux, some libraries only contain GNU hash tables the parsing of which significantly increases code footprint.
 
-However, as Amand Tihon [#References [23]] points in his own similar project [#References [24]], on Linux the whole of symbol table can be omitted. This is done by having the `DT_SYMTAB` dynamic structure entry point to address value `0` and omitting `DT_HASH` completely. All in all, this means that size-optimized binaries on Linux are [#Minimal_DT_HASH 99 bytes] smaller than on FreeBSD. Interleaving of headers takes away some of this advantage, in practice it seems to be about 30 compressed bytes.
+Luckily, _minas/calodox_ noticed that `DT_STRTAB` and `DT_SYMTAB` seem to have two interesting relations:
+  * Linkers seem to always put `DT_STRTAB` directly before `DT_SYMTAB` in the dynamic section.
+  * Conversely, symbol table seems to always immediately precede string table in program memory.
 
-=== Interpreting `GNU_HASH` segment (Linux) ===
+Additionally:
+  * The only program that does not obey these rules is our own binary, which is the first entry in the ELF debug listing.
 
-For libraries using SYSV hash tables, there is no actual need to interpret the hash table at all, as the number of symbols within the object immediately. Unfortunately, on Linux, not all libraries provide a SYSV hash table at all. In these cases, a GNU hash table is provided.
-
-There is no need to actually modify the symbol finding algorithm, as the symbols themselves are still present in exactly the same manner. However, it is necessary to extract the number of symbols from a GNU hash table [#References [25]]. Freely adopting from FreeBSD rtld-elf implementation, we get the following:
+Using this information, the symbol scourer part of the loader can be reduced into something like this:
 
 {{{
-const uint32_t hashtable; // Locate DT_GNU_HASH section and store here.
-unsigned dynsymcount = 0;
+for(;;)
 {
-  unsigned bucket_count = hashtable[0];
-  const uint32_t* buckets = hashtable + 4 + ((sizeof(void*) / 4) * hashtable[2]);
-  const uint32_t* chain_zero = buckets + bucket_count + hashtable[1];
-  for(unsigned ii = 0; (ii < bucket_count); ++ii)
+  // First entry is this object itself, safe to advance first.
+  lmap = lmap->l_next;
   {
-    unsigned bkt = buckets[ii];
-    if(bkt == 0)
+    // Take advantage of DT_STRTAB and DT_SYMTAB orientation in memory.
+    const Elf32_Dyn *dynamic = elf_get_dynamic_element_by_tag(lmap->l_ld, DT_STRTAB);
+    const char* strtab = (const char*)elf_transform_dynamic_address(lmap, (const void*)(dynamic->d_un.d_ptr));
+    const Elf32_Sym *sym = (const dnload_elf_sym_t*)elf_transform_dynamic_address(lmap, (const void*)((dynamic + 1)->d_un.d_ptr));
+    for(; ((void*)sym < (void*)strtab); ++sym)
     {
-      continue;
-    }
-    {
-      const uint32_t* hashval = chain_zero + bkt;
-      do {
-        ++dynsymcount;
-      } while(0 == (*hashval++ & 1u));
+      const char *name = strtab + sym->st_name;
+      if(sdbm_hash((const uint8_t*)name) == hash)
+      {
+        return (void*)((const uint8_t*)sym->st_value + (size_t)lmap->l_addr);
+      }
     }
   }
 }
 }}}
 
-Essentially this algorighm goes through the `GNU_HASH` buckets one by one and then increases the symbol count whenever a valid hash is encountered. This is, of course, horribly inefficient. One could even argue that implementing a full symbol lookup would not take that much more space, especially as GNU hash values are calculated using DJB hash, the implementation of which is not significantly larger than that of SDBM hash. However, SYSV hash tables still need to be supported anyway.
+To see the difference compared to actually interpreting the hash, compile using `--safe-symtab` command line option.
 
-Unfortunately `GNU_HASH` more than eats away the size advantage [#Empty_DT_SYMTAB_(Linux) Linux would otherwise have].
+=== Empty `DT_SYMTAB` (Linux) ===
 
-*Note:* On distributions where all relevant libraries are going to contain a SYSV hash table, `GNU_HASH` handling can be omitted with `--ignore-gnu-hash` command line option.
+Linux `libc` does not require the user program to define `environ` and `__progname`. I was initially just leaving the `hash` and `symtab` segments blank. A blank `symtab` consists of just one empty (`NULL`) symbol, which already saves quite a lot of space.
+
+However, as Amand Tihon [#References [23]] points in his own similar project [#References [24]], on Linux the whole of symbol table can be omitted. This is done by having the `DT_SYMTAB` dynamic structure entry point to address value `0` and omitting `DT_HASH` completely. All in all, this means that size-optimized binaries on Linux are [#Minimal_DT_HASH 99 bytes] smaller than on FreeBSD. Interleaving of headers takes away some of this advantage, in practice it seems to be about 30 compressed bytes.
 
 === Final sizes ===
 
@@ -980,7 +981,7 @@ This script would not have been possible without the prior work done by various 
   * *Hymy* [#References [5]] and *Ye Olde Laptops Posse* [#References [6]] for earlier forays into manual ELF32 header construction.
   * *Amand Tihon* [#References [23]] for _BOLD - The Byte Optimized Linker_ [#References [24]] and noticing that `DT_SYMTAB` can be empty.
   * *ts/TDA* [#References [26]] for `INT 3` exit, `HOME=` -shell script trick, and probably something else.
-  * *minas/calodox* [#References [31]] for _elfling_ [#References [32]] and the fixed `r_debug` location trick.
+  * *minas/calodox* [#References [31]] for _elfling_ [#References [32]] and various symbol scouring tricks.
 
 And:
   * *viznut/PWP* [#References [7]] for the series _Experimental music from very short C programs_ [#References [8]], a snipped of which is used in one of the examples.
