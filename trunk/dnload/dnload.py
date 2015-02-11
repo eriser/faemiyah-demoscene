@@ -18,7 +18,7 @@ import textwrap
 (g_osname, g_osignore1, g_osignore2, g_osignore3, g_osarch) = os.uname()
 g_verbose = False
 
-VERSION = "r189"
+VERSION = "r193"
 
 ELFLING_OUTPUT = "elfling_output"
 ELFLING_PADDING = 10
@@ -29,6 +29,18 @@ ELFLING_UNCOMPRESSED = "_uncompressed"
 # PlatformVar ##########################
 ########################################
 
+def get_platform_combinations():
+  """Get listing of all possible platform combinations matching current platform."""
+  mapped_osname = platform_map(g_osname)
+  mapped_osarch = g_osarch
+  ret = [mapped_osname]
+  while True:
+    ret += [mapped_osarch, mapped_osname + "-" + mapped_osarch]
+    mapped_osarch = platform_map_iterate(mapped_osarch)
+    if not mapped_osarch:
+      break
+  return sorted(ret, reverse=True) + ["default"]
+
 class PlatformVar:
   """Platform-dependent variable."""
 
@@ -38,20 +50,14 @@ class PlatformVar:
 
   def get(self):
     """Get value associated with the name."""
-    if not self.__name in platform_variables:
+    if not self.__name in g_platform_variables:
       raise RuntimeError("unknown platform variable '%s'" % (self.__name))
-    var = platform_variables[self.__name]
-    platform = (g_osname, g_osarch, platform_map(g_osname) + "-" + platform_map(g_osarch))
-    for ii in platform:
-      if ii in var:
-        return var[ii]
-      while ii in platform_mapping:
-        ii = platform_mapping[ii]
-        if ii in var:
-          return var[ii]
-    if "default" in var:
-      return var["default"]
-    raise RuntimeError("current platform %s not supported for variable '%s'" % (str(platform), self.__name))
+    current_var = g_platform_variables[self.__name]
+    combinations = get_platform_combinations()
+    for ii in combinations:
+      if ii in current_var:
+        return current_var[ii]
+    raise RuntimeError("current platform %s not supported for variable '%s'" % (str(combinations), self.__name))
 
   def deconstructable(self):
     """Tell if this platform value can be deconstructed."""
@@ -71,8 +77,10 @@ class PlatformVar:
       return hex(ret)
     return ret
 
-platform_mapping = {
+g_platform_mapping = {
   "amd64" : "64-bit",
+  "armel" : "32-bit",
+  "armv7l" : "armel",
   "freebsd" : "FreeBSD",
   "i386" : "ia32",
   "i686" : "ia32",
@@ -81,35 +89,44 @@ platform_mapping = {
   "x86_64" : "amd64",
   }
 
-platform_variables = {
+g_platform_variables = {
   "addr" : { "32-bit" : 4, "64-bit" : 8 },
   "align" : { "32-bit" : 4, "64-bit" : 8, "amd64" : 1, "ia32" : 1 },
-  "bom" : { "amd64" : "<", "ia32" : "<" },
-  "compression" : { "FreeBSD" : "lzma", "Linux" : "xz" },
-  "e_machine" : { "amd64" : 62, "ia32" : 3 },
+  "bom" : { "amd64" : "<", "armel" : "<", "ia32" : "<" },
+  "compression" : { "default" : "lzma" },
+  "e_flags" : { "default" : 0, "armel" : 0x5000002 },
+  "e_machine" : { "amd64" : 62, "armel" : 40, "ia32" : 3 },
   "ei_class" : { "32-bit" : 1, "64-bit" : 2 },
-  "ei_osabi" : { "FreeBSD" : 9, "Linux" : 3 },
-  "entry" : { "32-bit" : 0x2000000, "64-bit" : 0x400000 },
-  #"entry" : { "32-bit" : 0x8048000, "64-bit" : 0x400000 },
-  "interp" : { "FreeBSD" : "\"/libexec/ld-elf.so.1\"", "Linux-32-bit" : "\"/lib/ld-linux.so.2\"", "Linux-64-bit" : "\"/lib64/ld-linux-x86-64.so.2\"" },
-  "march" : { "amd64" : "core2", "ia32" : "pentium4" },
+  "ei_osabi" : { "FreeBSD" : 9, "Linux-armel" : 0, "Linux" : 3 },
+  "entry" : { "64-bit" : 0x400000, "armel" : 0x8000, "ia32" : 0x4000000 }, # ia32: 0x8048000
+  "interp" : { "FreeBSD" : "\"/libexec/ld-elf.so.1\"", "Linux-armel" : "\"/lib/ld-linux.so.3\"", "Linux-ia32" : "\"/lib/ld-linux.so.2\"", "Linux-amd64" : "\"/lib64/ld-linux-x86-64.so.2\"" },
+  "march" : { "amd64" : "core2", "armel" : "armv6", "ia32" : "pentium4" },
   "memory_page" : { "32-bit" : 0x1000, "64-bit" : 0x200000 },
-  "mpreferred-stack-boundary" : { "32-bit" : 2, "64-bit" : 4 },
+  "mpreferred-stack-boundary" : { "armel" : 0, "ia32" : 2, "64-bit" : 4 },
   "phdr_count" : { "default" : 3 },
   "start" : { "default" : "_start" },
   }
 
+def platform_map_iterate(op):
+  """Follow platform mapping chain once."""
+  if op in g_platform_mapping:
+    return g_platform_mapping[op]
+  return None
+
 def platform_map(op):
   """Follow platform mapping chain as long as possible."""
-  while op in platform_mapping:
-    op = platform_mapping[op]
+  while True:
+    found = platform_map_iterate(op)
+    if not found:
+      break
+    op = found
   return op
 
 def replace_platform_variable(name, op):
   """Destroy platform variable, replace with default."""
-  if not name in platform_variables:
+  if not name in g_platform_variables:
     raise RuntimeError("trying to destroy nonexistent platform variable '%s'" % (name))
-  platform_variables[name] = { "default" : op }
+  g_platform_variables[name] = { "default" : op }
 
 ########################################
 # Assembler ############################
@@ -1182,16 +1199,16 @@ assembler_ehdr = (
     ("e_ident[EI_CLASS], ELFCLASS32 = 1, ELFCLASS64 = 2", 1, PlatformVar("ei_class")),
     ("e_ident[EI_DATA], ELFDATA2LSB = 1, ELFDATA2MSB = 2", 1, 1),
     ("e_ident[EI_VERSION], EV_CURRENT = 1", 1, 1),
-    ("e_ident[EI_OSABI], ELFOSABI_LINUX = 3, ELFOSABI_FREEBSD = 9", 1, PlatformVar("ei_osabi")),
+    ("e_ident[EI_OSABI], ELFOSABI_SYSV = 0, ELFOSABI_LINUX = 3, ELFOSABI_FREEBSD = 9", 1, PlatformVar("ei_osabi")),
     ("e_ident[EI_ABIVERSION], always 0", 1, 0),
     ("e_indent[EI_MAG10 to EI_MAG15], unused", 1, (0, 0, 0, 0, 0, 0, 0)),
     ("e_type, ET_EXEC = 2", 2, 2),
-    ("e_machine, EM_386 = 3, EM_X86_64 = 62", 2, PlatformVar("e_machine")),
+    ("e_machine, EM_386 = 3, EM_ARM = 40, EM_X86_64 = 62", 2, PlatformVar("e_machine")),
     ("e_version, EV_CURRENT = 1", 4, 1),
     ("e_entry, execution starting point", PlatformVar("addr"), PlatformVar("start")),
     ("e_phoff, offset from start to program headers", PlatformVar("addr"), "phdr_interp - ehdr"),
     ("e_shoff, start of section headers", PlatformVar("addr"), 0),
-    ("e_flags, unused", 4, 0),
+    ("e_flags, unused", 4, PlatformVar("e_flags")),
     ("e_ehsize, Elf32_Ehdr size", 2, "ehdr_end - ehdr"),
     ("e_phentsize, Elf32_Phdr size", 2, "phdr_interp_end - phdr_interp"),
     ("e_phnum, Elf32_Phdr count, PT_LOAD, [PT_LOAD (bss)], PT_INTERP, PT_DYNAMIC", 2, PlatformVar("phdr_count")),
@@ -1453,7 +1470,7 @@ class Linker:
     """Accessor."""
     return self.__linker_flags
 
-  def generate_linker_script(self, dst):
+  def generate_linker_script(self, dst, modify_start = False):
     """Get linker script from linker, improve it, write improved linker script to given file."""
     (so, se) = run_command([self.__command, "--verbose"])
     if 0 < len(se) and is_verbose():
@@ -1462,8 +1479,10 @@ class Linker:
     if not match:
       raise RuntimeError("could not extract script from linker output")
     ld_script = match.group(1)
-    ld_script = re.sub(r'\n([^\n]+)(_end|_edata|__bss_start)(\s*=[^\n]+)\n', r'\n\1/*\2\3*/\n', ld_script, re.MULTILINE)
+    ld_script = re.sub(r'\n([^\n]+\s)(_end|_edata|__bss_start)(\s*=[^\n]+)\n', r'\n\1/*\2\3*/\n', ld_script, re.MULTILINE)
     ld_script = re.sub(r'SEGMENT_START\s*\(\s*(\S+)\s*,\s*\d*x?\d+\s*\)', r'SEGMENT_START(\1, %s)' % (str(PlatformVar("entry"))), ld_script, re.MULTILINE)
+    if modify_start:
+      ld_script = re.sub(r'(SEGMENT_START.*\S)\s*\+\s*SIZEOF_HEADERS\s*;', r'\1;', ld_script, re.MULTILINE)
     fd = open(dst, "w")
     fd.write(ld_script)
     fd.close()
@@ -1481,8 +1500,7 @@ class Linker:
 
   def link_binary(self, src, dst):
     """Link a binary file with no bells and whistles."""
-    entry_param = "--entry=" + str(PlatformVar("entry"))
-    cmd = [self.__command, "--oformat=binary", entry_param, src, "-o", dst] + self.__linker_script
+    cmd = [self.__command, "--entry=" + str(PlatformVar("entry")), src, "-o", dst] + self.__linker_script
     (so, se) = run_command(cmd)
     if 0 < len(se) and is_verbose():
       print(se)
@@ -1543,7 +1561,11 @@ class Compiler(Linker):
     """Generate compiler flags."""
     self.__compiler_flags = []
     if self.command_basename_startswith("g++") or self.command_basename_startswith("gcc"):
-      self.__compiler_flags += ["-Os", "-ffast-math", "-fno-asynchronous-unwind-tables", "-fno-exceptions", "-fno-rtti", "-fno-threadsafe-statics", "-fomit-frame-pointer", "-fsingle-precision-constant", "-fwhole-program", "-march=%s" % (str(PlatformVar("march"))), "-mpreferred-stack-boundary=%i" % (int(PlatformVar("mpreferred-stack-boundary"))), "-Wall"]
+      self.__compiler_flags += ["-Os", "-ffast-math", "-fno-asynchronous-unwind-tables", "-fno-exceptions", "-fno-rtti", "-fno-threadsafe-statics", "-fomit-frame-pointer", "-fsingle-precision-constant", "-fwhole-program", "-march=%s" % (str(PlatformVar("march"))), "-Wall"]
+      # Some flags are platform-specific.
+      stack_boundary = int(PlatformVar("mpreferred-stack-boundary"))
+      if 0 < stack_boundary:
+        self.__compiler_flags += ["-mpreferred-stack-boundary=%i" % (stack_boundary)]
     elif self.command_basename_startswith("clang"):
       self.__compiler_flags += ["-Os", "-ffast-math", "-fno-asynchronous-unwind-tables", "-fno-exceptions", "-fno-rtti", "-fno-threadsafe-statics", "-fomit-frame-pointer", "-march=%s" % (str(PlatformVar("march"))), "-Wall"]
     else:
@@ -2003,6 +2025,10 @@ template_header_begin = """#ifndef DNLOAD_H
 #else
 #include <math.h>
 #endif\n
+/** Macro stringification helper (adds indirection). */
+#define DNLOAD_MACRO_STR_HELPER(op) #op
+/** Macro stringification. */
+#define DNLOAD_MACRO_STR(op) DNLOAD_MACRO_STR_HELPER(op)\n
 #if (defined(_LP64) && _LP64) || (defined(__LP64__) && __LP64__)
 /** Size of pointer in bytes (64-bit). */
 #define DNLOAD_POINTER_SIZE 8
@@ -2011,30 +2037,42 @@ template_header_begin = """#ifndef DNLOAD_H
 #define DNLOAD_POINTER_SIZE 4
 #endif\n
 #if !defined(%s)
-#if defined(DNLOAD_NO_DEBUGGER_TRAP)
-#if defined(__x86_64)
+/** Error string for when assembler exit procedure is not available. */
+#define DNLOAD_ASM_EXIT_ERROR "no assembler exit procedure defined for current operating system or architecture"
+/** Perform exit syscall in assembler. */
+static void asm_exit(void)
+{
+#if !defined(DNLOAD_NO_DEBUGGER_TRAP) && (defined(__x86_64__) || defined(__i386__))
+  asm("int $0x3" : /* no output */ : /* no input */ : /* no clobber */);
+#elif defined(__x86_64__)
 #if defined(__FreeBSD__)
-/** Assembler exit syscall macro. */
-#define asm_exit() asm("syscall" : /* no output */ : "a"(1))
+  asm_exit() asm("syscall" : /* no output */ : "a"(1) : /* no clobber */);
 #elif defined(__linux__)
-/** Assembler exit syscall macro. */
-#define asm_exit() asm("syscall" : /* no output */ : "a"(60))
+  asm_exit() asm("syscall" : /* no output */ : "a"(60) : /* no clobber */);
+#else
+#pragma message DNLOAD_MACRO_STR(DNLOAD_ASM_EXIT_ERROR)
+#error
 #endif
-#elif defined(__i386)
+#elif defined(__i386__)
 #if defined(__FreeBSD__) || defined(__linux__)
-/** Assembler exit syscall macro. */
-#define asm_exit() asm("int $0x80" : /* no output */ : "a"(1))
+  asm("int $0x80" : /* no output */ : "a"(1) : /* no clobber */);
+#else
+#pragma message DNLOAD_MACRO_STR(DNLOAD_ASM_EXIT_ERROR)
+#error
 #endif
+#elif defined(__arm__)
+#if defined(__linux__)
+  register int r7 asm("r7") = 1;
+  asm("swi #0" : /* no output */ : "r"(r7) : /* no clobber */);
+#else
+#pragma message DNLOAD_MACRO_STR(DNLOAD_ASM_EXIT_ERROR)
+#error
 #endif
 #else
-#if (defined(__x86_64) || defined(__i386)) && (defined(__FreeBSD__) || defined(__linux__))
-/** Assembler exit syscall macro. */
-#define asm_exit() asm("int $0x3" : /* no output */ : /* no input */)
+#pragma message DNLOAD_MACRO_STR(DNLOAD_ASM_EXIT_ERROR)
+#error
 #endif
-#endif
-#if !defined(asm_exit)
-#error "no assembler exit procedure defined for current operating system or architecture"
-#endif
+}
 #endif\n
 #if defined(__cplusplus)
 extern "C" {
@@ -2529,7 +2567,7 @@ def find_symbols(lst):
     ret += [find_symbol(ii)]
   return ret
 
-def generate_binary_minimal(source_file, compiler, assembler, linker, und_symbols, elfling, libraries,
+def generate_binary_minimal(source_file, compiler, assembler, linker, objcopy, und_symbols, elfling, libraries,
     output_file):
   """Generate a binary using all possible tricks. Return whether or not reprocess is necessary."""
   if source_file:
@@ -2636,9 +2674,10 @@ def generate_binary_minimal(source_file, compiler, assembler, linker, und_symbol
   if is_verbose():
     print("Wrote assembler source '%s'." % (output_file + ".combined.S"))
   assembler.assemble(output_file + ".combined.S", output_file + ".o")
-  linker.generate_linker_script(output_file + ".ld")
+  linker.generate_linker_script(output_file + ".ld", True)
   linker.set_linker_script(output_file + ".ld")
-  linker.link_binary(output_file + ".o", output_file + ".unprocessed")
+  linker.link_binary(output_file + ".o", output_file + ".bin")
+  run_command([objcopy, "--output-target=binary", output_file + ".bin", output_file + ".unprocessed"])
   readelf_truncate(output_file + ".unprocessed", output_file + ".stripped")
 
 def get_platform_und_symbols():
@@ -2770,13 +2809,13 @@ def osarch_is_ia32():
 
 def osarch_match(op):
   """Check if osarch matches some chain resulting in given value."""
-  if op == g_osarch:
-    return True
-  ii = g_osarch
-  while ii in platform_mapping:
-    ii = platform_mapping[ii]
-    if op == ii:
+  arch = g_osarch
+  while True:
+    if op == arch:
       return True
+    arch = platform_map_iterate(arch)
+    if not arch:
+      break
   return False
 
 def osname_is_freebsd():
@@ -2920,13 +2959,15 @@ def main():
   default_assembler_list = ["/usr/local/bin/as", "as"]
   default_compiler_list = ["g++49", "g++-4.9", "g++48", "g++-4.8", "g++", "clang++"]
   default_linker_list = ["/usr/local/bin/ld", "ld"]
+  default_objcopy_list = ["/usr/local/bin/objcopy", "objcopy"]
   default_strip_list = ["/usr/local/bin/strip", "strip"]
   definitions = []
   elfling = None
   include_directories = ["/usr/include/SDL", "/usr/local/include", "/usr/local/include/SDL"]
   libraries = []
-  library_directories = ["/lib", "/lib/x86_64-linux-gnu", "/usr/lib", "/usr/lib/x86_64-linux-gnu", "/usr/local/lib"]
+  library_directories = ["/lib", "/lib/x86_64-linux-gnu", "/usr/lib", "/usr/lib/arm-linux-gnueabihf", "/usr/lib/x86_64-linux-gnu", "/usr/local/lib"]
   linker = None
+  objcopy = None
   output_file = None
   source_files = []
   strip = None
@@ -2934,6 +2975,7 @@ def main():
 
   parser = argparse.ArgumentParser(usage = "%s [args] <source file(s)> [-o output]" % (sys.argv[0]), description = "Size-optimized executable generator for *nix platforms.\nPreprocesses given source file(s) looking for specifically marked function calls, then generates a dynamic loader header file that can be used within these same source files to decrease executable size.\nOptionally also perform the actual compilation of a size-optimized binary after generating the header.", formatter_class = CustomHelpFormatter, add_help = False)
   parser.add_argument("-A", "--assembler", help = "Try to use given assembler executable as opposed to autodetect.")
+  parser.add_argument("-B", "--objcopy", help = "Try to use given objcopy executable as opposed to autodetect.")
   parser.add_argument("-c", "--create-binary", action = "store_true", help = "Create output file, determine output file name from input file name.")
   parser.add_argument("-C", "--compiler", help = "Try to use given compiler executable as opposed to autodetect.")
   parser.add_argument("-d", "--define", default = "USE_LD", help = "Definition to use for checking whether to use 'safe' mechanism instead of dynamic loading.\n(default: %(default)s)")
@@ -2980,6 +3022,8 @@ def main():
     library_directories += args.library_directory
   if args.nice_exit:
     definitions += ["DNLOAD_NO_DEBUGGER_TRAP"]
+  if args.objcopy:
+    objcopy = args.objcopy
   if args.operating_system:
     new_osname = platform_map(args.operating_system.lower())
     if new_osname != g_osname:
@@ -3084,6 +3128,11 @@ def main():
     else:
       linker = search_executable(default_linker_list)
     linker = Linker(linker)
+    if objcopy:
+      if not check_executable(objcopy):
+        raise RuntimeError("could not use supplied objcopy executable '%s'" % (objcopy))
+    else:
+      objcopy = search_executable(default_objcopy_list)
     if strip:
       if not check_executable(strip):
         raise RuntimeError("could not use supplied strip executable '%s'" % (compiler))
@@ -3092,7 +3141,11 @@ def main():
     if not strip:
       raise RuntimeError("suitable strip executable not found")
 
-  compiler.set_definitions(["DNLOAD_H"] + definitions)
+  # Clear target header before parsing to avoid problems.
+  fd = open(target, "w")
+  fd.write("\n")
+  fd.close()
+
   symbols = set()
   for ii in source_files:
     if is_verbose():
@@ -3104,7 +3157,7 @@ def main():
   if "dlfcn" == compilation_mode:
     symbols = sorted(symbols)
   elif "maximum" == compilation_mode:
-    symbols = map(lambda x: x[1], sorted(map(lambda x: (x.get_hash(), x), symbols)))
+    symbols = list(map(lambda x: x[1], sorted(map(lambda x: (x.get_hash(), x), symbols))))
 
   if is_verbose():
     symbol_strings = map(lambda x: str(x), symbols)
@@ -3152,12 +3205,12 @@ def main():
     linker.set_library_directories(library_directories)
     if "maximum" == compilation_mode:
       und_symbols = get_platform_und_symbols()
-      generate_binary_minimal(source_file, compiler, assembler, linker, und_symbols, elfling, libraries,
-          output_file)
+      generate_binary_minimal(source_file, compiler, assembler, linker, objcopy, und_symbols, elfling,
+          libraries, output_file)
       # Now have complete binary, may need to reprocess.
       if elfling:
         elfling.compress(output_file + ".stripped", output_file + ".extracted")
-        generate_binary_minimal(None, compiler, assembler, linker, und_symbols, elfling, libraries,
+        generate_binary_minimal(None, compiler, assembler, linker, objcopy, und_symbols, elfling, libraries,
             output_file)
     elif "hash" == compilation_mode:
       compiler.compile_asm(source_file, output_file + ".S")

@@ -1,3 +1,7 @@
+r193 (2015-02-11)
+  * Raspberry Pi (Linux-armel) support.
+  * Bugfixes (works on Python 3 again).
+
 r189 (2015-02-04)
   * Use 'unsafe' DT_SYMTAB / DT_HASH location assumption from minas/Calodox.
   * Only treat d_un pointers as offsets on FreeBSD.
