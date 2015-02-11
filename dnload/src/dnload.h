@@ -46,6 +46,11 @@
 #include <math.h>
 #endif
 
+/** Macro stringification helper (adds indirection). */
+#define DNLOAD_MACRO_STR_HELPER(op) #op
+/** Macro stringification. */
+#define DNLOAD_MACRO_STR(op) DNLOAD_MACRO_STR_HELPER(op)
+
 #if (defined(_LP64) && _LP64) || (defined(__LP64__) && __LP64__)
 /** Size of pointer in bytes (64-bit). */
 #define DNLOAD_POINTER_SIZE 8
@@ -55,30 +60,42 @@
 #endif
 
 #if !defined(USE_LD)
-#if defined(DNLOAD_NO_DEBUGGER_TRAP)
-#if defined(__x86_64)
+/** Error string for when assembler exit procedure is not available. */
+#define DNLOAD_ASM_EXIT_ERROR "no assembler exit procedure defined for current operating system or architecture"
+/** Perform exit syscall in assembler. */
+static void asm_exit(void)
+{
+#if !defined(DNLOAD_NO_DEBUGGER_TRAP) && (defined(__x86_64__) || defined(__i386__))
+  asm("int $0x3" : /* no output */ : /* no input */ : /* no clobber */);
+#elif defined(__x86_64__)
 #if defined(__FreeBSD__)
-/** Assembler exit syscall macro. */
-#define asm_exit() asm("syscall" : /* no output */ : "a"(1))
+  asm_exit() asm("syscall" : /* no output */ : "a"(1) : /* no clobber */);
 #elif defined(__linux__)
-/** Assembler exit syscall macro. */
-#define asm_exit() asm("syscall" : /* no output */ : "a"(60))
+  asm_exit() asm("syscall" : /* no output */ : "a"(60) : /* no clobber */);
+#else
+#pragma message DNLOAD_MACRO_STR(DNLOAD_ASM_EXIT_ERROR)
+#error
 #endif
-#elif defined(__i386)
+#elif defined(__i386__)
 #if defined(__FreeBSD__) || defined(__linux__)
-/** Assembler exit syscall macro. */
-#define asm_exit() asm("int $0x80" : /* no output */ : "a"(1))
+  asm("int $0x80" : /* no output */ : "a"(1) : /* no clobber */);
+#else
+#pragma message DNLOAD_MACRO_STR(DNLOAD_ASM_EXIT_ERROR)
+#error
 #endif
+#elif defined(__arm__)
+#if defined(__linux__)
+  register int r7 asm("r7") = 1;
+  asm("swi #0" : /* no output */ : "r"(r7) : /* no clobber */);
+#else
+#pragma message DNLOAD_MACRO_STR(DNLOAD_ASM_EXIT_ERROR)
+#error
 #endif
 #else
-#if (defined(__x86_64) || defined(__i386)) && (defined(__FreeBSD__) || defined(__linux__))
-/** Assembler exit syscall macro. */
-#define asm_exit() asm("int $0x3" : /* no output */ : /* no input */)
+#pragma message DNLOAD_MACRO_STR(DNLOAD_ASM_EXIT_ERROR)
+#error
 #endif
-#endif
-#if !defined(asm_exit)
-#error "no assembler exit procedure defined for current operating system or architecture"
-#endif
+}
 #endif
 
 #if defined(__cplusplus)
