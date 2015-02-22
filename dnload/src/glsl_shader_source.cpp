@@ -1,6 +1,15 @@
 #include "glsl_shader_source.hpp"
 
 #include <cstring>
+#include <iostream>
+
+#if defined(DNLOAD_GLESV2)
+/** \cond */
+#define GL_GLEXT_PROTOTYPES
+/** \endcond */
+#include "GLES2/gl2ext.h"
+#endif
+
 
 /** \brief Generate an indent.
  *
@@ -110,6 +119,10 @@ const char* GlslShaderSource::c_str()
 
 std::string GlslShaderSource::get_pipeline_info_log(GLuint op)
 {
+#if defined(DNLOAD_GLESV2)
+  (void)op;
+  return std::string();
+#else
   std::string ret;
   GLint len;
 
@@ -126,6 +139,7 @@ std::string GlslShaderSource::get_pipeline_info_log(GLuint op)
   }
 
   return ret;
+#endif
 }
 
 std::string GlslShaderSource::get_program_info_log(GLuint op)
@@ -133,7 +147,10 @@ std::string GlslShaderSource::get_program_info_log(GLuint op)
   std::string ret;
   GLint len;
 
+  std::cout << "Getting info log length." << std::endl;
+
   glGetProgramiv(op, GL_INFO_LOG_LENGTH, &len);
+  std::cout << "len: " << len << std::endl;
   if(len)
   {
     GLchar *log = new GLchar[len];
@@ -146,6 +163,24 @@ std::string GlslShaderSource::get_program_info_log(GLuint op)
   }
 
   return ret;
+}
+
+bool GlslShaderSource::get_program_link_status(GLuint op)
+{
+  GLint ret;
+
+  glGetProgramiv(op, GL_LINK_STATUS, &ret);
+
+  return (ret != 0);
+}
+
+bool GlslShaderSource::get_shader_compile_status(GLuint op)
+{
+  GLint ret;
+
+  glGetShaderiv(op, GL_COMPILE_STATUS, &ret);
+
+  return (ret != 0);
 }
 
 std::string GlslShaderSource::get_shader_info_log(GLuint op)

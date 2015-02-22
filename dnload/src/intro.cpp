@@ -46,6 +46,11 @@
 #include "dnload.h"
 #include "intro.hpp"
 
+#if defined(DNLOAD_GLESV2)
+#include "dnload_videocore.h"
+#include "dnload_egl.h"
+#endif
+
 #if defined(USE_LD)
 #include "glsl_shader_source.hpp"
 #include <iostream>
@@ -79,6 +84,20 @@ static float g_up_z = STARTING_UP_Z;
 static uint8_t g_flag_developer = 0;
 
 #endif
+
+//######################################
+// Music ###############################
+//######################################
+
+/** \brief Random float value.
+ *
+ * \param op Given maximum value.
+ * \return Random value between 0 and given value.
+ */
+static float frand(float op)
+{
+  return static_cast<float>(dnload_rand() & 0xFFFF) * ((1.0f / 65535.0f) * op);
+}
 
 //######################################
 // Music ###############################
@@ -122,6 +141,49 @@ static SDL_AudioSpec audio_spec =
 // Shaders #############################
 //######################################
 
+#if defined(DNLOAD_GLESV2)
+
+/** Quad vertex shader. */
+static const char *g_shader_vertex_quad = ""
+"attribute vec2 a;"
+"varying mediump vec2 b;"
+"precision mediump float;"
+"void main()"
+"{"
+"b=a;"
+"gl_Position=vec4(a,0.,1.);"
+"}";
+
+/** Quad fragment shader. */
+static const char *g_shader_fragment_quad = ""
+"uniform highp vec3 u[4];"
+"varying mediump vec2 b;"
+"precision highp float;"
+"void main()"
+"{"
+"vec2 m=b;"
+"if(u[3].y>1.)m.x*=u[3].y;"
+"else m.y/=u[3].y;"
+"vec3 h=normalize(u[1]),r=normalize(cross(h,u[2])),d=normalize(m.x*r+m.y*normalize(cross(r,h))+h),c,e;"
+"float D=dot(-u[0],d),R=1.+sin(u[3].x/4444.)*.1,S;"
+"c=D*d+u[0];"
+"S=dot(c,c);"
+"if(S<=R)"
+"{"
+"e=(D-sqrt(R*R-S*S))*d+u[0];"
+"gl_FragColor=vec4(e*dot(e,vec3(1.)),1.);"
+"}"
+"else"
+"{"
+"gl_FragColor=vec4(0.,0.,0.,1.);"
+"}"
+"}";
+
+/** Uniform location. */
+static GLint g_uniform_u;
+
+#else
+
 /** Quad vertex shader. */
 static const char *g_shader_vertex_quad = ""
 "#version 430\n"
@@ -143,45 +205,119 @@ static const char *g_shader_fragment_quad = ""
 "layout(location=0)uniform vec3[4] u;"
 "in vec2 b;"
 "out vec4 o;"
-"float f(vec3 p)"
-"{"
-"return dot(p,p)-1.+sin(u[3].x/4444.)*.1;"
-"}"
-"vec3 g(vec3 n,float N)"
-"{"
-"vec3 d=vec3(.01,0,0);"
-"return normalize(vec3(f(n+d.xyy),f(n+d.yxy),f(n+d.yyx))-N);"
-"}"
 "void main()"
 "{"
 "vec2 m=b;"
 "if(u[3].y>1.)m.x*=u[3].y;"
 "else m.y/=u[3].y;"
-"vec3 c=u[0],h=normalize(u[1]),r=normalize(cross(h,u[2])),d=normalize(m.x*r+m.y*normalize(cross(r,h))+h)*.01,n;"
-"vec4 e=vec4(0,0,0,1);"
-"for(int i=0;i<555;++i)"
+"vec3 h=normalize(u[1]),r=normalize(cross(h,u[2])),d=normalize(m.x*r+m.y*normalize(cross(r,h))+h),c,e;"
+"float D=dot(-u[0],d),R=1.+sin(u[3].x/4444.)*.1,S;"
+"c=D*d+u[0];"
+"S=dot(c,c);"
+"if(S<=R)"
 "{"
-"n=c+d;"
-"float N=f(n);"
-"if(0.>N)"
+"e=(D-sqrt(R*R-S*S))*d+u[0];"
+"o=vec4(e*dot(e,vec3(1.)),1.);"
+"}"
+"else"
 "{"
-"e.xyz=n*dot(g(n,N),normalize(vec3(1)));"
-"break;"
+"o=vec4(0.0,0.0,0.0,1.0);"
 "}"
-"c=n;"
-"}"
-"o=e;"
 "}";
+
+/** Fixed uniform location. */
+static const GLint g_uniform_u = 0;
+
+#endif
 
 /** \cond */
 GLuint g_program_fragment;
 /** \endcond */
 
+#if defined(DNLOAD_GLESV2)
+
+/** \brief Create shader.
+ *
+ * \param source Source of the shader.
+ * \return Shader ID.
+ */
+GLuint create_shader(const char *source, GLenum type)
+{
+  GLuint ret = dnload_glCreateShader(type);
+  
 #if defined(USE_LD)
+  GlslShaderSource glsl_source(source);
+  const GLchar *pretty_source = glsl_source.c_str();
+  dnload_glShaderSource(ret, 1, &pretty_source, NULL);
+#else
+  dnload_glShaderSource(ret, 1, &source, NULL);
+#endif
+
+  dnload_glCompileShader(ret);
+
+#if defined(USE_LD)
+  std::string log = GlslShaderSource::get_shader_info_log(ret);
+
+  std::cout << pretty_source << std::endl;
+  if(0 < log.length())
+  {
+    std::cout << log << std::endl;
+  }
+
+  if(!GlslShaderSource::get_shader_compile_status(ret))
+  {
+    SDL_Quit();
+    exit(1);
+  }
+#endif
+
+  return ret;
+}
+
+/** \brief Create program.
+ *
+ * \param vertex Vertex shader.
+ * \param fragment Fragment shader.
+ * \return Program ID
+ */
+GLuint create_program(const char *vertex, const char *fragment)
+{
+  GLuint ret = dnload_glCreateProgram();
+
+  dnload_glAttachShader(ret, create_shader(vertex, GL_VERTEX_SHADER));
+  dnload_glAttachShader(ret, create_shader(fragment, GL_FRAGMENT_SHADER));
+
+  dnload_glLinkProgram(ret);
+
+#if defined(USE_LD)
+  std::cout << "Getting info log. " << std::endl;
+  //std::string log = GlslShaderSource::get_program_info_log(ret);
+
+  //if(0 < log.length())
+  //{
+  //  std::cout << log << std::endl;
+  //}
+
+  std::cout << "Getting link status. " << std::endl;
+  if(!GlslShaderSource::get_program_link_status(ret))
+  {
+    std::cout << "Link status bad. " << ret << std::endl;
+    SDL_Quit();
+    exit(1);
+  }
+  std::cout << "GLSL program id: " << ret << std::endl;
+#endif
+
+  return ret;
+}
+
+#elif defined(USE_LD)
+
 /** \brief Create a shader.
  *
  * \param type Shader type.
  * \param source Shader content.
+ * \return Shader program ID.
  */
 static GLuint program_attach(GLenum type, const char *source, GLuint pipeline, GLbitfield mask)
 {
@@ -192,7 +328,6 @@ static GLuint program_attach(GLenum type, const char *source, GLuint pipeline, G
   dnload_glUseProgramStages(pipeline, mask, ret);
 
   std::string log = GlslShaderSource::get_program_info_log(ret);
-  GLint status;
 
   std::cout << pretty_source << std::endl;
   if(0 < log.length())
@@ -200,8 +335,7 @@ static GLuint program_attach(GLenum type, const char *source, GLuint pipeline, G
     std::cout << log << std::endl;
   }
 
-  glGetProgramiv(ret, GL_LINK_STATUS, &status);
-  if(status != GL_TRUE)
+  if(!GlslShaderSource::get_program_link_status(ret))
   {
     SDL_Quit();
     exit(1);
@@ -224,6 +358,7 @@ static GLuint pipeline_create()
 
   return ret;
 }
+
 #endif
 
 //######################################
@@ -277,9 +412,25 @@ static void draw(unsigned ticks)
   }
 #endif
   g_uniform_array[9] = static_cast<float>(ticks);
-  dnload_glProgramUniform3fv(g_program_fragment, 0, 4, g_uniform_array);
 
+#if defined(DNLOAD_GLESV2)
+  dnload_glUniform3fv(g_uniform_u, 4, g_uniform_array);
+  {
+    int8_t array[] =
+    {
+      -3, 1,
+      1, -3,
+      1, 1,
+    };
+
+    dnload_glVertexAttribPointer(0, 2, GL_BYTE, GL_FALSE, 0, array);
+    dnload_glEnableVertexAttribArray(0);
+    dnload_glDrawArrays(GL_TRIANGLES, 0, 3);
+  }
+#else
+  dnload_glProgramUniform3fv(g_program_fragment, g_uniform_u, 4, g_uniform_array);
   dnload_glRects(-1, -1, 1, 1);
+#endif
 }
 
 //######################################
@@ -302,6 +453,26 @@ void _start()
 #endif
 
   dnload();
+#if defined(DNLOAD_GLESV2)
+  dnload_SDL_Init(SDL_INIT_AUDIO);
+  //dnload_SDL_SetVideoMode(static_cast<int>(screen_w), static_cast<int>(screen_h), 0,
+  //    (flag_fullscreen ? SDL_FULLSCREEN : 0));
+  //dnload_SDL_ShowCursor(flag_developer);
+  EGL_DISPMANX_WINDOW_T native_window;
+  videocore_create_native_window(screen_w, screen_h, &native_window);
+  EGLDisplay egl_display;
+  EGLSurface egl_surface;
+  bool egl_result = egl_init(reinterpret_cast<NativeWindowType>(&native_window), &egl_display, &egl_surface);
+#if defined(USE_LD)
+  if(!egl_result)
+  {
+    SDL_Quit();
+    exit(1);
+  }
+#else
+  (void)egl_result;
+#endif
+#else
   dnload_SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO);
   dnload_SDL_SetVideoMode(static_cast<int>(screen_w), static_cast<int>(screen_h), 0,
       SDL_OPENGL | (flag_fullscreen ? SDL_FULLSCREEN : 0));
@@ -317,8 +488,13 @@ void _start()
     }
   }
 #endif
+#endif
 
-#if defined(USE_LD)
+#if defined(DNLOAD_GLESV2)
+  g_program_fragment = create_program(g_shader_vertex_quad, g_shader_fragment_quad);
+  dnload_glUseProgram(g_program_fragment);
+  g_uniform_u = dnload_glGetUniformLocation(g_program_fragment, "u");
+#elif defined(USE_LD)
   GLuint pipeline = pipeline_create();
   program_attach(GL_VERTEX_SHADER, g_shader_vertex_quad, pipeline, 1);
   g_program_fragment = program_attach(GL_FRAGMENT_SHADER, g_shader_fragment_quad, pipeline, 2);
@@ -342,7 +518,7 @@ void _start()
     // Example by "bst", taken from "Music from very short programs - the 3rd iteration" by viznut.
     for(ii = 0; (INTRO_LENGTH / sizeof(uint8_t) > ii); ++ii)
     {
-      g_audio_buffer[ii] = (int)(ii / 70000000 * ii * ii + ii) % 127 | ii >> 4 | ii >> 5 | (ii % 127 + (ii >> 17)) | ii;
+      g_audio_buffer[ii] = static_cast<int>(ii / 70000000 * ii * ii + ii) % 127 | ii >> 4 | ii >> 5 | (ii % 127 + (ii >> 17)) | ii;
     }
   }
 
@@ -638,10 +814,18 @@ void _start()
 #endif
 
     draw(curr_ticks);
+#if defined(DNLOAD_GLESV2)
+    dnload_eglSwapBuffers(egl_display, egl_surface);
+#else
     dnload_SDL_GL_SwapBuffers();
+#endif
   }
 
+#if defined(DNLOAD_GLESV2)
+  egl_quit(egl_display);
+#endif
   dnload_SDL_Quit();
+
 #if defined(USE_LD)
   return 0;
 #else

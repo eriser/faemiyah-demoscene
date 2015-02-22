@@ -24,6 +24,7 @@ ELFLING_OUTPUT = "elfling_output"
 ELFLING_PADDING = 10
 ELFLING_WORK = "elfling_modelCounters"
 ELFLING_UNCOMPRESSED = "_uncompressed"
+VIDEOCORE_PATH = "/opt/vc"
 
 ########################################
 # PlatformVar ##########################
@@ -99,6 +100,7 @@ g_platform_variables = {
   "ei_class" : { "32-bit" : 1, "64-bit" : 2 },
   "ei_osabi" : { "FreeBSD" : 9, "Linux-armel" : 0, "Linux" : 3 },
   "entry" : { "64-bit" : 0x400000, "armel" : 0x8000, "ia32" : 0x4000000 }, # ia32: 0x8048000
+  "gl_library" : { "default" : "GL" },
   "interp" : { "FreeBSD" : "\"/libexec/ld-elf.so.1\"", "Linux-armel" : "\"/lib/ld-linux.so.3\"", "Linux-ia32" : "\"/lib/ld-linux.so.2\"", "Linux-amd64" : "\"/lib64/ld-linux-x86-64.so.2\"" },
   "march" : { "amd64" : "core2", "armel" : "armv6", "ia32" : "pentium4" },
   "memory_page" : { "32-bit" : 0x1000, "64-bit" : 0x200000 },
@@ -1800,23 +1802,23 @@ class Symbol:
 
   def generate_definition(self):
     """Get function definition for given symbol."""
-    prefix = ""
+    apientry = ""
     if self.__name[:2] == "gl":
-      prefix = "GLAPIENTRY "
+      apientry = "DNLOAD_APIENTRY "
     params = "void"
     if self.__parameters:
       params = ", ".join(self.__parameters)
-    return "%s (%s*%s)(%s)" % (self.__returntype, prefix, self.__name, params)
+    return "%s (%s*%s)(%s)" % (self.__returntype, apientry, self.__name, params)
 
   def generate_prototype(self):
     """Get function prototype for given symbol."""
-    prefix = ""
+    apientry = ""
     if self.__name[:2] == "gl":
-      prefix = "GLAPIENTRY "
+      apientry = "DNLOAD_APIENTRY "
     params = "void"
     if self.__parameters:
       params = ", ".join(self.__parameters)
-    return "(%s (%s*)(%s))" % (self.__returntype, prefix, params)
+    return "(%s (%s*)(%s))" % (self.__returntype, apientry, params)
 
   def generate_rename_direct(self, prefix):
     """Generate definition to use without a symbol table."""
@@ -1881,7 +1883,7 @@ class LibraryDefinition:
 
   def get_name(self):
     """Accessor."""
-    return self.__name
+    return str(self.__name)
 
 library_definition_c = LibraryDefinition("c", (
   ("void*", "malloc", "size_t"),
@@ -1892,7 +1894,25 @@ library_definition_c = LibraryDefinition("c", (
   ("int", ("rand", "bsd_rand")),
   ("void", ("srand", "bsd_srand"), "unsigned int"),
   ))
-library_definition_gl = LibraryDefinition("GL", (
+library_definition_bcm_host = LibraryDefinition("bcm_host", (
+  ("void", "bcm_host_init"),
+  ("DISPMANX_DISPLAY_HANDLE_T", "vc_dispmanx_display_open", "uint32_t"),
+  ("DISPMANX_ELEMENT_HANDLE_T", "vc_dispmanx_element_add", "DISPMANX_UPDATE_HANDLE_T", "DISPMANX_DISPLAY_HANDLE_T", "int32_t", "const VC_RECT_T*", "DISPMANX_RESOURCE_HANDLE_T", "const VC_RECT_T*", "DISPMANX_PROTECTION_T", "VC_DISPMANX_ALPHA_T*", "DISPMANX_CLAMP_T*", "DISPMANX_TRANSFORM_T"),
+  ("DISPMANX_UPDATE_HANDLE_T", "vc_dispmanx_update_start", "int32_t"),
+  ("int", "vc_dispmanx_update_submit_sync", "DISPMANX_UPDATE_HANDLE_T"),
+  ))
+library_definition_egl = LibraryDefinition("EGL", (
+  ("EGLBoolean", "eglChooseConfig", "EGLDisplay", "EGLint const*", "EGLConfig*", "EGLint", "EGLint*"),
+  ("EGLContext", "eglCreateContext", "EGLDisplay", "EGLConfig", "EGLContext", "EGLint const*"),
+  ("EGLSurface", "eglCreateWindowSurface", "EGLDisplay", "EGLConfig", "EGLNativeWindowType", "EGLint const*"),
+  ("EGLBoolean", "eglGetConfigs", "EGLDisplay", "EGLConfig*", "EGLint", "EGLint*"),
+  ("EGLDisplay", "eglGetDisplay", "NativeDisplayType"),
+  ("EGLBoolean", "eglInitialize", "EGLDisplay", "EGLint*", "EGLint*"),
+  ("EGLBoolean", "eglMakeCurrent", "EGLDisplay", "EGLSurface", "EGLSurface", "EGLContext"),
+  ("EGLBoolean", "eglSwapBuffers", "EGLDisplay", "EGLSurface"),
+  ("EGLBoolean", "eglTerminate", "EGLDisplay"),
+  ))
+library_definition_gl = LibraryDefinition(PlatformVar("gl_library"), (
   ("void", "glActiveTexture", "GLenum"),
   ("void", "glAttachShader", "GLuint", "GLuint"),
   ("void", "glBindFramebuffer", "GLenum", "GLuint"),
@@ -1972,6 +1992,8 @@ library_definition_sdl = LibraryDefinition("SDL", (
 
 library_definitions = [
     library_definition_c,
+    library_definition_bcm_host,
+    library_definition_egl,
     library_definition_gl,
     library_definition_glu,
     library_definition_m,
@@ -1994,6 +2016,10 @@ template_header_begin = """#ifndef DNLOAD_H
 #define _USE_MATH_DEFINES
 #define NOMINMAX
 /** \endcond */
+#else
+/** \cond */
+#define GL_GLEXT_PROTOTYPES
+/** \endcond */
 #endif\n
 #if defined(%s)
 #if defined(WIN32)
@@ -2006,18 +2032,35 @@ template_header_begin = """#ifndef DNLOAD_H
 #include \"GL/glu.h\"
 #include \"SDL/SDL.h\"
 #else
+#if defined(DNLOAD_VIDEOCORE)
+#include "bcm_host.h"
+#endif
+#if defined(DNLOAD_GLESV2)
+#include \"EGL/egl.h\"
+#include \"EGL/eglext.h\"
+#include \"GLES2/gl2.h\"
+#include \"GLES2/gl2ext.h\"
+#else
 #include \"GL/glew.h\"
 #include \"GL/glu.h\"
+#endif
 #include \"SDL.h\"
 #endif
 #include \"bsd_rand.h\"
 #else
-/** \cond */
-#define GL_GLEXT_PROTOTYPES
-/** \endcond */
+#if defined(DNLOAD_VIDEOCORE)
+#include "bcm_host.h"
+#endif
+#if defined(DNLOAD_GLESV2)
+#include \"EGL/egl.h\"
+#include \"EGL/eglext.h\"
+#include \"GLES2/gl2.h\"
+#include \"GLES2/gl2ext.h\"
+#else
 #include \"GL/gl.h\"
 #include \"GL/glext.h\"
 #include \"GL/glu.h\"
+#endif
 #include \"SDL.h\"
 #endif\n
 #if defined(__cplusplus)
@@ -2029,6 +2072,13 @@ template_header_begin = """#ifndef DNLOAD_H
 #define DNLOAD_MACRO_STR_HELPER(op) #op
 /** Macro stringification. */
 #define DNLOAD_MACRO_STR(op) DNLOAD_MACRO_STR_HELPER(op)\n
+#if defined(DNLOAD_GLESV2)
+/** Apientry definition (OpenGL ES 2.0). */
+#define DNLOAD_APIENTRY GL_APIENTRY
+#else
+/** Apientry definition (OpenGL). */
+#define DNLOAD_APIENTRY GLAPIENTRY
+#endif\n
 #if (defined(_LP64) && _LP64) || (defined(__LP64__) && __LP64__)
 /** Size of pointer in bytes (64-bit). */
 #define DNLOAD_POINTER_SIZE 8
@@ -2415,7 +2465,7 @@ static struct SymbolTableStruct
 
 def analyze_source(source, prefix):
   """Analyze given preprocessed C source for symbol names."""
-  symbolre =  re.compile(r"[\s:;&\|\<\>\=\^\+\-\*/\(\)\?]" + prefix + "([a-zA-Z0-9_]+)")
+  symbolre =  re.compile(r"[\s:;&\|\<\>\=\^\+\-\*/\(\)\?]" + prefix + "([a-zA-Z0-9_]+)[\s\(]")
   results = symbolre.findall(source, re.MULTILINE)
   ret = set()
   for ii in results:
@@ -2492,22 +2542,15 @@ def generate_symbol_struct(mode, symbols, definition):
 
 def check_executable(op):
   """Check for existence of a single binary."""
-  output_string = "Trying binary '%s'... " % (op)
   try:
     proc = subprocess.Popen([op], stdout = subprocess.PIPE, stderr = subprocess.PIPE)
   except OSError:
-    if is_verbose():
-      print(output_string + "not found")
     return False
   try:
     if proc.poll():
       proc.kill()
   except OSError:
-    if is_verbose():
-      print(output_string + "killed")
     return True
-  if is_verbose():
-    print(output_string + "found")
   return True
 
 def compress_file(compression, pretty, src, dst):
@@ -2880,24 +2923,32 @@ def run_command(lst, decode_output = True):
     raise RuntimeError("command failed: %i, stderr output:\n%s" % (proc.returncode, proc_stderr))
   return (proc_stdout, proc_stderr)
 
-def search_executable(op):
+def search_executable(op, description = None):
   """Check for existence of binary, everything within the list will be tried."""
   checked = []
+  ret = None
   if isinstance(op, (list, tuple)):
     for ii in op:
       if not ii in checked:
         if check_executable(ii):
-          return ii
+          ret = ii
+          break
         else:
           checked += [ii]
   elif isinstance(op, str):
     if not op in checked:
       if check_executable(op):
-        return op
+        ret = op
       checked += [op]
   else:
     raise RuntimeError("weird argument given to executable search: %s" % (str(op)))
-  return None
+  if description and is_verbose():
+    output_message = "Looking for '%s' executable... " % (description)
+    if ret:
+      print("%s'%s'" % (output_message, ret))
+    else:
+      print("%snot found" % (output_message))
+  return ret
 
 def set_program_start(op):
   """Set label to start program execution from."""
@@ -2963,11 +3014,13 @@ def main():
   default_strip_list = ["/usr/local/bin/strip", "strip"]
   definitions = []
   elfling = None
-  include_directories = ["/usr/include/SDL", "/usr/local/include", "/usr/local/include/SDL"]
+  include_directories = [VIDEOCORE_PATH + "/include", VIDEOCORE_PATH + "/include/interface/vcos/pthreads", VIDEOCORE_PATH + "/include//interface/vmcs_host/linux", "/usr/include/SDL", "/usr/local/include", "/usr/local/include/SDL"]
   libraries = []
-  library_directories = ["/lib", "/lib/x86_64-linux-gnu", "/usr/lib", "/usr/lib/arm-linux-gnueabihf", "/usr/lib/x86_64-linux-gnu", "/usr/local/lib"]
+  library_directories = ["/lib", "/lib/x86_64-linux-gnu", VIDEOCORE_PATH + "/lib", "/usr/lib", "/usr/lib/arm-linux-gnueabihf", "/usr/lib/x86_64-linux-gnu", "/usr/local/lib"]
   linker = None
   objcopy = None
+  opengl_reason = None
+  opengl_version = None
   output_file = None
   source_files = []
   strip = None
@@ -2988,6 +3041,7 @@ def main():
   parser.add_argument("-m", "--method", default = "maximum", choices = ("vanilla", "dlfcn", "hash", "maximum"), help = "Method to use for decreasing output file size:\n\tvanilla:\n\t\tProduce binary normally, use no tricks except unpack header.\n\tdlfcn:\n\t\tUse dlopen/dlsym to decrease size without dependencies to any specific object format.\n\thash:\n\t\tUse knowledge of object file format to perform 'import by hash' loading, but do not break any specifications.\n\tmaximum:\n\t\tUse all available techniques to decrease output file size. Resulting file may violate object file specification.\n(default: %(default)s)")
   parser.add_argument("--nice-exit", action = "store_true", help = "Do not use debugger trap, exit with proper system call.")
   parser.add_argument("--nice-filedump", action = "store_true", help = "Do not use dirty tricks in compression header, also remove filedumped binary when done.")
+  parser.add_argument("--no-glesv2", action = "store_true", help = "Do not probe for OpenGL ES 2.0, always assume regular GL.")
   parser.add_argument("-o", "--output-file", help = "Compile a named binary, do not only create a header. If the name specified features a path, it will be used verbatim. Otherwise the binary will be created in the same path as source file(s) compiled.")
   parser.add_argument("-O", "--operating-system", help = "Try to target given operating system insofar cross-compilation is possible.")
   parser.add_argument("-P", "--call-prefix", default = "dnload_", help = "Call prefix to identify desired calls.\n(default: %(default)s)")
@@ -3050,6 +3104,7 @@ def main():
   definition_ld = args.define
   compilation_mode = args.method
   nice_filedump = args.nice_filedump
+  no_glesv2 = args.no_glesv2
   symbol_prefix = args.call_prefix
   target = args.target
 
@@ -3057,6 +3112,18 @@ def main():
     raise RuntimeError("unknown method '%s'" % (compilation_mode))
   elif "hash" == compilation_mode:
     definitions += ["DNLOAD_NO_FIXED_R_DEBUG_ADDRESS"]
+
+  if not no_glesv2:
+    if os.path.exists(VIDEOCORE_PATH):
+      definitions += ["DNLOAD_VIDEOCORE"]
+      opengl_reason = "'%s' (VideoCore)" % (VIDEOCORE_PATH)
+      opengl_version = "ES2"
+
+  if "ES2" == opengl_version:
+    definitions += ["DNLOAD_GLESV2"]
+    replace_platform_variable("gl_library", "GLESv2")
+    if is_verbose():
+      print("Assuming OpenGL ES 2.0: %s" % (opengl_reason))
 
   if 0 >= len(target_search_path):
     for ii in source_files:
@@ -3094,22 +3161,23 @@ def main():
     if not check_executable(compiler):
       raise RuntimeError("could not use supplied compiler '%s'" % (compiler))
   else:
+    compiler_list = default_compiler_list
     if os.name == "nt":
-      compiler = search_executable(["cl.exe"] + default_compiler_list)
-    else:
-      compiler = search_executable(default_compiler_list)
+      compiler_list = ["cl.exe"] + compiler_list
+    compiler = search_executable(compiler_list, "compiler")
   if not compiler:
     raise RuntimeError("suitable compiler not found")
   compiler = Compiler(compiler)
+  compiler.set_definitions(definitions)
 
-  sdl_config = search_executable(["sdl-config"])
+  sdl_config = search_executable(["sdl-config"], "sdl-config")
   if sdl_config:
     (sdl_stdout, sdl_stderr) = run_command([sdl_config, "--cflags"])
     compiler.add_extra_compiler_flags(sdl_stdout.split())
   compiler.set_include_dirs(include_directories)
 
   if elfling:
-    elfling = search_executable(["elfling-packer", "./elfling-packer"])
+    elfling = search_executable(["elfling-packer", "./elfling-packer"], "elfling-packer")
     if elfling:
       elfling = Elfling(elfling)
 
@@ -3118,7 +3186,7 @@ def main():
       if not check_executable(assembler):
         raise RuntimeError("could not use supplied compiler '%s'" % (compiler))
     else:
-      assembler = search_executable(default_assembler_list)
+      assembler = search_executable(default_assembler_list, "assembler")
     if not assembler:
       raise RuntimeError("suitable assembler not found")
     assembler = Assembler(assembler)
@@ -3126,18 +3194,18 @@ def main():
       if not check_executable(linker):
         raise RuntimeError("could not use supplied linker '%s'" % (linker))
     else:
-      linker = search_executable(default_linker_list)
+      linker = search_executable(default_linker_list, "linker")
     linker = Linker(linker)
     if objcopy:
       if not check_executable(objcopy):
         raise RuntimeError("could not use supplied objcopy executable '%s'" % (objcopy))
     else:
-      objcopy = search_executable(default_objcopy_list)
+      objcopy = search_executable(default_objcopy_list, "objcopy")
     if strip:
       if not check_executable(strip):
         raise RuntimeError("could not use supplied strip executable '%s'" % (compiler))
     else:
-      strip = search_executable(default_strip_list)
+      strip = search_executable(default_strip_list, "strip")
     if not strip:
       raise RuntimeError("suitable strip executable not found")
 
@@ -3197,7 +3265,6 @@ def main():
       print("Linking against libraries: %s" % (str(libraries)))
     compiler.generate_compiler_flags()
     compiler.generate_linker_flags()
-    compiler.set_definitions(definitions)
     compiler.set_libraries(libraries)
     compiler.set_library_directories(library_directories)
     linker.generate_linker_flags()
