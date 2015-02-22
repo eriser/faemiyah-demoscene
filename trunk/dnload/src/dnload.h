@@ -12,6 +12,10 @@
 #define _USE_MATH_DEFINES
 #define NOMINMAX
 /** \endcond */
+#else
+/** \cond */
+#define GL_GLEXT_PROTOTYPES
+/** \endcond */
 #endif
 
 #if defined(USE_LD)
@@ -25,18 +29,35 @@
 #include "GL/glu.h"
 #include "SDL/SDL.h"
 #else
+#if defined(DNLOAD_VIDEOCORE)
+#include "bcm_host.h"
+#endif
+#if defined(DNLOAD_GLESV2)
+#include "EGL/egl.h"
+#include "EGL/eglext.h"
+#include "GLES2/gl2.h"
+#include "GLES2/gl2ext.h"
+#else
 #include "GL/glew.h"
 #include "GL/glu.h"
+#endif
 #include "SDL.h"
 #endif
 #include "bsd_rand.h"
 #else
-/** \cond */
-#define GL_GLEXT_PROTOTYPES
-/** \endcond */
+#if defined(DNLOAD_VIDEOCORE)
+#include "bcm_host.h"
+#endif
+#if defined(DNLOAD_GLESV2)
+#include "EGL/egl.h"
+#include "EGL/eglext.h"
+#include "GLES2/gl2.h"
+#include "GLES2/gl2ext.h"
+#else
 #include "GL/gl.h"
 #include "GL/glext.h"
 #include "GL/glu.h"
+#endif
 #include "SDL.h"
 #endif
 
@@ -50,6 +71,14 @@
 #define DNLOAD_MACRO_STR_HELPER(op) #op
 /** Macro stringification. */
 #define DNLOAD_MACRO_STR(op) DNLOAD_MACRO_STR_HELPER(op)
+
+#if defined(DNLOAD_GLESV2)
+/** Apientry definition (OpenGL ES 2.0). */
+#define DNLOAD_APIENTRY GL_APIENTRY
+#else
+/** Apientry definition (OpenGL). */
+#define DNLOAD_APIENTRY GLAPIENTRY
+#endif
 
 #if (defined(_LP64) && _LP64) || (defined(__LP64__) && __LP64__)
 /** Size of pointer in bytes (64-bit). */
@@ -128,6 +157,7 @@ void _start() __attribute__((externally_visible));
 #define dnload_glProgramUniform3fv glProgramUniform3fv
 #define dnload_glRects glRects
 #define dnload_SDL_GL_SwapBuffers SDL_GL_SwapBuffers
+#define dnload_rand bsd_rand
 /** \endcond */
 #else
 /** \cond */
@@ -145,6 +175,7 @@ void _start() __attribute__((externally_visible));
 #define dnload_glProgramUniform3fv g_symbol_table.glProgramUniform3fv
 #define dnload_glRects g_symbol_table.glRects
 #define dnload_SDL_GL_SwapBuffers g_symbol_table.SDL_GL_SwapBuffers
+#define dnload_rand g_symbol_table.rand
 /** \endcond */
 #endif
 
@@ -155,36 +186,38 @@ void _start() __attribute__((externally_visible));
  */
 static struct SymbolTableStruct
 {
-  void (GLAPIENTRY *glUseProgramStages)(GLuint, GLbitfield, GLuint);
-  void (GLAPIENTRY *glBindProgramPipeline)(GLuint);
+  void (DNLOAD_APIENTRY *glUseProgramStages)(GLuint, GLbitfield, GLuint);
+  void (DNLOAD_APIENTRY *glBindProgramPipeline)(GLuint);
   void (*SDL_PauseAudio)(int);
   SDL_Surface* (*SDL_SetVideoMode)(int, int, int, Uint32);
   int (*SDL_OpenAudio)(SDL_AudioSpec*, SDL_AudioSpec*);
   int (*SDL_PollEvent)(SDL_Event*);
   int (*SDL_Init)(Uint32);
-  void (GLAPIENTRY *glGenProgramPipelines)(GLsizei, GLuint*);
+  void (DNLOAD_APIENTRY *glGenProgramPipelines)(GLsizei, GLuint*);
   void (*SDL_Quit)(void);
-  GLuint (GLAPIENTRY *glCreateShaderProgramv)(GLenum, GLsizei, const char**);
+  GLuint (DNLOAD_APIENTRY *glCreateShaderProgramv)(GLenum, GLsizei, const char**);
   int (*SDL_ShowCursor)(int);
-  void (GLAPIENTRY *glProgramUniform3fv)(GLuint, GLint, GLsizei, const GLfloat*);
-  void (GLAPIENTRY *glRects)(GLshort, GLshort, GLshort, GLshort);
+  void (DNLOAD_APIENTRY *glProgramUniform3fv)(GLuint, GLint, GLsizei, const GLfloat*);
+  void (DNLOAD_APIENTRY *glRects)(GLshort, GLshort, GLshort, GLshort);
   void (*SDL_GL_SwapBuffers)(void);
+  int (*rand)(void);
 } g_symbol_table =
 {
-  (void (GLAPIENTRY *)(GLuint, GLbitfield, GLuint))0x212d8ad7,
-  (void (GLAPIENTRY *)(GLuint))0x2386bc04,
+  (void (DNLOAD_APIENTRY *)(GLuint, GLbitfield, GLuint))0x212d8ad7,
+  (void (DNLOAD_APIENTRY *)(GLuint))0x2386bc04,
   (void (*)(int))0x29f14a4,
   (SDL_Surface* (*)(int, int, int, Uint32))0x39b85060,
   (int (*)(SDL_AudioSpec*, SDL_AudioSpec*))0x46fd70c8,
   (int (*)(SDL_Event*))0x64949d97,
   (int (*)(Uint32))0x70d6574,
-  (void (GLAPIENTRY *)(GLsizei, GLuint*))0x75e35418,
+  (void (DNLOAD_APIENTRY *)(GLsizei, GLuint*))0x75e35418,
   (void (*)(void))0x7eb657f3,
-  (GLuint (GLAPIENTRY *)(GLenum, GLsizei, const char**))0xa4fd03d8,
+  (GLuint (DNLOAD_APIENTRY *)(GLenum, GLsizei, const char**))0xa4fd03d8,
   (int (*)(int))0xb88bf697,
-  (void (GLAPIENTRY *)(GLuint, GLint, GLsizei, const GLfloat*))0xc969d24e,
-  (void (GLAPIENTRY *)(GLshort, GLshort, GLshort, GLshort))0xd419e20a,
+  (void (DNLOAD_APIENTRY *)(GLuint, GLint, GLsizei, const GLfloat*))0xc969d24e,
+  (void (DNLOAD_APIENTRY *)(GLshort, GLshort, GLshort, GLshort))0xd419e20a,
   (void (*)(void))0xda43e6ea,
+  (int (*)(void))0xe83af065,
 };
 #endif
 
@@ -422,7 +455,7 @@ static void* dnload_find_symbol(uint32_t hash)
 static void dnload(void)
 {
   unsigned ii;
-  for(ii = 0; (14 > ii); ++ii)
+  for(ii = 0; (15 > ii); ++ii)
   {
     void **iter = ((void**)&g_symbol_table) + ii;
     *iter = dnload_find_symbol(*(uint32_t*)iter);

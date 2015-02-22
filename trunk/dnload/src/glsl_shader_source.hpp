@@ -3,7 +3,11 @@
 
 #include <sstream>
 
+#if defined(DNLOAD_GLESV2)
+#include "GLES2/gl2.h"
+#else
 #include "GL/glew.h"
+#endif
 
 /** \brief Shader parse.
  *
@@ -67,6 +71,20 @@ class GlslShaderSource
      * \return Program info log.
      */
     static std::string get_program_info_log(GLuint op);
+
+    /** \brief Get program link status.
+     *
+     * \param op Program id.
+     * \return True if linked successfully, false otherwise.
+     */
+    static bool get_program_link_status(GLuint op);
+
+    /** \brief Get shader compile status.
+     *
+     * \param op Shader id.
+     * \return True if compiled successfully, false otherwise.
+     */
+    static bool get_shader_compile_status(GLuint op);
 
     /** \brief Get shader info log.
      *

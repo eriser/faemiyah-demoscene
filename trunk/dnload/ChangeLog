@@ -1,3 +1,6 @@
+r1?? (2015-??-??)
+  * Better Raspberry Pi support via VideoCore / EGL specifics.
+
 r193 (2015-02-11)
   * Raspberry Pi (Linux-armel) support.
   * Bugfixes (works on Python 3 again).
