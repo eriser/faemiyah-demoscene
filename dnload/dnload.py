@@ -1917,9 +1917,11 @@ library_definition_egl = LibraryDefinition("EGL", (
 library_definition_gl = LibraryDefinition(PlatformVar("gl_library"), (
   ("void", "glActiveTexture", "GLenum"),
   ("void", "glAttachShader", "GLuint", "GLuint"),
+  ("void", "glBindBuffer", "GLenum", "GLuint"),
   ("void", "glBindFramebuffer", "GLenum", "GLuint"),
   ("void", "glBindProgramPipeline", "GLuint"),
   ("void", "glBindTexture", "GLenum", "GLuint"),
+  ("void", "glBufferData", "GLenum", "GLsizeiptr", "const GLvoid*", "GLenum"),
   ("void", "glClear", "GLbitfield"),
   ("void", "glClearColor", "GLclampf", "GLclampf", "GLclampf", "GLclampf"),
   ("void", "glCompileShader", "GLuint"),
