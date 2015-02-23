@@ -1886,10 +1886,12 @@ class LibraryDefinition:
     return str(self.__name)
 
 library_definition_c = LibraryDefinition("c", (
+  ("void", "free", "void*"),
   ("void*", "malloc", "size_t"),
   ("void*", "memset", "void*", "int", "size_t"),
   ("int", "printf", "const char* __restrict", "..."),
   ("int", "puts", "const char*"),
+  ("void*", "realloc", "void*", "size_t"),
   ("unsigned", "sleep", "unsigned"),
   ("int", ("rand", "bsd_rand")),
   ("void", ("srand", "bsd_srand"), "unsigned int"),
@@ -1975,8 +1977,11 @@ library_definition_glu = LibraryDefinition("GLU", (
 library_definition_m = LibraryDefinition("m", (
   ("double", "acos", "double"),
   ("float", "acosf", "float"),
+  ("float", "cosf", "float"),
   ("float", "powf", "float", "float"),
-  ("float", "tanhf", "float")
+  ("float", "sinf", "float"),
+  ("float", "tanf", "float"),
+  ("float", "tanhf", "float"),
   ))
 library_definition_sdl = LibraryDefinition("SDL", (
   ("uint32_t", "SDL_GetTicks"),
@@ -2065,8 +2070,10 @@ template_header_begin = """#ifndef DNLOAD_H
 #endif\n
 #if defined(__cplusplus)
 #include <cmath>
+#include <cstdlib>
 #else
 #include <math.h>
+#include <stdlib.h>
 #endif\n
 /** Macro stringification helper (adds indirection). */
 #define DNLOAD_MACRO_STR_HELPER(op) #op
