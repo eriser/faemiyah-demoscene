@@ -1982,6 +1982,7 @@ library_definition_m = LibraryDefinition("m", (
   ("float", "cosf", "float"),
   ("float", "powf", "float", "float"),
   ("float", "sinf", "float"),
+  ("float", "sqrtf", "float"),
   ("float", "tanf", "float"),
   ("float", "tanhf", "float"),
   ))
