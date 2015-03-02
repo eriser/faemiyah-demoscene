@@ -81,6 +81,7 @@ class PlatformVar:
 g_platform_mapping = {
   "amd64" : "64-bit",
   "armel" : "32-bit",
+  "armv6l" : "armel",
   "armv7l" : "armel",
   "freebsd" : "FreeBSD",
   "i386" : "ia32",
@@ -1924,6 +1925,7 @@ library_definition_gl = LibraryDefinition(PlatformVar("gl_library"), (
   ("void", "glBufferData", "GLenum", "GLsizeiptr", "const GLvoid*", "GLenum"),
   ("void", "glClear", "GLbitfield"),
   ("void", "glClearColor", "GLclampf", "GLclampf", "GLclampf", "GLclampf"),
+  ("void", "glClearDepthf", "GLclampf"),
   ("void", "glCompileShader", "GLuint"),
   ("GLuint", "glCreateProgram"),
   ("GLuint", "glCreateShader", "GLenum"),
@@ -1931,6 +1933,7 @@ library_definition_gl = LibraryDefinition(PlatformVar("gl_library"), (
   ("void", "glDisable", "GLenum"),
   ("void", "glDisableVertexAttribArray", "GLuint"),
   ("void", "glDrawArrays", "GLenum", "GLint", "GLsizei"),
+  ("void", "glDrawElements", "GLenum", "GLsizei", "GLenum", "const GLvoid*"),
   ("void", "glEnable", "GLenum"),
   ("void", "glEnableVertexAttribArray", "GLuint"),
   ("void", "glFramebufferTexture2D", "GLenum", "GLenum", "GLenum", "GLuint", "GLint"),
@@ -1970,6 +1973,7 @@ library_definition_gl = LibraryDefinition(PlatformVar("gl_library"), (
   ("void", "glUniform3fv", "GLint", "GLsizei", "const GLfloat*"),
   ("void", "glUniform4fv", "GLint", "GLsizei", "const GLfloat*"),
   ("void", "glUniformMatrix3fv", "GLint", "GLsizei", "GLboolean", "const GLfloat*"),
+  ("void", "glUniformMatrix4fv", "GLint", "GLsizei", "GLboolean", "const GLfloat*"),
   ("void", "glVertexAttribPointer", "GLuint", "GLint", "GLenum", "GLboolean", "GLsizei", "const GLvoid*"),
   ("void", "glViewport", "GLint", "GLint", "GLsizei", "GLsizei"),
   ))
