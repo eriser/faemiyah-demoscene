@@ -1903,6 +1903,7 @@ library_definition_bcm_host = LibraryDefinition("bcm_host", (
   ("DISPMANX_ELEMENT_HANDLE_T", "vc_dispmanx_element_add", "DISPMANX_UPDATE_HANDLE_T", "DISPMANX_DISPLAY_HANDLE_T", "int32_t", "const VC_RECT_T*", "DISPMANX_RESOURCE_HANDLE_T", "const VC_RECT_T*", "DISPMANX_PROTECTION_T", "VC_DISPMANX_ALPHA_T*", "DISPMANX_CLAMP_T*", "DISPMANX_TRANSFORM_T"),
   ("DISPMANX_UPDATE_HANDLE_T", "vc_dispmanx_update_start", "int32_t"),
   ("int", "vc_dispmanx_update_submit_sync", "DISPMANX_UPDATE_HANDLE_T"),
+  ("int32_t", "graphics_get_display_size", "const uint16_t", "uint32_t*", "uint32_t*"),
   ))
 library_definition_egl = LibraryDefinition("EGL", (
   ("EGLBoolean", "eglChooseConfig", "EGLDisplay", "EGLint const*", "EGLConfig*", "EGLint", "EGLint*"),
