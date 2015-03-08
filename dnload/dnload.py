@@ -2000,6 +2000,7 @@ library_definition_sdl = LibraryDefinition("SDL", (
   ("SDL_Thread*", "SDL_CreateThread", "int (*)(void*)", "void*"),
   ("int", "SDL_CondSignal", "SDL_cond*"),
   ("int", "SDL_CondWait", "SDL_cond*", "SDL_mutex*"),
+  ("void", "SDL_Delay", "Uint32"),
   ("void", "SDL_DestroyCond", "SDL_cond*"),
   ("void", "SDL_DestroyMutex", "SDL_mutex*"),
   ("int", "SDL_mutexP", "SDL_mutex*"),
