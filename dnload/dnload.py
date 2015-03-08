@@ -1995,6 +1995,14 @@ library_definition_m = LibraryDefinition("m", (
   ("float", "tanhf", "float"),
   ))
 library_definition_sdl = LibraryDefinition("SDL", (
+  ("SDL_cond*", "SDL_CreateCond"),
+  ("SDL_mutex*", "SDL_CreateMutex"),
+  ("int", "SDL_CondSignal", "SDL_cond*"),
+  ("int", "SDL_CondWait", "SDL_cond*", "SDL_mutex*"),
+  ("void", "SDL_DestroyCond", "SDL_cond*"),
+  ("void", "SDL_DestroyMutex", "SDL_mutex*"),
+  ("int", "SDL_mutexP", "SDL_mutex*"),
+  ("int", "SDL_mutexV", "SDL_mutex*"),
   ("uint32_t", "SDL_GetTicks"),
   ("void", "SDL_GL_SwapBuffers"),
   ("int", "SDL_Init", "Uint32"),
