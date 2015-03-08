@@ -1997,6 +1997,7 @@ library_definition_m = LibraryDefinition("m", (
 library_definition_sdl = LibraryDefinition("SDL", (
   ("SDL_cond*", "SDL_CreateCond"),
   ("SDL_mutex*", "SDL_CreateMutex"),
+  ("SDL_Thread*", "SDL_CreateThread", "int (*)(void*)", "void*"),
   ("int", "SDL_CondSignal", "SDL_cond*"),
   ("int", "SDL_CondWait", "SDL_cond*", "SDL_mutex*"),
   ("void", "SDL_DestroyCond", "SDL_cond*"),
@@ -2012,6 +2013,7 @@ library_definition_sdl = LibraryDefinition("SDL", (
   ("void", "SDL_Quit"),
   ("SDL_Surface*", "SDL_SetVideoMode", "int", "int", "int", "Uint32"),
   ("int", "SDL_ShowCursor", "int"),
+  ("void", "SDL_WaitThread", "SDL_Thread*", "int*"),
   ))
 
 library_definitions = [
