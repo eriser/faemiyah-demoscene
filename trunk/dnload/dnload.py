@@ -1892,6 +1892,7 @@ library_definition_c = LibraryDefinition("c", (
   ("void*", "memset", "void*", "int", "size_t"),
   ("int", "printf", "const char* __restrict", "..."),
   ("int", "puts", "const char*"),
+  ("void", "qsort", "void*", "size_t", "size_t", "int (*)(const void*, const void*)"),
   ("void*", "realloc", "void*", "size_t"),
   ("unsigned", "sleep", "unsigned"),
   ("int", ("rand", "bsd_rand")),
