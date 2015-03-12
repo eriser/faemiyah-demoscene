@@ -2057,8 +2057,8 @@ template_header_begin = """#ifndef DNLOAD_H
 #include \"SDL.h\"
 #elif defined(__APPLE__)
 #include \"GL/glew.h\"
-#include \"GL/glu.h\"
-#include \"SDL/SDL.h\"
+#include <OpenGL/glu.h>
+#include <SDL/SDL.h>
 #else
 #if defined(DNLOAD_VIDEOCORE)
 #include "bcm_host.h"
@@ -2085,11 +2085,21 @@ template_header_begin = """#ifndef DNLOAD_H
 #include \"GLES2/gl2.h\"
 #include \"GLES2/gl2ext.h\"
 #else
+#ifdef __APPLE__
+#include <OpenGL/gl.h>
+#include <OpenGL/glext.h>
+#include <OpenGL/glu.h>
+#else
 #include \"GL/gl.h\"
 #include \"GL/glext.h\"
 #include \"GL/glu.h\"
 #endif
+#endif
+#ifdef __APPLE__
+#include <SDL/sdl.h>
+#else
 #include \"SDL.h\"
+#endif
 #endif\n
 #if defined(__cplusplus)
 #include <cmath>
